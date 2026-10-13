@@ -59,7 +59,12 @@ private class StoryVerificationServiceTest {
     }
 
     private static void addCommitAndMetadata(Id storyId) {
-        insert new copado__User_Story_Commit__c(Name = 'SV commit', copado__User_Story__c = storyId);
+        // A commit needs a snapshot commit, which needs a credential (copado__Org__c)
+        copado__Org__c credential = new copado__Org__c(Name = 'SV credential');
+        insert credential;
+        copado__Git_Org_Commit__c snapshot = new copado__Git_Org_Commit__c(copado__Org__c = credential.Id, copado__Status__c = 'Complete');
+        insert snapshot;
+        insert new copado__User_Story_Commit__c(Name = 'SV commit', copado__User_Story__c = storyId, copado__Snapshot_Commit__c = snapshot.Id);
         insert new copado__User_Story_Metadata__c(
             Name = 'SV metadata',
             copado__User_Story__c = storyId,

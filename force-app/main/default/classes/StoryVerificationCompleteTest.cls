@@ -126,6 +126,7 @@ private class StoryVerificationCompleteTest {
             insert step;
             insert new copado__Result__c(
                 copado__JobStep__c = step.Id,
+                copado__Job_Type__c = 'Integration',
                 copado__Result_Data__c = '{"runId":"je-run-3","status":"Clean","details":"INFO: from result"}'
             );
 
