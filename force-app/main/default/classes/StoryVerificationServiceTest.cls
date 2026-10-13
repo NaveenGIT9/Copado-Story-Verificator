@@ -639,7 +639,7 @@ private class StoryVerificationServiceTest {
             copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
             update new copado__User_Story__c(Id = parent.Id, copado__Status__c = 'In Progress', copado__Environment__c = parentEnv.Id);
-            // The relationship type picklist values were not confirmed, so none is set: the label is plain "via dependency".
+            // Copado fills in the relationship type itself (default 'relates to'), so the label is 'via dependency (<type>)'.
             insert new copado__Team_Dependency__c(
                 copado__Dependent_User_Story__c = story.Id,
                 copado__Provider_User_Story__c = parent.Id
@@ -655,7 +655,7 @@ private class StoryVerificationServiceTest {
             String message = String.valueOf(found.get('message'));
             System.assertEquals('issue', found.get('severity'), message);
             System.assertEquals('parent-dependencies', found.get('group'));
-            System.assert(message.contains('(via dependency)'), message);
+            System.assert(message.contains('(via dependency'), message);
             System.assert(message.contains('is in SV parent env'), message);
             System.assert(message.contains('has not been promoted yet'), message);
             System.assert(!findingLines(stub.requests[0]).contains(NO_PARENTS_FINDING));
@@ -668,7 +668,8 @@ private class StoryVerificationServiceTest {
         System.runAs(admin) {
             copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
-            update new copado__User_Story__c(Id = parent.Id, copado__Status__c = 'Completed');
+            // Not Completed: Copado treats a dependency on a Completed parent as skipped (read-only copado__Skip_Dependency__c).
+            update new copado__User_Story__c(Id = parent.Id, copado__Status__c = 'In Progress');
             update new copado__User_Story__c(Id = story.Id, copado__Base_Branch__c = 'feature/' + parent.Name);
             insert new copado__Team_Dependency__c(
                 copado__Dependent_User_Story__c = story.Id,
@@ -689,8 +690,8 @@ private class StoryVerificationServiceTest {
                 }
             }
             System.assertEquals(1, parentLines, String.valueOf(findingLines(stub.requests[0])));
-            System.assert(parentMessage.contains('(via base branch and via dependency)'), parentMessage);
-            System.assert(parentMessage.startsWith('info|'), parentMessage);
+            System.assert(parentMessage.contains('(via base branch and via dependency'), parentMessage);
+            System.assert(parentMessage.startsWith('issue|'), parentMessage); // no environment and no pipeline: fallback rule, not promoted
         }
     }
 
