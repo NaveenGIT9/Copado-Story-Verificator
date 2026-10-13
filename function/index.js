@@ -77,8 +77,13 @@ function redact(text) {
 }
 
 function errMsg(e) {
-    const text = (e && e.stderr ? str(e.stderr).trim() : "") || (e && e.message) || str(e);
-    return clip(redact(text).replace(/\s+/g, " "), 400);
+    const text = redact((e && e.stderr ? str(e.stderr).trim() : "") || (e && e.message) || str(e));
+    // A traceback names the real reason on its last lines, so keep the end of it, not the start.
+    if (/Traceback \(most recent call last\)/.test(text)) {
+        const tail = text.split("\n").map((l) => l.trim()).filter(Boolean).slice(-2).join(" | ");
+        return clip(tail.replace(/\s+/g, " "), 400);
+    }
+    return clip(text.replace(/\s+/g, " "), 400);
 }
 
 function run(cmd, args, timeoutMs) {
