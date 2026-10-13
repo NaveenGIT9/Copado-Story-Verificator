@@ -33,7 +33,6 @@
     <types>
         <members>Copado_Story_Verification_Bypass</members>
         <members>Copado_Story_Verification_User</members>
-        <members>Copado_Story_Verification_Writer</members>
         <name>PermissionSet</name>
     </types>
     <types>
