@@ -288,6 +288,12 @@ function checkOrgMerge(ctx) {
         const lines = found.map((f) => "merged " + f.branch + " in commit " + f.sha).concat(notes);
         return mk(id, "fail", "Environment branch merged into the feature branch: " + uniq(found.map((f) => f.branch)).join(", "), lines);
     }
+    // A pass must mean something was compared: when none of the pipeline's environment branches exist on the remote
+    // (other than the base branch, which is always allowed to be merged), say so instead of reporting a clean pass.
+    const comparable = Array.from(ctx.envOk.values()).filter((b) => b.toLowerCase() !== ctx.base.toLowerCase());
+    if (comparable.length === 0) {
+        return mk(id, "warn", "Could not compare: none of the pipeline's environment branches exist on the remote", notes);
+    }
     return mk(id, "pass", "No environment branch was merged into the feature branch", notes);
 }
 

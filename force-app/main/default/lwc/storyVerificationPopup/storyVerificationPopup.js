@@ -10,11 +10,6 @@ const TIMEOUT_TEXT = 'Still running. You can close this window; open the story l
 const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
 
-const BANNER_CLASS = {
-    Clean: 'slds-notify slds-notify_alert slds-theme_success',
-    Issues: 'slds-notify slds-notify_alert slds-theme_warning',
-    Failed: 'slds-notify slds-notify_alert slds-theme_error'
-};
 
 // The three git checks run by the Copado Function, in display order (ids match function/index.js).
 const GIT_CHECKS = [
@@ -382,26 +377,18 @@ export default class StoryVerificationPopup extends LightningElement {
         });
     }
 
-    get bannerClass() {
-        return (BANNER_CLASS[this.status] || BANNER_CLASS.Failed) + ' slds-m-top_small';
-    }
-
-    get whyLines() {
-        const lines = [];
-        const details = (this.snapshot && this.snapshot.details) || [];
-        const jobError = this.snapshot && this.snapshot.jobError;
-        if (this.status === 'Failed' && jobError && !details.some((line) => line.includes(jobError))) {
-            lines.push('Job error: ' + jobError);
+    // The heading carries the verdict: green for Clean, amber for Issues, red for Failed.
+    get stateClass() {
+        const base = 'slds-text-heading_small';
+        if (!this.isFinished) {
+            return base;
         }
-        details.forEach((line) => lines.push(line));
-        const visible = lines.filter((line) => line.trim() !== '');
-        if (visible.length === 0) {
-            visible.push('No further details were recorded.');
+        if (this.status === 'Clean') {
+            return base + ' slds-text-color_success';
         }
-        return visible.map((text, index) => ({
-            key: 'why-' + index,
-            text,
-            cls: text.startsWith('ISSUE:') ? 'slds-text-title_bold slds-text-color_error' : ''
-        }));
+        if (this.status === 'Issues') {
+            return base + ' state-issues';
+        }
+        return base + ' slds-text-color_error';
     }
 }

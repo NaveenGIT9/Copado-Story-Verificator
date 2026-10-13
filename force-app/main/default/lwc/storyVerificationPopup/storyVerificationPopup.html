@@ -12,7 +12,7 @@
                     <lightning-spinner size="x-small" alternative-text="Verification in progress"></lightning-spinner>
                 </span>
             </template>
-            <p class="slds-text-heading_small" aria-live="polite" data-id="state">{stateText}</p>
+            <p class={stateClass} aria-live="polite" data-id="state">{stateText}</p>
         </div>
 
         <ul class="slds-m-bottom_small" data-id="steps">
@@ -81,22 +81,11 @@
         </template>
 
         <template lwc:if={isFinished}>
-            <div class={bannerClass} role="status" data-id="banner">
-                <strong>{status}</strong>
-            </div>
             <template lwc:if={failureText}>
                 <div class="slds-box slds-box_small slds-theme_error slds-m-top_small" role="alert" data-id="failure">
                     {failureText}
                 </div>
             </template>
-            <div class="slds-m-top_small" data-id="why-section">
-                <p class="slds-text-title_bold">Why:</p>
-                <ul data-id="why">
-                    <template for:each={whyLines} for:item="line">
-                        <li key={line.key} class={line.cls}>{line.text}</li>
-                    </template>
-                </ul>
-            </div>
         </template>
 
         <div slot="footer">

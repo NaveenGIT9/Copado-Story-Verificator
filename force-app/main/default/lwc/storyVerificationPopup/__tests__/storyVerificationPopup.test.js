@@ -169,7 +169,7 @@ describe('c-story-verification-popup', () => {
         expect(steps[3]).toContain('Unregistered commits: pending');
         expect(steps[4]).toContain('Metadata coverage: pending');
         expect(steps[5]).toContain('Org/environment branch merge: pending');
-        expect(byId(element, 'banner')).toBeNull();
+        expect(byId(element, 'state').textContent).not.toContain('finished');
 
         await tick();
         expect(getProgress).toHaveBeenCalledWith({ storyId: STORY_ID, runId: RUN_ID });
@@ -177,10 +177,11 @@ describe('c-story-verification-popup', () => {
 
         await tick();
         expect(getProgress).toHaveBeenCalledTimes(2);
-        const banner = byId(element, 'banner');
-        expect(banner.textContent).toContain('Clean');
-        expect(banner.className).toContain('slds-theme_success');
-        expect(byId(element, 'why').textContent).toContain('INFO: all good');
+        const verdict = byId(element, 'state');
+        expect(verdict.textContent).toBe('Verification finished: Clean');
+        expect(verdict.className).toContain('slds-text-color_success');
+        expect(byId(element, 'banner')).toBeNull();
+        expect(byId(element, 'why-section')).toBeNull();
         expect(byId(element, 'state-spinner')).toBeNull();
         expect(byId(element, 'retry')).not.toBeNull();
         expect(jest.getTimerCount()).toBe(0);
@@ -189,7 +190,7 @@ describe('c-story-verification-popup', () => {
         expect(getProgress).toHaveBeenCalledTimes(2);
     });
 
-    it('shows the why lines for a final Issues result and emphasises ISSUE lines', async () => {
+    it('shows an amber Issues verdict in the heading and no banner or repeated Why block', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(
             snapshot({
@@ -204,14 +205,12 @@ describe('c-story-verification-popup', () => {
         await flush();
         await tick();
 
-        const banner = byId(element, 'banner');
-        expect(banner.textContent).toContain('Issues');
-        expect(banner.className).toContain('slds-theme_warning');
-        const lines = element.shadowRoot.querySelectorAll('[data-id="why"] li');
-        expect(lines).toHaveLength(2);
-        expect(lines[0].textContent).toBe('ISSUE: No metadata is selected on this story.');
-        expect(lines[0].className).toContain('slds-text-color_error');
-        expect(lines[1].className).not.toContain('slds-text-color_error');
+        const verdict = byId(element, 'state');
+        expect(verdict.textContent).toBe('Verification finished: Issues');
+        expect(verdict.className).toContain('state-issues');
+        expect(byId(element, 'banner')).toBeNull();
+        expect(byId(element, 'why-section')).toBeNull();
+        expect(byId(element, 'failure')).toBeNull();
     });
 
     it('shows the job error for a Failed result', async () => {
@@ -230,10 +229,10 @@ describe('c-story-verification-popup', () => {
         await flush();
         await tick();
 
-        const banner = byId(element, 'banner');
-        expect(banner.textContent).toContain('Failed');
-        expect(banner.className).toContain('slds-theme_error');
-        expect(byId(element, 'why').textContent).toContain('Function exited with code 1');
+        const verdict = byId(element, 'state');
+        expect(verdict.textContent).toBe('Verification finished: Failed');
+        expect(verdict.className).toContain('slds-text-color_error');
+        expect(byId(element, 'failure').textContent).toContain('Function exited with code 1');
         expect(stepTexts(element).some((text) => text.includes('Verification job in Copado: failed'))).toBe(true);
     });
 
@@ -246,7 +245,7 @@ describe('c-story-verification-popup', () => {
         await tick();
 
         expect(byId(element, 'state').textContent).toContain('newer verification run');
-        expect(byId(element, 'banner')).toBeNull();
+        expect(byId(element, 'state').textContent).not.toContain('Verification finished');
         expect(jest.getTimerCount()).toBe(0);
         await tick(10000);
         expect(getProgress).toHaveBeenCalledTimes(1);
@@ -355,13 +354,13 @@ describe('c-story-verification-popup', () => {
         const element = mount();
         await flush();
         await tick();
-        expect(byId(element, 'banner')).not.toBeNull();
+        expect(byId(element, 'state').textContent).toContain('Verification finished');
 
         byId(element, 'retry').click();
         await flush();
 
         expect(start).toHaveBeenCalledTimes(2);
-        expect(byId(element, 'banner')).toBeNull();
+        expect(byId(element, 'state').textContent).not.toContain('Verification finished');
         expect(byId(element, 'state-spinner')).not.toBeNull();
 
         await tick();
@@ -502,7 +501,7 @@ describe('c-story-verification-popup', () => {
         const org = stepRow(element, 'Org/environment branch merge');
         expect(org.querySelector('lightning-icon').iconName).toBe('utility:warning');
         expect(org.querySelector('lightning-icon').variant).toBe('warning');
-        expect(byId(element, 'banner').textContent).toContain('Issues');
+        expect(byId(element, 'state').textContent).toContain('Issues');
     });
 
     it('expands fail and warn checks by default and collapses pass checks', async () => {
@@ -585,7 +584,7 @@ describe('c-story-verification-popup', () => {
             details: ['Verification job failed: Could not clone the repository']
         });
 
-        expect(byId(element, 'banner').className).toContain('slds-theme_error');
+        expect(byId(element, 'state').className).toContain('slds-text-color_error');
         expect(byId(element, 'failure').textContent).toContain('Could not clone the repository');
         const row = stepRow(element, 'Unregistered commits');
         expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
