@@ -20,3 +20,7 @@
 .state-issues {
     color: #b45309;
 }
+
+.failure-text {
+    white-space: pre-line;
+}

@@ -443,7 +443,11 @@ export default class StoryVerificationPopup extends LightningElement {
         if (jobError) {
             return jobError;
         }
-        return (this.snapshot.details || []).filter((line) => line.trim() !== '').join(' ');
+        const details = (this.snapshot.details || []).filter((line) => line.trim() !== '');
+        // The reason is carried by the NOTE lines (why the git checks could not run); showing the whole details text would
+        // repeat every check result in one block.
+        const notes = details.filter((line) => /^NOTE:/i.test(line)).map((line) => line.replace(/^NOTE:\s*/i, ''));
+        return (notes.length > 0 ? notes : details).join('\n');
     }
 
     jobStep() {

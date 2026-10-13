@@ -722,6 +722,28 @@ describe('c-story-verification-popup', () => {
         expect(row.querySelector('lightning-icon').iconName).toBe('utility:dash');
     });
 
+    it('shows only the reason (the NOTE lines) in the failure box, not the whole details text', async () => {
+        const element = await mountFinished([], {
+            status: 'Failed',
+            jobStatus: 'Successful',
+            jobError: null,
+            details: [
+                'NOTE: No base branch was found on the remote (tried: feature/US-1, main, master).',
+                'ISSUE: Not approved yet.',
+                'INFO: None pending.',
+                'Unregistered commits: SKIPPED — Not run: branches not available'
+            ]
+        });
+
+        const text = byId(element, 'failure').textContent;
+        expect(text).toContain('No base branch was found on the remote');
+        expect(text).not.toContain('NOTE:');
+        expect(text).not.toContain('ISSUE:');
+        expect(text).not.toContain('INFO:');
+        expect(text).not.toContain('SKIPPED');
+        expect(byId(element, 'failure').className).toContain('failure-text');
+    });
+
     it('shows the failure text from the details when there is no job error', async () => {
         const element = await mountFinished([], {
             status: 'Failed',
