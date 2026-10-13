@@ -344,10 +344,10 @@ private class StoryVerificationServiceTest {
 
         StoryVerificationService.shrinkToFit(story, 'run-big', inputs);
 
-        String json = JSON.serialize(
+        String dataText = JSON.serialize(
             StoryVerificationService.buildData(story, 'run-big', inputs, new List<Map<String, String>>())
         );
-        System.assert(json.length() <= 90000, 'DataJson is ' + json.length() + ' characters');
+        System.assert(dataText.length() <= 90000, 'DataJson is ' + dataText.length() + ' characters');
         System.assertEquals(true, inputs.truncated);
         System.assert(inputs.registeredCommits.size() < 2000);
     }

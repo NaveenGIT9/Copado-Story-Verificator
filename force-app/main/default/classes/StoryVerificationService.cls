@@ -228,8 +228,8 @@ public with sharing class StoryVerificationService {
     private static void shrinkToFit(copado__User_Story__c story, String runId, GitInputs inputs) {
         for (Integer cap : LIST_CAPS) {
             inputs.limitTo(cap);
-            String json = JSON.serialize(buildData(story, runId, inputs, new List<Map<String, String>>()));
-            if (json.length() <= MAX_DATA_JSON_LENGTH) {
+            String dataText = JSON.serialize(buildData(story, runId, inputs, new List<Map<String, String>>()));
+            if (dataText.length() <= MAX_DATA_JSON_LENGTH) {
                 return;
             }
         }
@@ -598,12 +598,12 @@ public with sharing class StoryVerificationService {
         } else {
             payload.put('salesforceFindings', new List<Object>());
         }
-        String json = JSON.serialize(payload);
-        if (json.length() <= MAX_CHECKS_LENGTH) {
-            return json;
+        String checksText = JSON.serialize(payload);
+        if (checksText.length() <= MAX_CHECKS_LENGTH) {
+            return checksText;
         }
-        json = JSON.serialize(new Map<String, Object>{ 'checks' => checks });
-        return json.length() <= MAX_CHECKS_LENGTH ? json : null;
+        checksText = JSON.serialize(new Map<String, Object>{ 'checks' => checks });
+        return checksText.length() <= MAX_CHECKS_LENGTH ? checksText : null;
     }
 
     // The Function's result is not reliably returned through Copado, but a Clean verdict must never be produced without the
@@ -691,8 +691,8 @@ public with sharing class StoryVerificationService {
         return null;
     }
 
-    private static String extractRunId(String json) {
-        Map<String, Object> parsed = parseResult(json);
+    private static String extractRunId(String jsonText) {
+        Map<String, Object> parsed = parseResult(jsonText);
         if (parsed == null || parsed.get('runId') == null) {
             return null;
         }
