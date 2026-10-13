@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <label>Verify</label>
-    <lightningWebComponent>storyVerificationPopup</lightningWebComponent>
+    <flowDefinition>Verify_Story_Screen</flowDefinition>
+    <label>Verify (old)</label>
     <optionsCreateFeedItem>false</optionsCreateFeedItem>
-    <type>LightningWebComponent</type>
+    <type>Flow</type>
 </QuickAction>
