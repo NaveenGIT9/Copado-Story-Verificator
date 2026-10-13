@@ -15,6 +15,8 @@ const ELL = "…";
 const DASH = "—";
 const MAX_JSON = 90000;
 const MAX_ANALYSE = 500;
+const CALL_TIMEOUT_MS = 240000; // no single git call may hang the whole run
+const startedAt = Date.now();
 const AUTO_PREFIXES = [
     "Updated sourceApiVersion from",
     "Clear custom_rulesets in code-analyzer.yml",
@@ -80,6 +82,8 @@ function run(cmd, args) {
     return cp.execFileSync(cmd, args, {
         encoding: "utf8",
         maxBuffer: 256 * 1024 * 1024,
+        timeout: CALL_TIMEOUT_MS,
+        env: Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: "0" }),
         stdio: ["ignore", "pipe", "pipe"]
     });
 }
@@ -111,8 +115,9 @@ function copadoCli(args) {
 }
 
 function progress(text) {
-    console.log(text);
-    copadoCli(["-p", text]);
+    const line = text + " (" + Math.round((Date.now() - startedAt) / 1000) + " s)";
+    console.log(line);
+    copadoCli(["-p", line]);
 }
 
 function emit(json) {
@@ -220,6 +225,70 @@ function resolveBase(cfg) {
         if (fetchBranch(candidates[i], cfg.depth)) return candidates[i];
     }
     return null;
+}
+
+// Every copado-git-get call costs seconds, so the remote branches are listed once and only the existing ones are fetched,
+// in one command. Returns null when the listing is not possible (the caller then falls back to one fetch per branch).
+function listRemoteBranches() {
+    try {
+        const names = new Set();
+        gitG("git ls-remote --heads origin")
+            .split("\n")
+            .forEach((l) => {
+                const m = /\srefs\/heads\/(\S+)\s*$/.exec(l);
+                if (m) names.add(m[1]);
+            });
+        return names.size > 0 ? names : null;
+    } catch (e) {
+        console.log("ls-remote failed, fetching branch by branch: " + errMsg(e));
+        return null;
+    }
+}
+
+function fetchBranches(list, depth) {
+    const safe = list.filter(isSafe);
+    for (let i = 0; i < safe.length; i += 20) {
+        const specs = safe
+            .slice(i, i + 20)
+            .map((b) => "+refs/heads/" + b + ":refs/remotes/origin/" + b)
+            .join(" ");
+        try {
+            gitG("git fetch origin " + specs + " --depth " + depth);
+        } catch (e) {
+            console.log("fetch failed: " + errMsg(e));
+        }
+    }
+}
+
+// Returns { base, envOk, missing } or null when no base branch exists.
+function fetchBranchesForChecks(cfg) {
+    const envOk = new Map();
+    const missing = [];
+    const remote = listRemoteBranches();
+    if (!remote) {
+        const oldBase = resolveBase(cfg);
+        if (!oldBase) return null;
+        cfg.envBranches.forEach((orig, lower) => {
+            if (hasRef("origin/" + orig) || fetchBranch(orig, cfg.depth)) envOk.set(lower, orig);
+            else missing.push(orig);
+        });
+        return { base: oldBase, envOk: envOk, missing: missing };
+    }
+    const base = uniq([cfg.base, "main", "master"].filter(Boolean)).find((c) => remote.has(c)) || null;
+    if (!base) return null;
+    cfg.envBranches.forEach((orig, lower) => {
+        if (remote.has(orig)) envOk.set(lower, orig);
+        else missing.push(orig);
+    });
+    fetchBranches(uniq([base].concat(Array.from(envOk.values()))), cfg.depth);
+    if (!hasRef("origin/" + base)) return null;
+    Array.from(envOk.entries()).forEach((entry) => {
+        if (!hasRef("origin/" + entry[1])) {
+            envOk.delete(entry[0]);
+            missing.push(entry[1]);
+        }
+    });
+    return { base: base, envOk: envOk, missing: missing };
 }
 
 function ensureMergeBase(base, cfg) {
@@ -478,17 +547,14 @@ function main() {
     }
 
     progress("Fetching base and environment branches" + ELL);
-    const base = resolveBase(cfg);
-    if (!base) {
+    const prepared = fetchBranchesForChecks(cfg);
+    if (!prepared) {
         const tried = uniq([cfg.base, "main", "master"].filter(Boolean)).join(", ");
         return finish(cfg, "Failed", ["No base branch was found on the remote (tried: " + tried + ")."], skippedChecks("Not run: base branch not found"));
     }
-    const envOk = new Map();
-    const missing = [];
-    cfg.envBranches.forEach((orig, lower) => {
-        if (hasRef("origin/" + orig) || fetchBranch(orig, cfg.depth)) envOk.set(lower, orig);
-        else missing.push(orig);
-    });
+    const base = prepared.base;
+    const envOk = prepared.envOk;
+    const missing = prepared.missing;
     if (!ensureMergeBase(base, cfg)) {
         const reason = "origin/" + base + " and the feature branch share no common history within the fetched depth, so nothing was verified from git.";
         return finish(cfg, "Failed", [reason], skippedChecks("Skipped: no merge base with origin/" + base));
