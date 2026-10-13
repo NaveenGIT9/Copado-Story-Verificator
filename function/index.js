@@ -16,6 +16,8 @@ const DASH = "—";
 const MAX_JSON = 90000;
 const MAX_ANALYSE = 500;
 const CALL_TIMEOUT_MS = 240000; // no single git call may hang the whole run
+const LIST_TIMEOUT_MS = 60000; // listing branches takes seconds; a call that hangs is retried once
+const CLONE_TIMEOUT_MS = 120000;
 const startedAt = Date.now();
 const AUTO_PREFIXES = [
     "Updated sourceApiVersion from",
@@ -78,11 +80,11 @@ function errMsg(e) {
     return clip(redact(text).replace(/\s+/g, " "), 400);
 }
 
-function run(cmd, args) {
+function run(cmd, args, timeoutMs) {
     return cp.execFileSync(cmd, args, {
         encoding: "utf8",
         maxBuffer: 256 * 1024 * 1024,
-        timeout: CALL_TIMEOUT_MS,
+        timeout: timeoutMs || CALL_TIMEOUT_MS,
         env: Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: "0" }),
         stdio: ["ignore", "pipe", "pipe"]
     });
@@ -102,8 +104,8 @@ function isSafe(b) {
     return /^[A-Za-z0-9._\/-]+$/.test(b) && b.charAt(0) !== "-" && b.indexOf("..") === -1;
 }
 
-function gitG(command) {
-    return run("copado-git-get", ["-g", command]);
+function gitG(command, timeoutMs) {
+    return run("copado-git-get", ["-g", command], timeoutMs);
 }
 
 function copadoCli(args) {
@@ -215,40 +217,27 @@ function hasRef(ref) {
     return tryRun("git", ["rev-parse", "--verify", "--quiet", ref + "^{commit}"]) !== null;
 }
 
-function fetchBranch(b, depth) {
-    if (!isSafe(b)) return false;
-    try {
-        gitG("git fetch origin +refs/heads/" + b + ":refs/remotes/origin/" + b + " --depth " + depth);
-    } catch (e) {
-        console.log("fetch of " + b + " failed: " + errMsg(e));
-    }
-    return hasRef("origin/" + b);
-}
-
-function resolveBase(cfg) {
-    const candidates = uniq([cfg.base, "main", "master"].filter(Boolean));
-    for (let i = 0; i < candidates.length; i++) {
-        if (fetchBranch(candidates[i], cfg.depth)) return candidates[i];
-    }
-    return null;
-}
-
-// Every copado-git-get call costs seconds, so the remote branches are listed once and only the existing ones are fetched,
-// in one command. Returns null when the listing is not possible (the caller then falls back to one fetch per branch).
+// Every copado-git-get call costs seconds (a failing one far more), so the remote branches are listed once and only the
+// existing ones are fetched, in one command. A failed listing is retried once and then the run stops with the real reason:
+// trying branch after branch would turn a connection hiccup into minutes of failing calls.
 function listRemoteBranches() {
-    try {
-        const names = new Set();
-        gitG("git ls-remote --heads origin")
-            .split("\n")
-            .forEach((l) => {
-                const m = /\srefs\/heads\/(\S+)\s*$/.exec(l);
-                if (m) names.add(m[1]);
-            });
-        return names.size > 0 ? names : null;
-    } catch (e) {
-        console.log("ls-remote failed, fetching branch by branch: " + errMsg(e));
-        return null;
+    let reason = "the repository returned no branches";
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const names = new Set();
+            gitG("git ls-remote --heads origin", LIST_TIMEOUT_MS)
+                .split("\n")
+                .forEach((l) => {
+                    const m = /\srefs\/heads\/(\S+)\s*$/.exec(l);
+                    if (m) names.add(m[1]);
+                });
+            if (names.size > 0) return { names: names, error: "" };
+        } catch (e) {
+            reason = errMsg(e);
+            console.log("ls-remote attempt " + attempt + " failed: " + reason);
+        }
     }
+    return { names: null, error: reason };
 }
 
 function fetchBranches(list, depth) {
@@ -266,28 +255,22 @@ function fetchBranches(list, depth) {
     }
 }
 
-// Returns { base, envOk, missing } or null when no base branch exists.
+// Returns { base, envOk, missing } or { error }.
 function fetchBranchesForChecks(cfg) {
+    const listing = listRemoteBranches();
+    if (!listing.names) return { error: "Could not list the repository branches: " + listing.error };
+    const remote = listing.names;
+    const candidates = uniq([cfg.base, "main", "master"].filter(Boolean));
+    const base = candidates.find((c) => remote.has(c)) || null;
+    if (!base) return { error: "No base branch was found on the remote (tried: " + candidates.join(", ") + ")." };
     const envOk = new Map();
     const missing = [];
-    const remote = listRemoteBranches();
-    if (!remote) {
-        const oldBase = resolveBase(cfg);
-        if (!oldBase) return null;
-        cfg.envBranches.forEach((orig, lower) => {
-            if (hasRef("origin/" + orig) || fetchBranch(orig, cfg.depth)) envOk.set(lower, orig);
-            else missing.push(orig);
-        });
-        return { base: oldBase, envOk: envOk, missing: missing };
-    }
-    const base = uniq([cfg.base, "main", "master"].filter(Boolean)).find((c) => remote.has(c)) || null;
-    if (!base) return null;
     cfg.envBranches.forEach((orig, lower) => {
         if (remote.has(orig)) envOk.set(lower, orig);
         else missing.push(orig);
     });
     fetchBranches(uniq([base].concat(Array.from(envOk.values()))), cfg.depth);
-    if (!hasRef("origin/" + base)) return null;
+    if (!hasRef("origin/" + base)) return { error: "Could not fetch the base branch " + base + "." };
     Array.from(envOk.entries()).forEach((entry) => {
         if (!hasRef("origin/" + entry[1])) {
             envOk.delete(entry[0]);
@@ -531,7 +514,7 @@ function prepareRepository(cfg) {
             const dir = fs.mkdtempSync(path.join(os.tmpdir(), "svg-"));
             const clone = "git clone --quiet --no-checkout --filter=blob:none --single-branch --depth " + cfg.depth +
                 " --branch " + cfg.feature + ' "' + url + '" "' + dir + '"';
-            gitG(clone);
+            gitG(clone, CLONE_TIMEOUT_MS);
             process.chdir(dir);
             console.log("Light clone ready (commit history only, no file contents).");
             return "light";
@@ -560,9 +543,8 @@ function main() {
 
     progress("Fetching base and environment branches" + ELL);
     const prepared = fetchBranchesForChecks(cfg);
-    if (!prepared) {
-        const tried = uniq([cfg.base, "main", "master"].filter(Boolean)).join(", ");
-        return finish(cfg, "Failed", ["No base branch was found on the remote (tried: " + tried + ")."], skippedChecks("Not run: base branch not found"));
+    if (prepared.error) {
+        return finish(cfg, "Failed", [prepared.error], skippedChecks("Not run: branches not available"));
     }
     const base = prepared.base;
     const envOk = prepared.envOk;
