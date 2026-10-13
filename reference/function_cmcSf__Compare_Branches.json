@@ -1,0 +1,7 @@
+{
+  "Name": "Compare Branches",
+  "api": "cmcSf__Compare_Branches",
+  "image": "copado-multicloud-dx:v6",
+  "options": "[ ]",
+  "parameters": "[ {\n  \"required\" : true,\n  \"name\" : \"branches_to_check\",\n  \"defaultValue\" : \"\"\n}, {\n  \"required\" : true,\n  \"name\" : \"git_json\",\n  \"defaultValue\" : \"{$Context.Repository.Credential}\"\n} ]"
+}

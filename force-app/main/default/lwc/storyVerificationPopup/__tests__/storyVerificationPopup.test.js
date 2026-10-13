@@ -77,6 +77,57 @@ function factRows(element) {
     return Array.from(element.shadowRoot.querySelectorAll('[data-id="fact"]'));
 }
 
+const CHECKS = [
+    {
+        id: 'unregistered-commits',
+        title: 'Unregistered commits',
+        status: 'fail',
+        summary: '1 commit(s) made outside Copado change components that are not registered on the story',
+        lines: ['abcdef1234 Dev One "quick fix" — uncovered: Account.Foo__c']
+    },
+    {
+        id: 'metadata-coverage',
+        title: 'Metadata coverage',
+        status: 'pass',
+        summary: 'All 2 changed components are registered',
+        lines: ['registered on the story but unchanged in git: old__c']
+    },
+    {
+        id: 'org-branch-merge',
+        title: 'Org/environment branch merge',
+        status: 'warn',
+        summary: 'Environment branches not compared',
+        lines: ['environment branches not found on the remote (not compared): qa']
+    }
+];
+
+function finishedSnapshot(checks, overrides = {}) {
+    return snapshot({
+        status: 'Issues',
+        isFinished: true,
+        jobStatus: 'Successful',
+        details: ['ISSUE: something'],
+        checks,
+        ...overrides
+    });
+}
+
+// The li of one step row, found by its title text.
+function stepRow(element, title) {
+    return Array.from(element.shadowRoot.querySelectorAll('[data-id="step"]')).find((li) =>
+        li.querySelector('[data-id="step-text"]').textContent.startsWith(title)
+    );
+}
+
+async function mountFinished(checks, overrides) {
+    start.mockResolvedValue(snapshot());
+    getProgress.mockResolvedValue(finishedSnapshot(checks, overrides));
+    const element = mount();
+    await flush();
+    await tick();
+    return element;
+}
+
 describe('c-story-verification-popup', () => {
     beforeEach(() => {
         jest.useFakeTimers();
@@ -115,13 +166,14 @@ describe('c-story-verification-popup', () => {
         expect(steps[0]).toContain('Registered commits: 1');
         expect(steps[1]).toContain('No metadata is selected');
         expect(steps[2]).toContain('Verification job in Copado');
-        expect(steps[3]).toContain('Not yet implemented (phase B)');
+        expect(steps[3]).toContain('Unregistered commits: pending');
+        expect(steps[4]).toContain('Metadata coverage: pending');
+        expect(steps[5]).toContain('Org/environment branch merge: pending');
         expect(byId(element, 'banner')).toBeNull();
 
         await tick();
         expect(getProgress).toHaveBeenCalledWith({ storyId: STORY_ID, runId: RUN_ID });
-        expect(byId(element, 'state').textContent).toContain('running in Copado');
-        expect(byId(element, 'state').textContent).toContain('Aggregating findings');
+        expect(byId(element, 'state').textContent).toBe('Aggregating findings');
 
         await tick();
         expect(getProgress).toHaveBeenCalledTimes(2);
@@ -377,6 +429,186 @@ describe('c-story-verification-popup', () => {
 
         expect(byId(element, 'readiness-section')).toBeNull();
         expect(element.shadowRoot.textContent).not.toContain('Promotion readiness');
+    });
+
+    it('shows the three git checks as pending rows while the job is queued', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot());
+
+        const element = mount();
+        await flush();
+
+        ['Unregistered commits', 'Metadata coverage', 'Org/environment branch merge'].forEach((title) => {
+            const row = stepRow(element, title);
+            expect(row).toBeDefined();
+            expect(row.textContent).toContain(title + ': pending');
+            expect(row.querySelector('lightning-icon').iconName).toBe('utility:clock');
+            expect(row.querySelector('[data-id="toggle"]')).toBeNull();
+        });
+        expect(element.shadowRoot.textContent).not.toContain('phase B');
+    });
+
+    it('shows a spinner on the git check rows while the job is in progress', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+
+        const element = mount();
+        await flush();
+        await tick();
+
+        const row = stepRow(element, 'Metadata coverage');
+        expect(row.textContent).toContain('Metadata coverage: running');
+        expect(row.querySelector('lightning-spinner')).not.toBeNull();
+        expect(row.querySelector('lightning-icon')).toBeNull();
+    });
+
+    it('shows the Function progress text live in the state line and updates it on every poll', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress
+            .mockResolvedValueOnce(snapshot({ jobStatus: 'In Progress', progressText: 'Cloning repository…' }))
+            .mockResolvedValueOnce(snapshot({ jobStatus: 'In Progress', progressText: 'Checking unregistered commits…' }))
+            .mockResolvedValue(snapshot({ jobStatus: 'In Progress', progressText: 'Checking metadata coverage…' }));
+
+        const element = mount();
+        await flush();
+        await tick();
+        expect(byId(element, 'state').textContent).toBe('Cloning repository…');
+
+        await tick();
+        expect(byId(element, 'state').textContent).toBe('Checking unregistered commits…');
+
+        await tick();
+        expect(byId(element, 'state').textContent).toBe('Checking metadata coverage…');
+        expect(byId(element, 'state-spinner')).not.toBeNull();
+    });
+
+    it('renders the real result of every check with its icon and summary', async () => {
+        const element = await mountFinished(CHECKS);
+
+        const unregistered = stepRow(element, 'Unregistered commits');
+        expect(unregistered.querySelector('lightning-icon').iconName).toBe('utility:close');
+        expect(unregistered.querySelector('lightning-icon').variant).toBe('error');
+        expect(unregistered.querySelector('[data-id="step-text"]').textContent).toBe(
+            'Unregistered commits: ' + CHECKS[0].summary
+        );
+
+        const metadata = stepRow(element, 'Metadata coverage');
+        expect(metadata.querySelector('lightning-icon').iconName).toBe('utility:check');
+        expect(metadata.querySelector('lightning-icon').variant).toBe('success');
+        expect(metadata.querySelector('[data-id="step-text"]').textContent).toBe(
+            'Metadata coverage: All 2 changed components are registered'
+        );
+
+        const org = stepRow(element, 'Org/environment branch merge');
+        expect(org.querySelector('lightning-icon').iconName).toBe('utility:warning');
+        expect(org.querySelector('lightning-icon').variant).toBe('warning');
+        expect(byId(element, 'banner').textContent).toContain('Issues');
+    });
+
+    it('expands fail and warn checks by default and collapses pass checks', async () => {
+        const element = await mountFinished(CHECKS);
+
+        const unregistered = stepRow(element, 'Unregistered commits');
+        expect(unregistered.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
+        expect(unregistered.querySelector('[data-id="check-lines"]').textContent).toContain('abcdef1234 Dev One');
+
+        const org = stepRow(element, 'Org/environment branch merge');
+        expect(org.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
+        expect(org.querySelector('[data-id="check-lines"]')).not.toBeNull();
+
+        const metadata = stepRow(element, 'Metadata coverage');
+        expect(metadata.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('false');
+        expect(metadata.querySelector('[data-id="check-lines"]')).toBeNull();
+    });
+
+    it('toggles a check open and closed with the details button', async () => {
+        const element = await mountFinished(CHECKS);
+
+        stepRow(element, 'Metadata coverage').querySelector('[data-id="toggle"]').click();
+        await flush();
+        let metadata = stepRow(element, 'Metadata coverage');
+        expect(metadata.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
+        expect(metadata.querySelector('[data-id="check-lines"]').textContent).toContain('unchanged in git: old__c');
+
+        metadata.querySelector('[data-id="toggle"]').click();
+        await flush();
+        metadata = stepRow(element, 'Metadata coverage');
+        expect(metadata.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('false');
+        expect(metadata.querySelector('[data-id="check-lines"]')).toBeNull();
+
+        stepRow(element, 'Unregistered commits').querySelector('[data-id="toggle"]').click();
+        await flush();
+        const unregistered = stepRow(element, 'Unregistered commits');
+        expect(unregistered.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('false');
+        expect(unregistered.querySelector('[data-id="check-lines"]')).toBeNull();
+    });
+
+    it('shows skipped checks with a grey dash, their reason and no toggle when there are no lines', async () => {
+        const reason = 'skipped because an environment branch merge brings in unrelated commits';
+        const checks = [
+            { id: 'unregistered-commits', title: 'Unregistered commits', status: 'skipped', summary: reason, lines: [] },
+            { id: 'metadata-coverage', title: 'Metadata coverage', status: 'skipped', summary: reason, lines: [] },
+            {
+                id: 'org-branch-merge',
+                title: 'Org/environment branch merge',
+                status: 'fail',
+                summary: 'Environment branch merged into the feature branch: main',
+                lines: ['merged main in commit 0123456789']
+            }
+        ];
+        const element = await mountFinished(checks);
+
+        const unregistered = stepRow(element, 'Unregistered commits');
+        expect(unregistered.querySelector('lightning-icon').iconName).toBe('utility:dash');
+        expect(unregistered.querySelector('[data-id="step-text"]').textContent).toBe('Unregistered commits: ' + reason);
+        expect(unregistered.querySelector('[data-id="step-text"]').className).toContain('slds-text-color_weak');
+        expect(unregistered.querySelector('[data-id="toggle"]')).toBeNull();
+        expect(stepRow(element, 'Metadata coverage').querySelector('lightning-icon').iconName).toBe('utility:dash');
+        expect(stepRow(element, 'Org/environment branch merge').querySelector('lightning-icon').iconName).toBe(
+            'utility:close'
+        );
+    });
+
+    it('treats an unknown check status as skipped', async () => {
+        const element = await mountFinished([
+            { id: 'metadata-coverage', title: 'Metadata coverage', status: 'weird', summary: 'odd', lines: [] }
+        ]);
+
+        expect(stepRow(element, 'Metadata coverage').querySelector('lightning-icon').iconName).toBe('utility:dash');
+    });
+
+    it('shows the failure prominently and marks the git checks as not reported for a Failed run', async () => {
+        const element = await mountFinished([], {
+            status: 'Failed',
+            jobStatus: 'Failed',
+            jobError: 'Could not clone the repository',
+            details: ['Verification job failed: Could not clone the repository']
+        });
+
+        expect(byId(element, 'banner').className).toContain('slds-theme_error');
+        expect(byId(element, 'failure').textContent).toContain('Could not clone the repository');
+        const row = stepRow(element, 'Unregistered commits');
+        expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+            'Unregistered commits: no result was reported'
+        );
+        expect(row.querySelector('lightning-icon').iconName).toBe('utility:dash');
+    });
+
+    it('shows the failure text from the details when there is no job error', async () => {
+        const element = await mountFinished([], {
+            status: 'Failed',
+            jobStatus: 'Successful',
+            jobError: null,
+            details: ['The git checks did not report a result (nothing was verified from git).']
+        });
+
+        expect(byId(element, 'failure').textContent).toContain('nothing was verified from git');
+    });
+
+    it('does not show the failure block for Clean or Issues results', async () => {
+        const element = await mountFinished(CHECKS);
+
+        expect(byId(element, 'failure')).toBeNull();
     });
 
     it('dispatches the close event from the Close button', async () => {

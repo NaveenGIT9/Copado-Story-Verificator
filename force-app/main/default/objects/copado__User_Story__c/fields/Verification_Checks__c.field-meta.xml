@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Verification_Checks__c</fullName>
+    <description>JSON of the check results from the last verification (used by the Verify popup)</description>
+    <externalId>false</externalId>
+    <inlineHelpText>JSON of the check results from the last verification (used by the Verify popup).</inlineHelpText>
+    <label>Verification Checks</label>
+    <length>100000</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

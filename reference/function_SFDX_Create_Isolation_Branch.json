@@ -1,0 +1,7 @@
+{
+  "Name": "Create Isolation Branch",
+  "api": "SFDX_Create_Isolation_Branch",
+  "image": "copado-multicloud-dx:v6",
+  "options": "[ ]",
+  "parameters": "[ {\n  \"required\" : true,\n  \"name\" : \"gitName\",\n  \"defaultValue\" : \"{$User.Name}\"\n}, {\n  \"required\" : true,\n  \"name\" : \"gitEmail\",\n  \"defaultValue\" : \"{$User.Email}\"\n}, {\n  \"required\" : true,\n  \"name\" : \"gitDepth\",\n  \"defaultValue\" : \"100\"\n}, {\n  \"required\" : true,\n  \"name\" : \"git_json\",\n  \"defaultValue\" : \"{$Context.Repository.Credential}\"\n}, {\n  \"required\" : true,\n  \"name\" : \"dataJson\",\n  \"defaultValue\" : \"\"\n}, {\n  \"name\" : \"repositoryId\",\n  \"defaultValue\" : \"\"\n} ]"
+}

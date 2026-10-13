@@ -17,6 +17,7 @@ public with sharing class StoryVerificationController {
         'Canceled'
     };
     private static final Set<String> FINISHED_STATUSES = new Set<String>{ 'Clean', 'Issues', 'Failed' };
+    private static final Set<String> CHECK_STATUSES = new Set<String>{ 'pass', 'fail', 'warn', 'skipped' };
     private static final Integer MAX_EXECUTIONS_SCANNED = 20;
     private static final Integer MAX_RESULTS_SCANNED = 20;
 
@@ -25,6 +26,20 @@ public with sharing class StoryVerificationController {
         public String severity;
         @AuraEnabled
         public String message;
+    }
+
+    /** Result of one git check as reported by the Function (state: pass | fail | warn | skipped). */
+    public class CheckResult {
+        @AuraEnabled
+        public String id;
+        @AuraEnabled
+        public String title;
+        @AuraEnabled
+        public String status;
+        @AuraEnabled
+        public String summary;
+        @AuraEnabled
+        public List<String> lines = new List<String>();
     }
 
     /** One live "promotion readiness" line, e.g. Pending tests: 3 (state issue). */
@@ -60,6 +75,8 @@ public with sharing class StoryVerificationController {
         public String errorMessage;
         @AuraEnabled
         public List<Fact> facts = new List<Fact>();
+        @AuraEnabled
+        public List<CheckResult> checks = new List<CheckResult>();
     }
 
     /** Reduced view of the Copado job for one run. */
@@ -140,6 +157,23 @@ public with sharing class StoryVerificationController {
             return facts;
         }
 
+        /**
+         * Reads the stored git check results (Verification_Checks__c) without FLS on purpose, like readFacts: read-only and
+         * only for a story the caller was already proven able to read.
+         */
+        public List<CheckResult> readChecks(Id storyId) {
+            List<copado__User_Story__c> rows = [
+                SELECT Verification_Checks__c
+                FROM copado__User_Story__c
+                WHERE Id = :storyId
+                LIMIT 1
+            ];
+            if (rows.isEmpty()) {
+                return new List<CheckResult>();
+            }
+            return parseChecks(rows[0].Verification_Checks__c);
+        }
+
         private String latestProgress(Id jobExecutionId) {
             Map<Id, copado__JobStep__c> steps = new Map<Id, copado__JobStep__c>([
                 SELECT Id
@@ -204,6 +238,7 @@ public with sharing class StoryVerificationController {
 
         JobReader reader = new JobReader();
         snapshot.facts = reader.readFacts(story.Id);
+        snapshot.checks = reader.readChecks(story.Id);
         JobInfo info = reader.read(story.Id, snapshot.runId);
         snapshot.findings = info.findings;
         snapshot.jobStatus = info.status;
@@ -260,6 +295,42 @@ public with sharing class StoryVerificationController {
             findings.add(finding);
         }
         return findings;
+    }
+
+    // Accepts the stored {checks:[...], salesforceFindings:[...]}; anything unreadable gives no checks (the popup then
+    // falls back to the details text).
+    @TestVisible
+    private static List<CheckResult> parseChecks(String raw) {
+        List<CheckResult> checks = new List<CheckResult>();
+        Map<String, Object> parsed = parseMap(raw);
+        if (parsed == null || !(parsed.get('checks') instanceof List<Object>)) {
+            return checks;
+        }
+        for (Object item : (List<Object>) parsed.get('checks')) {
+            if (!(item instanceof Map<String, Object>)) {
+                continue;
+            }
+            Map<String, Object> map1 = (Map<String, Object>) item;
+            CheckResult check = new CheckResult();
+            check.id = asText(map1.get('id'));
+            check.title = asText(map1.get('title'));
+            String status = asText(map1.get('status')).toLowerCase();
+            check.status = CHECK_STATUSES.contains(status) ? status : 'skipped';
+            check.summary = asText(map1.get('summary'));
+            if (map1.get('lines') instanceof List<Object>) {
+                for (Object line : (List<Object>) map1.get('lines')) {
+                    if (line != null) {
+                        check.lines.add(String.valueOf(line));
+                    }
+                }
+            }
+            checks.add(check);
+        }
+        return checks;
+    }
+
+    private static String asText(Object value) {
+        return value == null ? '' : String.valueOf(value);
     }
 
     private static Map<String, Object> parseMap(String raw) {

@@ -17,23 +17,44 @@
 
         <ul class="slds-m-bottom_small" data-id="steps">
             <template for:each={steps} for:item="step">
-                <li key={step.key} class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small" data-id="step">
-                    <template lwc:if={step.isSpinner}>
-                        <span class="spinner-holder slds-m-right_x-small">
-                            <lightning-spinner size="x-small" alternative-text={step.altText}></lightning-spinner>
-                        </span>
+                <li key={step.key} class="slds-p-vertical_xx-small" data-id="step">
+                    <div class="slds-grid slds-grid_vertical-align-center">
+                        <template lwc:if={step.isSpinner}>
+                            <span class="spinner-holder slds-m-right_x-small">
+                                <lightning-spinner size="x-small" alternative-text={step.altText}></lightning-spinner>
+                            </span>
+                        </template>
+                        <template lwc:else>
+                            <span class="step-icon slds-m-right_x-small">
+                                <lightning-icon
+                                    icon-name={step.iconName}
+                                    variant={step.iconVariant}
+                                    size="x-small"
+                                    alternative-text={step.altText}
+                                ></lightning-icon>
+                            </span>
+                        </template>
+                        <span class={step.textClass} data-id="step-text">{step.text}</span>
+                        <template lwc:if={step.hasLines}>
+                            <button
+                                type="button"
+                                class="slds-button slds-m-left_x-small"
+                                aria-expanded={step.ariaExpanded}
+                                data-id="toggle"
+                                data-check-id={step.checkId}
+                                onclick={handleToggle}
+                            >
+                                {step.toggleLabel}
+                            </button>
+                        </template>
+                    </div>
+                    <template lwc:if={step.expanded}>
+                        <ul class="check-lines slds-text-body_small slds-m-left_xx-large" data-id="check-lines">
+                            <template for:each={step.lines} for:item="checkLine">
+                                <li key={checkLine.key}>{checkLine.text}</li>
+                            </template>
+                        </ul>
                     </template>
-                    <template lwc:else>
-                        <span class="step-icon slds-m-right_x-small">
-                            <lightning-icon
-                                icon-name={step.iconName}
-                                variant={step.iconVariant}
-                                size="x-small"
-                                alternative-text={step.altText}
-                            ></lightning-icon>
-                        </span>
-                    </template>
-                    <span class={step.textClass}>{step.text}</span>
                 </li>
             </template>
         </ul>
@@ -63,6 +84,11 @@
             <div class={bannerClass} role="status" data-id="banner">
                 <strong>{status}</strong>
             </div>
+            <template lwc:if={failureText}>
+                <div class="slds-box slds-box_small slds-theme_error slds-m-top_small" role="alert" data-id="failure">
+                    {failureText}
+                </div>
+            </template>
             <div class="slds-m-top_small" data-id="why-section">
                 <p class="slds-text-title_bold">Why:</p>
                 <ul data-id="why">

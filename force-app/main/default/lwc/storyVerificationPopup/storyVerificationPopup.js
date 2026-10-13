@@ -16,6 +16,20 @@ const BANNER_CLASS = {
     Failed: 'slds-notify slds-notify_alert slds-theme_error'
 };
 
+// The three git checks run by the Copado Function, in display order (ids match function/index.js).
+const GIT_CHECKS = [
+    { id: 'unregistered-commits', title: 'Unregistered commits' },
+    { id: 'metadata-coverage', title: 'Metadata coverage' },
+    { id: 'org-branch-merge', title: 'Org/environment branch merge' }
+];
+
+const CHECK_VISUALS = {
+    pass: { iconName: 'utility:check', iconVariant: 'success', altText: 'Passed', textClass: '' },
+    fail: { iconName: 'utility:close', iconVariant: 'error', altText: 'Failed', textClass: 'slds-text-color_error' },
+    warn: { iconName: 'utility:warning', iconVariant: 'warning', altText: 'Warning', textClass: '' },
+    skipped: { iconName: 'utility:dash', iconVariant: undefined, altText: 'Skipped', textClass: 'slds-text-color_weak' }
+};
+
 export default class StoryVerificationPopup extends LightningElement {
     // In a quick action the record id is set AFTER connectedCallback, so the run starts only once both are true.
     _recordId;
@@ -39,6 +53,8 @@ export default class StoryVerificationPopup extends LightningElement {
     starting = true;
     timedOut = false;
     superseded = false;
+    // check id -> true/false once the user has toggled that row; untouched rows use the default (open for fail/warn).
+    expandedByUser = {};
 
     _timer;
     _runId;
@@ -77,6 +93,7 @@ export default class StoryVerificationPopup extends LightningElement {
         this.errorText = undefined;
         this.timedOut = false;
         this.superseded = false;
+        this.expandedByUser = {};
         this._runId = undefined;
         this.starting = true;
         this._startedAt = Date.now();
@@ -167,6 +184,15 @@ export default class StoryVerificationPopup extends LightningElement {
         this.begin();
     }
 
+    handleToggle(event) {
+        const checkId = event.currentTarget.dataset.checkId;
+        const row = this.steps.find((step) => step.checkId === checkId);
+        if (!row) {
+            return;
+        }
+        this.expandedByUser = { ...this.expandedByUser, [checkId]: !row.expanded };
+    }
+
     // ---- view state ----
 
     get isFinished() {
@@ -216,9 +242,13 @@ export default class StoryVerificationPopup extends LightningElement {
         if (jobStatus === 'Failed' || jobStatus === 'Error' || jobStatus === 'Cancelled' || jobStatus === 'Canceled') {
             return 'Verification job ended in Copado (' + jobStatus + ') — recording the result…';
         }
+        // The Function's own "copado -p" message, e.g. "Checking unregistered commits…".
+        const progress = this.snapshot.progressText;
+        if (progress) {
+            return progress;
+        }
         if (jobStatus === 'In Progress') {
-            const progress = this.snapshot.progressText;
-            return 'Verification job running in Copado…' + (progress ? ' ' + progress : '');
+            return 'Verification job running in Copado…';
         }
         return 'Checks computed in Salesforce — job queued in Copado';
     }
@@ -239,16 +269,76 @@ export default class StoryVerificationPopup extends LightningElement {
             });
         });
         list.push(this.jobStep());
-        list.push({
-            key: 'git',
-            isSpinner: false,
-            iconName: 'utility:dash',
-            iconVariant: undefined,
-            altText: 'Not implemented',
-            text: 'Git checks (unregistered commits, org/env branch merge): Not yet implemented (phase B)',
-            textClass: 'slds-text-color_weak'
-        });
+        this.gitCheckItems().forEach((item) => list.push(this.checkRow(item)));
         return list;
+    }
+
+    // The three known checks first (always shown), then any extra check the Function reported.
+    gitCheckItems() {
+        const results = (this.snapshot && this.snapshot.checks) || [];
+        const items = GIT_CHECKS.map((check) => ({
+            id: check.id,
+            title: check.title,
+            result: results.find((r) => r.id === check.id)
+        }));
+        results
+            .filter((r) => !GIT_CHECKS.some((check) => check.id === r.id))
+            .forEach((r) => items.push({ id: r.id, title: r.title || r.id, result: r }));
+        return items;
+    }
+
+    isExpanded(checkId, status) {
+        if (Object.prototype.hasOwnProperty.call(this.expandedByUser, checkId)) {
+            return this.expandedByUser[checkId];
+        }
+        return status === 'fail' || status === 'warn';
+    }
+
+    checkRow({ id, title, result }) {
+        const row = {
+            key: 'check-' + id,
+            checkId: id,
+            isSpinner: false,
+            hasLines: false,
+            expanded: false,
+            ariaExpanded: 'false',
+            toggleLabel: 'Show details',
+            lines: [],
+            textClass: ''
+        };
+        if (this.isFinished && result) {
+            const visual = CHECK_VISUALS[result.status] || CHECK_VISUALS.skipped;
+            const lines = (result.lines || []).map((text, index) => ({ key: 'check-' + id + '-' + index, text }));
+            const expanded = lines.length > 0 && this.isExpanded(id, result.status);
+            return {
+                ...row,
+                ...visual,
+                text: title + ': ' + (result.summary || visual.altText),
+                hasLines: lines.length > 0,
+                lines,
+                expanded,
+                ariaExpanded: String(expanded),
+                toggleLabel: expanded ? 'Hide details' : 'Show details'
+            };
+        }
+        if (this.isFinished) {
+            return { ...row, ...CHECK_VISUALS.skipped, text: title + ': no result was reported' };
+        }
+        if (this.snapshot && this.jobStatus === 'In Progress' && this.isActive) {
+            return { ...row, isSpinner: true, altText: 'Running', text: title + ': running' };
+        }
+        return { ...row, iconName: 'utility:clock', iconVariant: undefined, altText: 'Pending', text: title + ': pending' };
+    }
+
+    get failureText() {
+        if (!this.isFinished || this.status !== 'Failed') {
+            return '';
+        }
+        const jobError = this.snapshot.jobError;
+        if (jobError) {
+            return jobError;
+        }
+        return (this.snapshot.details || []).filter((line) => line.trim() !== '').join(' ');
     }
 
     jobStep() {

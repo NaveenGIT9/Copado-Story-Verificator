@@ -2,6 +2,8 @@
 private class StoryVerificationServiceTest {
     private static final String STORY_TITLE = 'SV Test Story';
     private static final String PARENT_TITLE = 'SV Test Parent Story';
+    private static final String COMMIT_SHA = 'ABCDEF1234567890ABCDEF1234567890ABCDEF12';
+    private static final String NO_PIPELINE_FINDING = 'issue|Story has no pipeline, git checks could not run';
 
     /** Stub for the managed copado.CreateExecution, which cannot be mocked. */
     private class CapturingStarter implements StoryVerificationService.JobStarter {
@@ -67,7 +69,8 @@ private class StoryVerificationServiceTest {
                 Verification_Status__c,
                 Verification_Details__c,
                 Verification_Date__c,
-                Verification_Run_Id__c
+                Verification_Run_Id__c,
+                Verification_Checks__c
             FROM copado__User_Story__c
             WHERE copado__User_Story_Title__c = :title
             LIMIT 1
@@ -78,7 +81,11 @@ private class StoryVerificationServiceTest {
         // A commit needs a snapshot commit, which needs a credential (copado__Org__c)
         copado__Org__c credential = new copado__Org__c(Name = 'SV credential');
         insert credential;
-        copado__Git_Org_Commit__c snapshot = new copado__Git_Org_Commit__c(copado__Org__c = credential.Id, copado__Status__c = 'Complete');
+        copado__Git_Org_Commit__c snapshot = new copado__Git_Org_Commit__c(
+            copado__Org__c = credential.Id,
+            copado__Status__c = 'Complete',
+            copado__Commit_Id__c = COMMIT_SHA
+        );
         insert snapshot;
         insert new copado__User_Story_Commit__c(Name = 'SV commit', copado__User_Story__c = storyId, copado__Snapshot_Commit__c = snapshot.Id);
         insert new copado__User_Story_Metadata__c(
@@ -130,6 +137,7 @@ private class StoryVerificationServiceTest {
         System.runAs(admin) {
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
             addCommitAndMetadata(story.Id);
+            update new copado__User_Story__c(Id = story.Id, Verification_Checks__c = '{"checks":[]}');
             CapturingStarter stub = new CapturingStarter();
             StoryVerificationService.starter = stub;
 
@@ -142,6 +150,7 @@ private class StoryVerificationServiceTest {
             System.assertEquals(32, after.Verification_Run_Id__c.length());
             System.assertNotEquals(null, after.Verification_Date__c);
             System.assertEquals(null, after.Verification_Details__c);
+            System.assertEquals(null, after.Verification_Checks__c, 'Checks of the previous run must be cleared at start');
 
             System.assertEquals(1, stub.requests.size());
             copado.CreateExecution.Request req = stub.requests[0];
@@ -153,12 +162,194 @@ private class StoryVerificationServiceTest {
             System.assertEquals(String.valueOf(story.Id), String.valueOf(data.get('storyId')));
             System.assertEquals(story.Name, String.valueOf(data.get('storyName')));
             System.assertEquals(after.Verification_Run_Id__c, String.valueOf(data.get('runId')));
+            System.assertEquals('feature/' + story.Name, String.valueOf(data.get('featureBranch')));
             List<String> lines = findingLines(req);
-            System.assertEquals(3, lines.size(), String.valueOf(lines));
+            System.assertEquals(4, lines.size(), String.valueOf(lines));
             System.assertEquals('info|Pending tests: 0.', lines[0]);
             System.assertEquals('info|Pull request approved.', lines[1]);
             System.assertEquals('info|Registered commits: 1, selected metadata items: 1.', lines[2]);
+            System.assertEquals(NO_PIPELINE_FINDING, lines[3]);
         }
+    }
+
+    @IsTest
+    static void startSendsGitInputsAsJsonTextInTheDataJson() {
+        StoryVerificationService.pullRequestApprovedOverride = true;
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(stub.requests[0].dataJson);
+            for (String key : new List<String>{
+                'envBranchesJson',
+                'registeredCommitsJson',
+                'nonCompleteCommitsJson',
+                'registeredMetadataJson',
+                'hasCustomLabelMetadata'
+            }) {
+                System.assert(data.get(key) instanceof String, key + ' must be a string, not a nested value');
+            }
+            System.assertEquals('[]', (String) data.get('envBranchesJson'));
+            System.assertEquals('false', (String) data.get('hasCustomLabelMetadata'));
+            List<Object> metadata = (List<Object>) JSON.deserializeUntyped((String) data.get('registeredMetadataJson'));
+            System.assertEquals(1, metadata.size());
+            System.assertEquals('account', metadata[0]);
+            // Copado may derive the commit status from the snapshot, so accept either bucket, but the SHA must be in exactly one.
+            List<Object> registered = (List<Object>) JSON.deserializeUntyped((String) data.get('registeredCommitsJson'));
+            List<Object> nonComplete = (List<Object>) JSON.deserializeUntyped((String) data.get('nonCompleteCommitsJson'));
+            System.assertEquals(1, registered.size() + nonComplete.size());
+            String shown = registered.isEmpty()
+                ? String.valueOf(((Map<String, Object>) nonComplete[0]).get('sha'))
+                : String.valueOf(registered[0]);
+            System.assertEquals(COMMIT_SHA.toLowerCase(), shown);
+        }
+    }
+
+    @IsTest
+    static void startFlagsStoryWithoutPipelineAndLeavesPipelineUnset() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            System.assertEquals(1, stub.requests.size(), 'The job must still start so the result path works');
+            System.assertEquals(null, stub.requests[0].pipelineId);
+            System.assertEquals(null, stub.requests[0].sourceId);
+            System.assert(findingLines(stub.requests[0]).contains(NO_PIPELINE_FINDING), String.valueOf(findingLines(stub.requests[0])));
+        }
+    }
+
+    // The required fields of these managed Copado objects were not confirmed by describe; if DML fails here a
+    // managed-package required field, validation or trigger is the likely cause.
+    @IsTest
+    static void startSetsPipelineSourceAndEnvironmentBranchesOnTheRequest() {
+        StoryVerificationService.pullRequestApprovedOverride = true;
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__Environment__c sourceEnv = new copado__Environment__c(Name = 'SV source env');
+            copado__Environment__c destinationEnv = new copado__Environment__c(Name = 'SV destination env');
+            insert new List<copado__Environment__c>{ sourceEnv, destinationEnv };
+            copado__Deployment_Flow__c pipeline = new copado__Deployment_Flow__c(Name = 'SV pipeline');
+            insert pipeline;
+            copado__Project__c project = new copado__Project__c(Name = 'SV project', copado__Deployment_Flow__c = pipeline.Id);
+            insert project;
+            insert new copado__Deployment_Flow_Step__c(
+                copado__Deployment_Flow__c = pipeline.Id,
+                copado__Source_Environment__c = sourceEnv.Id,
+                copado__Destination_Environment__c = destinationEnv.Id,
+                copado__Branch__c = 'SV-Qa',
+                copado__Destination_Branch__c = 'sv-main'
+            );
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            update new copado__User_Story__c(
+                Id = story.Id,
+                copado__Project__c = project.Id,
+                copado__Environment__c = sourceEnv.Id
+            );
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            copado.CreateExecution.Request req = stub.requests[0];
+            System.assertEquals(String.valueOf(pipeline.Id), String.valueOf(req.pipelineId));
+            System.assertEquals(String.valueOf(sourceEnv.Id), String.valueOf(req.sourceId));
+            Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(req.dataJson);
+            Set<String> branches = new Set<String>();
+            for (Object branch : (List<Object>) JSON.deserializeUntyped((String) data.get('envBranchesJson'))) {
+                branches.add(String.valueOf(branch));
+            }
+            System.assertEquals(new Set<String>{ 'SV-Qa', 'sv-main' }, branches);
+            System.assert(!findingLines(req).contains(NO_PIPELINE_FINDING), 'A story with a pipeline must not get the finding');
+        }
+    }
+
+    @IsTest
+    static void buildDataSerialisesTheListsAsJsonText() {
+        copado__User_Story__c story = storyByTitle(STORY_TITLE);
+        StoryVerificationService.GitInputs inputs = new StoryVerificationService.GitInputs();
+        Set<String> seen = new Set<String>();
+        StoryVerificationService.addCommit(inputs, seen, 'Complete', ' ABC1234567 ');
+        StoryVerificationService.addCommit(inputs, seen, 'Complete', 'abc1234567');
+        StoryVerificationService.addCommit(inputs, seen, 'Commit not in branch', 'DEF7654321');
+        StoryVerificationService.addCommit(inputs, seen, null, 'fed0000000');
+        StoryVerificationService.addCommit(inputs, seen, 'Complete', '  ');
+        inputs.registeredMetadata.add('account');
+        inputs.envBranches.add('qa');
+        inputs.envBranches.add('Main');
+        inputs.hasCustomLabelMetadata = true;
+
+        Map<String, Object> data = StoryVerificationService.buildData(
+            story,
+            'run-x',
+            inputs,
+            new List<Map<String, String>>()
+        );
+        Map<String, Object> sent = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(data));
+
+        System.assertEquals('["abc1234567"]', (String) sent.get('registeredCommitsJson'));
+        System.assertEquals('["account"]', (String) sent.get('registeredMetadataJson'));
+        System.assertEquals('["qa","Main"]', (String) sent.get('envBranchesJson'));
+        System.assertEquals('true', (String) sent.get('hasCustomLabelMetadata'));
+        List<Object> nonComplete = (List<Object>) JSON.deserializeUntyped((String) sent.get('nonCompleteCommitsJson'));
+        System.assertEquals(2, nonComplete.size());
+        Map<String, Object> first = (Map<String, Object>) nonComplete[0];
+        System.assertEquals('def7654321', first.get('sha'));
+        System.assertEquals('Commit not in branch', first.get('status'));
+        Map<String, Object> second = (Map<String, Object>) nonComplete[1];
+        System.assertEquals('fed0000000', second.get('sha'));
+        System.assertEquals('Unknown', second.get('status'));
+        System.assertEquals('feature/' + story.Name, sent.get('featureBranch'));
+    }
+
+    @IsTest
+    static void limitToCapsEveryListAndRemembersTheTruncation() {
+        StoryVerificationService.GitInputs inputs = new StoryVerificationService.GitInputs();
+        for (Integer i = 0; i < 2500; i++) {
+            inputs.registeredCommits.add('sha' + i);
+            inputs.registeredMetadata.add('meta' + i);
+        }
+        inputs.limitTo(2000);
+        System.assertEquals(2000, inputs.registeredCommits.size());
+        System.assertEquals(2000, inputs.registeredMetadata.size());
+        System.assertEquals(true, inputs.truncated);
+
+        StoryVerificationService.GitInputs small = new StoryVerificationService.GitInputs();
+        small.registeredCommits.add('only');
+        small.limitTo(2000);
+        System.assertEquals(1, small.registeredCommits.size());
+        System.assertEquals(false, small.truncated);
+        small.limitTo(0);
+        System.assertEquals(0, small.registeredCommits.size());
+        System.assertEquals(true, small.truncated);
+    }
+
+    @IsTest
+    static void shrinkToFitKeepsTheDataJsonUnderTheSizeLimit() {
+        copado__User_Story__c story = storyByTitle(STORY_TITLE);
+        StoryVerificationService.GitInputs inputs = new StoryVerificationService.GitInputs();
+        for (Integer i = 0; i < 2000; i++) {
+            inputs.registeredCommits.add(String.valueOf(i).leftPad(40, '0'));
+            inputs.registeredMetadata.add('Some_Long_Component_Name_For_Size_Test_' + i);
+        }
+
+        StoryVerificationService.shrinkToFit(story, 'run-big', inputs);
+
+        String json = JSON.serialize(
+            StoryVerificationService.buildData(story, 'run-big', inputs, new List<Map<String, String>>())
+        );
+        System.assert(json.length() <= 90000, 'DataJson is ' + json.length() + ' characters');
+        System.assertEquals(true, inputs.truncated);
+        System.assert(inputs.registeredCommits.size() < 2000);
     }
 
     @IsTest
@@ -172,12 +363,13 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(storyByTitle(STORY_TITLE).Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(5, lines.size(), String.valueOf(lines));
+            System.assertEquals(6, lines.size(), String.valueOf(lines));
             System.assertEquals('issue|No commits are registered in Copado for this story.', lines[0]);
             System.assertEquals('issue|No metadata is selected on this story.', lines[1]);
             System.assertEquals('info|Pending tests: 0.', lines[2]);
             System.assertEquals('info|Pull request approved.', lines[3]);
             System.assertEquals('info|Registered commits: 0, selected metadata items: 0.', lines[4]);
+            System.assertEquals(NO_PIPELINE_FINDING, lines[5]);
         }
     }
 
@@ -221,9 +413,11 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(3, lines.size(), 'Only info lines expected: ' + lines);
+            System.assertEquals(4, lines.size(), 'Only info lines (plus the no-pipeline issue) expected: ' + lines);
             for (String line : lines) {
-                System.assert(line.startsWith('info|'), 'Completed parent must not raise an issue: ' + line);
+                if (line != NO_PIPELINE_FINDING) {
+                    System.assert(line.startsWith('info|'), 'Completed parent must not raise an issue: ' + line);
+                }
             }
             System.assert(lines[2].startsWith('info|Registered commits'));
         }
@@ -242,7 +436,7 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(4, lines.size(), String.valueOf(lines));
+            System.assertEquals(5, lines.size(), String.valueOf(lines));
             System.assert(lines[0].startsWith('info|Base branch feature/US-NOPE-1'), lines[0]);
         }
     }
@@ -259,7 +453,7 @@ private class StoryVerificationServiceTest {
 
             StoryVerificationService.startVerification(story.Id);
 
-            System.assertEquals(3, findingLines(stub.requests[0]).size());
+            System.assertEquals(4, findingLines(stub.requests[0]).size());
         }
     }
 
@@ -335,7 +529,9 @@ private class StoryVerificationServiceTest {
             System.assert(lines.contains('info|Pending tests: 0.'), String.valueOf(lines));
             System.assert(lines.contains('info|Pull request approved.'), String.valueOf(lines));
             for (String line : lines) {
-                System.assert(line.startsWith('info|'), 'No issue expected: ' + line);
+                if (line != NO_PIPELINE_FINDING) {
+                    System.assert(line.startsWith('info|'), 'No issue expected: ' + line);
+                }
             }
         }
     }
@@ -363,6 +559,11 @@ private class StoryVerificationServiceTest {
                 after.Verification_Details__c.contains('ISSUE: Pull request is not approved yet.'),
                 after.Verification_Details__c
             );
+            System.assert(
+                after.Verification_Details__c.contains('Git checks did not report a result - see the Job Execution logs.'),
+                after.Verification_Details__c
+            );
+            System.assertEquals(null, after.Verification_Checks__c);
         }
     }
 
@@ -601,20 +802,20 @@ private class StoryVerificationServiceTest {
         System.runAs(admin) {
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
 
-            // Clean: only info findings
+            // Only info findings: nothing was verified from git, so this must NOT be Clean.
             markRunning(story.Id, 'run-fb1');
-            StoryVerificationService.JobOutcome clean = outcome(story.Id, 'run-fb1', 'Successful', null);
-            clean.dataJson = JSON.serialize(new Map<String, Object>{
+            StoryVerificationService.JobOutcome noGitResult = outcome(story.Id, 'run-fb1', 'Successful', null);
+            noGitResult.dataJson = JSON.serialize(new Map<String, Object>{
                 'runId' => 'run-fb1',
                 'findings' => new List<Object>{
                     new Map<String, Object>{ 'severity' => 'info', 'message' => 'Registered commits: 1' }
                 }
             });
-            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ clean });
-            copado__User_Story__c afterClean = storyByTitle(STORY_TITLE);
-            System.assertEquals('Clean', afterClean.Verification_Status__c);
-            System.assert(afterClean.Verification_Details__c.contains('INFO: Registered commits: 1'), afterClean.Verification_Details__c);
-            System.assert(afterClean.Verification_Details__c.contains('NOT RUN: git checks'), afterClean.Verification_Details__c);
+            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ noGitResult });
+            copado__User_Story__c afterNoGit = storyByTitle(STORY_TITLE);
+            System.assertEquals('Failed', afterNoGit.Verification_Status__c);
+            System.assertEquals(StoryVerificationService.NO_GIT_RESULT_DETAILS, afterNoGit.Verification_Details__c);
+            System.assertEquals(null, afterNoGit.Verification_Checks__c);
 
             // Issues: one issue finding
             markRunning(story.Id, 'run-fb2');
@@ -629,6 +830,142 @@ private class StoryVerificationServiceTest {
             copado__User_Story__c afterIssues = storyByTitle(STORY_TITLE);
             System.assertEquals('Issues', afterIssues.Verification_Status__c);
             System.assert(afterIssues.Verification_Details__c.contains('ISSUE: No commits are registered'), afterIssues.Verification_Details__c);
+            System.assert(
+                afterIssues.Verification_Details__c.endsWith('Git checks did not report a result - see the Job Execution logs.'),
+                afterIssues.Verification_Details__c
+            );
+            System.assertEquals(null, afterIssues.Verification_Checks__c);
+        }
+    }
+
+    @IsTest
+    static void completeStoresTheChecksWithTheResult() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-ck1');
+            String result =
+                '{"runId":"run-ck1","status":"Issues","details":"ISSUE: x",' +
+                '"checks":[{"id":"unregistered-commits","title":"Unregistered commits","status":"fail","summary":"s","lines":["l1"]}],' +
+                '"salesforceFindings":[{"severity":"info","message":"m"}]}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-ck1', 'Successful', result) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Issues', after.Verification_Status__c);
+            System.assertEquals('ISSUE: x', after.Verification_Details__c);
+            Map<String, Object> stored = (Map<String, Object>) JSON.deserializeUntyped(after.Verification_Checks__c);
+            List<Object> checks = (List<Object>) stored.get('checks');
+            System.assertEquals(1, checks.size());
+            System.assertEquals('fail', ((Map<String, Object>) checks[0]).get('status'));
+            System.assertEquals(1, ((List<Object>) stored.get('salesforceFindings')).size());
+        }
+    }
+
+    @IsTest
+    static void completeStoresNoChecksWhenTheResultHasNone() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-ck2');
+            update new copado__User_Story__c(Id = story.Id, Verification_Checks__c = '{"checks":[1]}');
+            String result = '{"runId":"run-ck2","status":"Clean","details":"INFO: x","checks":[]}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-ck2', 'Successful', result) }
+            );
+
+            System.assertEquals(null, storyByTitle(STORY_TITLE).Verification_Checks__c);
+        }
+    }
+
+    @IsTest
+    static void completeAcceptsAFailedResultFromTheFunction() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-ck3');
+            String result =
+                '{"runId":"run-ck3","status":"Failed","details":"NOTE: Could not clone the repository",' +
+                '"checks":[{"id":"metadata-coverage","title":"Metadata coverage","status":"skipped","summary":"Not run","lines":[]}]}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-ck3', 'Successful', result) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Failed', after.Verification_Status__c);
+            System.assertEquals('NOTE: Could not clone the repository', after.Verification_Details__c);
+            System.assertNotEquals(null, after.Verification_Checks__c);
+        }
+    }
+
+    @IsTest
+    static void completeClearsStoredChecksWhenTheJobFails() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-ck4');
+            update new copado__User_Story__c(Id = story.Id, Verification_Checks__c = '{"checks":[{"id":"x"}]}');
+            StoryVerificationService.JobOutcome failed = outcome(story.Id, 'run-ck4', 'Failed', null);
+            failed.errorMessage = 'kaboom';
+
+            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ failed });
+
+            System.assertEquals(null, storyByTitle(STORY_TITLE).Verification_Checks__c);
+        }
+    }
+
+    @IsTest
+    static void completeKeepsChecksOnlyWhenTheyFitTheField() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+
+            // Checks fit alone but not together with the Salesforce findings: the findings are dropped.
+            markRunning(story.Id, 'run-ck5');
+            String result = JSON.serialize(
+                new Map<String, Object>{
+                    'runId' => 'run-ck5',
+                    'status' => 'Issues',
+                    'details' => 'x',
+                    'checks' => new List<Object>{
+                        new Map<String, Object>{ 'id' => 'a', 'status' => 'fail', 'lines' => new List<Object>{ 'y'.repeat(99900) } }
+                    },
+                    'salesforceFindings' => new List<Object>{
+                        new Map<String, Object>{ 'severity' => 'info', 'message' => 'z'.repeat(500) }
+                    }
+                }
+            );
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-ck5', 'Successful', result) }
+            );
+            copado__User_Story__c shortened = storyByTitle(STORY_TITLE);
+            System.assertNotEquals(null, shortened.Verification_Checks__c);
+            System.assert(shortened.Verification_Checks__c.length() <= 100000);
+            Map<String, Object> stored = (Map<String, Object>) JSON.deserializeUntyped(shortened.Verification_Checks__c);
+            System.assertEquals(false, stored.containsKey('salesforceFindings'));
+
+            // Checks that cannot fit at all are not stored; the status and details still are.
+            markRunning(story.Id, 'run-ck6');
+            result = JSON.serialize(
+                new Map<String, Object>{
+                    'runId' => 'run-ck6',
+                    'status' => 'Issues',
+                    'details' => 'x',
+                    'checks' => new List<Object>{
+                        new Map<String, Object>{ 'id' => 'a', 'status' => 'fail', 'lines' => new List<Object>{ 'y'.repeat(100500) } }
+                    }
+                }
+            );
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-ck6', 'Successful', result) }
+            );
+            copado__User_Story__c dropped = storyByTitle(STORY_TITLE);
+            System.assertEquals('Issues', dropped.Verification_Status__c);
+            System.assertEquals(null, dropped.Verification_Checks__c);
         }
     }
 

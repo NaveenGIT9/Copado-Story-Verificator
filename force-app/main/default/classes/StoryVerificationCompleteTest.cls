@@ -34,7 +34,7 @@ private class StoryVerificationCompleteTest {
 
     private static copado__User_Story__c story() {
         return [
-            SELECT Id, Verification_Status__c, Verification_Details__c
+            SELECT Id, Verification_Status__c, Verification_Details__c, Verification_Checks__c
             FROM copado__User_Story__c
             WHERE copado__User_Story_Title__c = 'SVC Story'
         ];
@@ -104,7 +104,7 @@ private class StoryVerificationCompleteTest {
                 Name = 'Story_Verification',
                 copado__JobExecution__c = je.Id,
                 copado__Type__c = 'Function',
-                copado__ResultDataJson__c = '{"runId":"je-run-2","status":"Issues","details":"ISSUE: from step"}'
+                copado__ResultDataJson__c = '{"runId":"je-run-2","status":"Issues","details":"ISSUE: from step","checks":[{"id":"metadata-coverage","title":"Metadata coverage","status":"fail","summary":"s","lines":["l"]}]}'
             );
 
             StoryVerificationComplete.complete(new List<StoryVerificationComplete.Request>{ request(je.Id) });
@@ -112,6 +112,7 @@ private class StoryVerificationCompleteTest {
             copado__User_Story__c after = story();
             System.assertEquals('Issues', after.Verification_Status__c);
             System.assertEquals('ISSUE: from step', after.Verification_Details__c);
+            System.assert(after.Verification_Checks__c.contains('metadata-coverage'), after.Verification_Checks__c);
         }
     }
 
@@ -155,6 +156,57 @@ private class StoryVerificationCompleteTest {
             copado__User_Story__c after = story();
             System.assertEquals('Failed', after.Verification_Status__c);
             System.assertEquals('Result could not be read', after.Verification_Details__c);
+        }
+    }
+
+    @IsTest
+    static void successfulJobWithoutResultAndWithoutApexIssuesIsNeverClean() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c s = story();
+            markRunning(s.Id, 'je-run-7');
+            copado__JobExecution__c je = jobExecution(template('Story_Verification').Id, s.Id, 'Successful', 'je-run-7');
+            je.copado__DataJson__c = JSON.serialize(new Map<String, Object>{
+                'runId' => 'je-run-7',
+                'findings' => new List<Object>{
+                    new Map<String, Object>{ 'severity' => 'info', 'message' => 'Registered commits: 1' }
+                }
+            });
+            update je;
+
+            StoryVerificationComplete.complete(new List<StoryVerificationComplete.Request>{ request(je.Id) });
+
+            copado__User_Story__c after = story();
+            System.assertEquals('Failed', after.Verification_Status__c);
+            System.assert(after.Verification_Details__c.startsWith('The git checks did not report a result'), after.Verification_Details__c);
+            System.assertEquals(null, after.Verification_Checks__c);
+        }
+    }
+
+    @IsTest
+    static void successfulJobWithoutResultButWithApexIssuesIsIssues() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c s = story();
+            markRunning(s.Id, 'je-run-8');
+            copado__JobExecution__c je = jobExecution(template('Story_Verification').Id, s.Id, 'Successful', 'je-run-8');
+            je.copado__DataJson__c = JSON.serialize(new Map<String, Object>{
+                'runId' => 'je-run-8',
+                'findings' => new List<Object>{
+                    new Map<String, Object>{ 'severity' => 'issue', 'message' => 'No metadata is selected on this story.' }
+                }
+            });
+            update je;
+
+            StoryVerificationComplete.complete(new List<StoryVerificationComplete.Request>{ request(je.Id) });
+
+            copado__User_Story__c after = story();
+            System.assertEquals('Issues', after.Verification_Status__c);
+            System.assert(after.Verification_Details__c.contains('ISSUE: No metadata is selected'), after.Verification_Details__c);
+            System.assert(
+                after.Verification_Details__c.endsWith('Git checks did not report a result - see the Job Execution logs.'),
+                after.Verification_Details__c
+            );
         }
     }
 

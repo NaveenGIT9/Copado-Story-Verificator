@@ -45,6 +45,50 @@ public with sharing class StoryVerificationService {
     private static final String FEATURE_PREFIX = 'feature/';
     private static final String SEVERITY_ISSUE = 'issue';
     private static final String SEVERITY_INFO = 'info';
+    private static final Integer MAX_CHECKS_LENGTH = 100000;
+    // Size guards for the DataJson sent to the Function: each list is cut to the first cap that makes the whole
+    // DataJson fit (the lists travel as JSON text inside strings, which doubles the quotes).
+    private static final List<Integer> LIST_CAPS = new List<Integer>{ 2000, 1000, 500, 250, 100, 0 };
+    private static final Integer MAX_DATA_JSON_LENGTH = 90000;
+    private static final Integer COMMIT_QUERY_LIMIT = 4001;
+    private static final Integer METADATA_QUERY_LIMIT = 2001;
+    private static final Integer STEP_QUERY_LIMIT = 2000;
+    private static final String NO_GIT_RESULT_LINE = 'Git checks did not report a result - see the Job Execution logs.';
+    @TestVisible
+    private static final String NO_GIT_RESULT_DETAILS = 'The git checks did not report a result (nothing was verified from git). Open the Job Execution and its Function log.';
+
+    /** Everything the Function needs from Copado data to run the git checks (it has no Salesforce access). */
+    public class GitInputs {
+        public List<String> envBranches = new List<String>();
+        public List<String> registeredCommits = new List<String>();
+        public List<Map<String, String>> nonCompleteCommits = new List<Map<String, String>>();
+        public List<String> registeredMetadata = new List<String>();
+        public Boolean hasCustomLabelMetadata = false;
+        public Boolean truncated = false;
+
+        /** Cuts every list to at most cap entries and remembers that something was dropped. */
+        public void limitTo(Integer cap) {
+            if (envBranches.size() > cap || registeredCommits.size() > cap || nonCompleteCommits.size() > cap || registeredMetadata.size() > cap) {
+                truncated = true;
+            }
+            envBranches = firstOf(envBranches, cap);
+            registeredCommits = firstOf(registeredCommits, cap);
+            registeredMetadata = firstOf(registeredMetadata, cap);
+            List<Map<String, String>> keptCommits = new List<Map<String, String>>();
+            for (Integer i = 0; i < nonCompleteCommits.size() && i < cap; i++) {
+                keptCommits.add(nonCompleteCommits[i]);
+            }
+            nonCompleteCommits = keptCommits;
+        }
+
+        private List<String> firstOf(List<String> values, Integer cap) {
+            List<String> kept = new List<String>();
+            for (Integer i = 0; i < values.size() && i < cap; i++) {
+                kept.add(values[i]);
+            }
+            return kept;
+        }
+    }
 
     /** One Job Execution reduced to what the completion logic needs. */
     public class JobOutcome {
@@ -75,6 +119,8 @@ public with sharing class StoryVerificationService {
                 Id,
                 Name,
                 copado__Base_Branch__c,
+                copado__Environment__c,
+                copado__Project__r.copado__Deployment_Flow__c,
                 Verification_Status__c,
                 Verification_Date__c,
                 copado__Pending_Tests__c,
@@ -98,26 +144,31 @@ public with sharing class StoryVerificationService {
         }
 
         String runId = EncodingUtil.convertToHex(Crypto.generateAesKey(128));
-        List<Map<String, String>> findings = buildFindings(story);
+        Id pipelineId = story.copado__Project__r?.copado__Deployment_Flow__c;
+        GitInputs inputs = loadGitInputs(story.Id, pipelineId);
+        shrinkToFit(story, runId, inputs);
+        List<Map<String, String>> findings = buildFindings(story, inputs, pipelineId);
 
         update new copado__User_Story__c(
             Id = story.Id,
             Verification_Status__c = VerificationStatus.Running.name(),
             Verification_Date__c = startedAt,
             Verification_Run_Id__c = runId,
-            Verification_Details__c = null
+            Verification_Details__c = null,
+            Verification_Checks__c = null
         );
 
-        Map<String, Object> data = new Map<String, Object>{
-            'storyId' => story.Id,
-            'storyName' => story.Name,
-            'runId' => runId,
-            'baseBranch' => story.copado__Base_Branch__c,
-            'findings' => findings
-        };
+        Map<String, Object> data = buildData(story, runId, inputs, findings);
         copado.CreateExecution.Request req = new copado.CreateExecution.Request();
         req.templateName = TEMPLATE_API_NAME;
         req.parentId = story.Id;
+        // Copado resolves {$Context.Repository...} (the git credential) from the pipeline and the source environment.
+        if (pipelineId != null) {
+            req.pipelineId = pipelineId;
+        }
+        if (story.copado__Environment__c != null) {
+            req.sourceId = story.copado__Environment__c;
+        }
         req.dataJson = JSON.serialize(data);
         req.runAfterInstantiation = true;
 
@@ -150,7 +201,137 @@ public with sharing class StoryVerificationService {
         applyOutcomes(loadOutcomes(new Set<Id>(jobExecutionIds)));
     }
 
-    private static List<Map<String, String>> buildFindings(copado__User_Story__c story) {
+    @TestVisible
+    private static Map<String, Object> buildData(
+        copado__User_Story__c story,
+        String runId,
+        GitInputs inputs,
+        List<Map<String, String>> findings
+    ) {
+        // The lists are JSON TEXT inside strings so the Function receives them as plain environment variables.
+        return new Map<String, Object>{
+            'storyId' => story.Id,
+            'storyName' => story.Name,
+            'runId' => runId,
+            'baseBranch' => story.copado__Base_Branch__c,
+            'featureBranch' => FEATURE_PREFIX + story.Name,
+            'envBranchesJson' => JSON.serialize(inputs.envBranches),
+            'registeredCommitsJson' => JSON.serialize(inputs.registeredCommits),
+            'nonCompleteCommitsJson' => JSON.serialize(inputs.nonCompleteCommits),
+            'registeredMetadataJson' => JSON.serialize(inputs.registeredMetadata),
+            'hasCustomLabelMetadata' => inputs.hasCustomLabelMetadata ? 'true' : 'false',
+            'findings' => findings
+        };
+    }
+
+    @TestVisible
+    private static void shrinkToFit(copado__User_Story__c story, String runId, GitInputs inputs) {
+        for (Integer cap : LIST_CAPS) {
+            inputs.limitTo(cap);
+            String json = JSON.serialize(buildData(story, runId, inputs, new List<Map<String, String>>()));
+            if (json.length() <= MAX_DATA_JSON_LENGTH) {
+                return;
+            }
+        }
+    }
+
+    // Never throws for missing optional data: no pipeline, no commits, no metadata all just give empty lists.
+    private static GitInputs loadGitInputs(Id storyId, Id pipelineId) {
+        GitInputs inputs = new GitInputs();
+
+        Integer commitRows = 0;
+        Set<String> seenShas = new Set<String>();
+        for (copado__User_Story_Commit__c commitRecord : [
+            SELECT copado__Status__c, copado__Snapshot_Commit__r.copado__Commit_Id__c
+            FROM copado__User_Story_Commit__c
+            WHERE copado__User_Story__c = :storyId
+            ORDER BY CreatedDate DESC
+            LIMIT :COMMIT_QUERY_LIMIT
+        ]) {
+            commitRows++;
+            addCommit(
+                inputs,
+                seenShas,
+                commitRecord.copado__Status__c,
+                commitRecord.copado__Snapshot_Commit__r?.copado__Commit_Id__c
+            );
+        }
+        if (commitRows >= COMMIT_QUERY_LIMIT) {
+            inputs.truncated = true;
+        }
+
+        Integer metadataRows = 0;
+        Set<String> seenNames = new Set<String>();
+        for (copado__User_Story_Metadata__c metadataRecord : [
+            SELECT copado__Metadata_API_Name__c, copado__Type__c
+            FROM copado__User_Story_Metadata__c
+            WHERE copado__User_Story__c = :storyId
+            LIMIT :METADATA_QUERY_LIMIT
+        ]) {
+            metadataRows++;
+            if ('CustomLabel'.equalsIgnoreCase(metadataRecord.copado__Type__c)) {
+                inputs.hasCustomLabelMetadata = true;
+            }
+            String name = String.isBlank(metadataRecord.copado__Metadata_API_Name__c)
+                ? null
+                : metadataRecord.copado__Metadata_API_Name__c.trim().toLowerCase();
+            if (name != null && seenNames.add(name)) {
+                inputs.registeredMetadata.add(name);
+            }
+        }
+        if (metadataRows >= METADATA_QUERY_LIMIT) {
+            inputs.truncated = true;
+        }
+
+        if (pipelineId != null) {
+            Set<String> seenBranches = new Set<String>();
+            for (copado__Deployment_Flow_Step__c pipelineStep : [
+                SELECT copado__Branch__c, copado__Destination_Branch__c
+                FROM copado__Deployment_Flow_Step__c
+                WHERE copado__Deployment_Flow__c = :pipelineId
+                LIMIT :STEP_QUERY_LIMIT
+            ]) {
+                addBranch(inputs, seenBranches, pipelineStep.copado__Branch__c);
+                addBranch(inputs, seenBranches, pipelineStep.copado__Destination_Branch__c);
+            }
+        }
+        return inputs;
+    }
+
+    // Complete commits are "registered"; every other status is kept with its status text (blank status = Unknown).
+    @TestVisible
+    private static void addCommit(GitInputs inputs, Set<String> seenShas, String status, String commitId) {
+        if (String.isBlank(commitId)) {
+            return;
+        }
+        String sha = commitId.trim().toLowerCase();
+        if ('Complete'.equalsIgnoreCase(status)) {
+            if (seenShas.add(sha)) {
+                inputs.registeredCommits.add(sha);
+            }
+            return;
+        }
+        inputs.nonCompleteCommits.add(
+            new Map<String, String>{ 'sha' => sha, 'status' => String.isBlank(status) ? 'Unknown' : status }
+        );
+    }
+
+    // Branch names keep their case (git is case-sensitive); duplicates are detected case-insensitively.
+    private static void addBranch(GitInputs inputs, Set<String> seenBranches, String branch) {
+        if (String.isBlank(branch)) {
+            return;
+        }
+        String trimmed = branch.trim();
+        if (seenBranches.add(trimmed.toLowerCase())) {
+            inputs.envBranches.add(trimmed);
+        }
+    }
+
+    private static List<Map<String, String>> buildFindings(
+        copado__User_Story__c story,
+        GitInputs inputs,
+        Id pipelineId
+    ) {
         List<Map<String, String>> findings = new List<Map<String, String>>();
 
         Integer commitCount = [
@@ -179,6 +360,17 @@ public with sharing class StoryVerificationService {
                 'Registered commits: ' + commitCount + ', selected metadata items: ' + metadataCount + '.'
             )
         );
+        if (inputs.truncated) {
+            findings.add(
+                finding(
+                    SEVERITY_INFO,
+                    'Some commit, metadata or branch lists were truncated (at most ' + LIST_CAPS[0] + ' entries each) to fit the job size limit; the git checks may be incomplete.'
+                )
+            );
+        }
+        if (pipelineId == null) {
+            findings.add(finding(SEVERITY_ISSUE, 'Story has no pipeline, git checks could not run'));
+        }
         return findings;
     }
 
@@ -376,8 +568,11 @@ public with sharing class StoryVerificationService {
         }
         String resultStatus = String.valueOf(result.get('status'));
         String resultRunId = result.containsKey('runId') ? String.valueOf(result.get('runId')) : runId;
+        // The Function itself reports Failed when it could not clone/fetch (nothing was verified from git).
         boolean validStatus =
-            resultStatus == VerificationStatus.Clean.name() || resultStatus == VerificationStatus.Issues.name();
+            resultStatus == VerificationStatus.Clean.name() ||
+            resultStatus == VerificationStatus.Issues.name() ||
+            resultStatus == VerificationStatus.Failed.name();
         if (!validStatus || resultRunId != runId) {
             return fallbackFromFindings(storyId, outcome);
         }
@@ -385,13 +580,36 @@ public with sharing class StoryVerificationService {
         return new copado__User_Story__c(
             Id = storyId,
             Verification_Status__c = resultStatus,
-            Verification_Details__c = truncate(details == null ? '' : String.valueOf(details))
+            Verification_Details__c = truncate(details == null ? '' : String.valueOf(details)),
+            Verification_Checks__c = serializeChecks(result)
         );
     }
 
-    // The Function's result is not reliably returned through Copado. In phase A every finding is computed here in Apex and
-    // sent to the Function as input, so when the job succeeded but returned no readable result the verdict is rebuilt from
-    // the job's own input. Without that input there is nothing to rebuild from, so the run is marked Failed.
+    // Stores {checks, salesforceFindings} for the popup, or null when the result has no checks or would not fit the field.
+    private static String serializeChecks(Map<String, Object> result) {
+        Object checks = result.get('checks');
+        if (!(checks instanceof List<Object>) || ((List<Object>) checks).isEmpty()) {
+            return null;
+        }
+        Map<String, Object> payload = new Map<String, Object>{ 'checks' => checks };
+        Object findings = result.get('salesforceFindings');
+        if (findings instanceof List<Object>) {
+            payload.put('salesforceFindings', findings);
+        } else {
+            payload.put('salesforceFindings', new List<Object>());
+        }
+        String json = JSON.serialize(payload);
+        if (json.length() <= MAX_CHECKS_LENGTH) {
+            return json;
+        }
+        json = JSON.serialize(new Map<String, Object>{ 'checks' => checks });
+        return json.length() <= MAX_CHECKS_LENGTH ? json : null;
+    }
+
+    // The Function's result is not reliably returned through Copado, but a Clean verdict must never be produced without the
+    // git checks having run. When the job succeeded but returned no readable result the Apex findings (sent to the Function as
+    // input) are all that is left: with an Apex issue the run is Issues, otherwise it is Failed. Without the input there is
+    // nothing to rebuild from, so the run is marked Failed.
     private static copado__User_Story__c fallbackFromFindings(Id storyId, JobOutcome outcome) {
         Map<String, Object> input = parseResult(outcome.dataJson);
         Object raw = input == null ? null : input.get('findings');
@@ -408,11 +626,15 @@ public with sharing class StoryVerificationService {
                 lines.add((isIssue ? 'ISSUE: ' : 'INFO: ') + String.valueOf(f.get('message')));
             }
         }
-        lines.add('NOT RUN: git checks (unregistered commits, org/env branch merged into the feature branch) - phase B.');
+        if (!hasIssue) {
+            return failed(storyId, NO_GIT_RESULT_DETAILS);
+        }
+        lines.add(NO_GIT_RESULT_LINE);
         return new copado__User_Story__c(
             Id = storyId,
-            Verification_Status__c = hasIssue ? VerificationStatus.Issues.name() : VerificationStatus.Clean.name(),
-            Verification_Details__c = truncate(String.join(lines, '\n'))
+            Verification_Status__c = VerificationStatus.Issues.name(),
+            Verification_Details__c = truncate(String.join(lines, '\n')),
+            Verification_Checks__c = null
         );
     }
 
@@ -420,7 +642,8 @@ public with sharing class StoryVerificationService {
         return new copado__User_Story__c(
             Id = storyId,
             Verification_Status__c = VerificationStatus.Failed.name(),
-            Verification_Details__c = truncate(details)
+            Verification_Details__c = truncate(details),
+            Verification_Checks__c = null
         );
     }
 

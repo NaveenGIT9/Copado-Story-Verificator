@@ -271,6 +271,80 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void getProgressParsesTheStoredChecks() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Issues', 'run-g', 'ISSUE: x');
+            update new copado__User_Story__c(
+                Id = storyId,
+                Verification_Checks__c = '{"checks":[' +
+                    '{"id":"unregistered-commits","title":"Unregistered commits","status":"fail","summary":"1 commit","lines":["a","b"]},' +
+                    '{"id":"metadata-coverage","title":"Metadata coverage","status":"PASS","summary":"ok","lines":[]},' +
+                    '{"id":"org-branch-merge","title":"Org/environment branch merge","status":"odd","summary":"?"}' +
+                    '],"salesforceFindings":[]}'
+            );
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.getProgress(
+                storyId,
+                'run-g'
+            );
+
+            System.assertEquals(3, snapshot.checks.size());
+            System.assertEquals('unregistered-commits', snapshot.checks[0].id);
+            System.assertEquals('Unregistered commits', snapshot.checks[0].title);
+            System.assertEquals('fail', snapshot.checks[0].status);
+            System.assertEquals('1 commit', snapshot.checks[0].summary);
+            System.assertEquals(new List<String>{ 'a', 'b' }, snapshot.checks[0].lines);
+            System.assertEquals('pass', snapshot.checks[1].status, 'Status is normalised to lower case');
+            System.assertEquals(0, snapshot.checks[1].lines.size());
+            System.assertEquals('skipped', snapshot.checks[2].status, 'An unknown status is shown as skipped');
+            System.assertEquals(0, snapshot.checks[2].lines.size(), 'Missing lines are an empty list');
+        }
+    }
+
+    @IsTest
+    static void getProgressHasNoChecksWhileRunningOrWhenUnreadable() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Running', 'run-h', null);
+            System.assertEquals(0, StoryVerificationController.getProgress(storyId, 'run-h').checks.size());
+
+            update new copado__User_Story__c(Id = storyId, Verification_Checks__c = 'not json');
+            System.assertEquals(0, StoryVerificationController.getProgress(storyId, 'run-h').checks.size());
+        }
+    }
+
+    @IsTest
+    static void parseChecksToleratesBadShapes() {
+        System.assertEquals(0, StoryVerificationController.parseChecks(null).size());
+        System.assertEquals(0, StoryVerificationController.parseChecks('[]').size());
+        System.assertEquals(0, StoryVerificationController.parseChecks('{"checks":"x"}').size());
+        List<StoryVerificationController.CheckResult> checks = StoryVerificationController.parseChecks(
+            '{"checks":[1,{"id":"a","lines":[null,"kept",5]}]}'
+        );
+        System.assertEquals(1, checks.size());
+        System.assertEquals('skipped', checks[0].status);
+        System.assertEquals('', checks[0].title);
+        System.assertEquals(new List<String>{ 'kept', '5' }, checks[0].lines);
+    }
+
+    @IsTest
+    static void startSnapshotHasNoChecksBecauseTheyAreClearedAtStart() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            update new copado__User_Story__c(Id = storyId, Verification_Checks__c = '{"checks":[{"id":"a","status":"pass"}]}');
+            StoryVerificationService.starter = new CapturingStarter();
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.start(storyId);
+
+            System.assertEquals(0, snapshot.checks.size());
+        }
+    }
+
+    @IsTest
     static void getProgressFlagsSupersededRun() {
         User user = newUser('System Administrator', true);
         System.runAs(user) {
