@@ -48,12 +48,14 @@ private class StoryVerificationServiceTest {
         };
     }
 
+    // Some orgs validate "Pull Requests Approved = true" (it needs an approved bypass record), so the flag is only written when
+    // a test needs it false; "true" is what the setup already inserted, and rewriting it would trip that validation.
     private static void setReadiness(Id storyId, Decimal pendingTests, Boolean prApproved) {
-        update new copado__User_Story__c(
-            Id = storyId,
-            copado__Pending_Tests__c = pendingTests,
-            copado__Pull_Requests_Approved__c = prApproved
-        );
+        copado__User_Story__c story = new copado__User_Story__c(Id = storyId, copado__Pending_Tests__c = pendingTests);
+        if (prApproved == false) {
+            story.copado__Pull_Requests_Approved__c = false;
+        }
+        update story;
     }
 
     private static User newAdmin() {
