@@ -95,10 +95,10 @@ private class StoryVerificationControllerTest {
             new Map<String, Object>{
                 'runId' => runId,
                 'findings' => new List<Object>{
-                    new Map<String, Object>{ 'severity' => 'issue', 'message' => 'No commits are registered.' },
+                    new Map<String, Object>{ 'severity' => 'issue', 'message' => 'No registered commits.' },
                     new Map<String, Object>{
                         'severity' => 'info',
-                        'message' => 'Registered commits: 0.',
+                        'message' => 'None.',
                         'group' => 'parent-dependencies'
                     }
                 }
@@ -193,7 +193,7 @@ private class StoryVerificationControllerTest {
 
             System.assertEquals(2, snapshot.findings.size());
             System.assertEquals('issue', snapshot.findings[0].severity);
-            System.assertEquals('No commits are registered.', snapshot.findings[0].message);
+            System.assertEquals('No registered commits.', snapshot.findings[0].message);
             System.assertEquals('info', snapshot.findings[1].severity);
             System.assertEquals(null, snapshot.findings[0].groupKey, 'A finding without a group has no groupKey');
             System.assertEquals('parent-dependencies', snapshot.findings[1].groupKey);

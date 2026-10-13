@@ -29,8 +29,7 @@ const GROUP_WORDS = {
     'parent-dependencies': { noun: 'parent stories', allOk: 'all ahead' }
 };
 const DEFAULT_GROUP_WORDS = { noun: 'findings', allOk: 'all ok' };
-// A single message longer than this also gets the details toggle.
-const LONG_MESSAGE_LENGTH = 100;
+const FACT_SEPARATOR = ' · ';
 
 const CHECK_VISUALS = {
     pass: { iconName: 'utility:check', iconVariant: 'success', altText: 'Passed', textClass: '' },
@@ -329,7 +328,8 @@ export default class StoryVerificationPopup extends LightningElement {
         return this.checkRow({ id, title: check.title, result: results.find((r) => r.id === id) });
     }
 
-    // One row for all the Apex findings of a group; the individual messages sit behind the details toggle.
+    // One row per group. A single finding is a plain "Title: message" row; several findings get a summary row whose
+    // individual messages sit behind the details toggle.
     groupRow(group, findings) {
         const title = GROUP_TITLES[group];
         const checkId = 'group-' + group;
@@ -364,7 +364,7 @@ export default class StoryVerificationPopup extends LightningElement {
                     ? title + ': ' + findings.length + ' ' + words.noun + ' — ' + issueCount + ' need attention'
                     : title + ': ' + findings.length + ' ' + words.noun + ', ' + words.allOk;
         }
-        const hasLines = findings.length > 1 || String(findings[0].message || '').length > LONG_MESSAGE_LENGTH;
+        const hasLines = findings.length > 1;
         const expanded = hasLines && this.isExpanded(checkId, issueCount > 0 ? 'fail' : 'pass');
         return {
             ...row,
@@ -438,7 +438,7 @@ export default class StoryVerificationPopup extends LightningElement {
             isSpinner: false,
             iconVariant: undefined,
             textClass: '',
-            text: 'Verification job in Copado'
+            text: 'Copado job'
         };
         const failedJob = ['Failed', 'Error', 'Cancelled', 'Canceled'].includes(this.jobStatus);
         const doneJob = this.jobStatus === 'Successful' || (this.isFinished && this.status !== 'Failed');
@@ -464,13 +464,18 @@ export default class StoryVerificationPopup extends LightningElement {
             const isIssue = fact.state === 'issue';
             return {
                 key: 'fact-' + index,
+                hasSeparator: index > 0,
                 iconName: isIssue ? 'utility:close' : 'utility:check',
                 iconVariant: isIssue ? 'error' : 'success',
                 altText: isIssue ? 'Issue' : 'OK',
-                text: fact.label + ': ' + fact.value,
+                text: fact.label + ' ' + fact.value,
                 textClass: isIssue ? 'slds-text-color_error' : ''
             };
         });
+    }
+
+    get factSeparator() {
+        return FACT_SEPARATOR;
     }
 
     // The heading carries the verdict: green for Clean, amber for Issues, red for Failed.

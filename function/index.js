@@ -319,9 +319,9 @@ function isAncestor(a, b) {
 function checkOrgMerge(ctx) {
     const id = "org-branch-merge";
     const cfg = ctx.cfg;
-    const notes = ctx.missing.length ? ["environment branches not found on the remote (not compared): " + ctx.missing.join(", ")] : [];
+    const notes = ctx.missing.length ? ["Not on the remote, so not compared: " + ctx.missing.join(", ")] : [];
     if (cfg.envBranches.size === 0) {
-        return mk(id, "skipped", "No environment branches were provided for the story pipeline", notes);
+        return mk(id, "skipped", "No environment branches configured", notes);
     }
     const raw = run("git", ["log", "--first-parent", "--format=%H%x00%P%x00%s", "origin/" + ctx.base + "..HEAD"]);
     const rows = raw
@@ -354,16 +354,21 @@ function checkOrgMerge(ctx) {
         }
     }
     if (found.length > 0) {
-        const lines = found.map((f) => "merged " + f.branch + " in commit " + f.sha).concat(notes);
-        return mk(id, "fail", "Environment branch merged into the feature branch: " + uniq(found.map((f) => f.branch)).join(", "), lines);
+        // One merge: everything is in the summary (no repeated detail line). Several: the summary counts them, the lines list each.
+        const names = uniq(found.map((f) => f.branch));
+        const summary = found.length === 1
+            ? found[0].branch + " merged into the feature branch (commit " + found[0].sha + ")"
+            : found.length + " environment branch merges: " + names.join(", ");
+        const lines = (found.length === 1 ? [] : found.map((f) => f.branch + " " + DASH + " commit " + f.sha)).concat(notes);
+        return mk(id, "fail", summary, lines);
     }
     // A pass must mean something was compared: when none of the pipeline's environment branches exist on the remote
     // (other than the base branch, which is always allowed to be merged), say so instead of reporting a clean pass.
     const comparable = Array.from(ctx.envOk.values()).filter((b) => b.toLowerCase() !== ctx.base.toLowerCase());
     if (comparable.length === 0) {
-        return mk(id, "warn", "Could not compare: none of the pipeline's environment branches exist on the remote", notes);
+        return mk(id, "warn", "Not compared: no pipeline environment branch exists on the remote", notes);
     }
-    return mk(id, "pass", "No environment branch was merged into the feature branch", notes);
+    return mk(id, "pass", "No environment branch merged", notes);
 }
 
 function checkUnregistered(ctx) {
@@ -376,7 +381,7 @@ function checkUnregistered(ctx) {
         .filter((p) => p[0].trim().length >= 40)
         .map((p) => ({ sha: p[0].trim(), name: str(p[1]), email: str(p[2]).toLowerCase(), committer: str(p[3]).toLowerCase(), subject: str(p[4]) }));
     if (extra.length === 0) {
-        return mk(id, "fail", "Feature branch has no commits beyond " + ctx.base, ["Nothing to promote: origin/" + ctx.base + ".." + cfg.feature + " is empty."]);
+        return mk(id, "fail", "No commits beyond " + ctx.base + " " + DASH + " nothing to promote", []);
     }
     const regSet = new Set(cfg.registered);
     const isReg = (sha) => {
@@ -404,36 +409,36 @@ function checkUnregistered(ctx) {
     const lines = details.slice(0, 50).map((d) => {
         let line = d.sha10 + " " + d.author + " \"" + d.subject + "\"";
         if (d.uncovered.length > 0) line += " " + DASH + " uncovered: " + capList(d.uncovered, 30);
-        if (d.auto) line += " (Copado automatic commit, exempt)";
+        if (d.auto) line += " (Copado auto-commit, exempt)";
         if (d.status) line += " [Copado status: " + d.status + "]";
         return line;
     });
     if (details.length > 50) lines.push("+" + (details.length - 50) + " more");
     if (unreg.length > analysed.length) {
         lines.push("Only the first " + analysed.length + " of " + unreg.length + " commits were analysed.");
-        return mk(id, "fail", unreg.length + " commits were made outside Copado " + DASH + " too many to analyse", lines);
+        return mk(id, "fail", unreg.length + " commits outside Copado " + DASH + " too many to analyse", lines);
     }
     const effective = details.filter((d) => !d.auto);
     const hard = details.filter((d) => d.status && d.status.toLowerCase() !== "failed");
     const uncoveredCommits = effective.filter((d) => d.uncovered.length > 0);
     const authors = uniq(effective.filter((d) => d.email && !regEmails.has(d.email)).map((d) => d.author));
     if (effective.length === 0) {
-        const note = unreg.length === 0 ? "all registered in Copado" : unreg.length + " Copado automatic commit(s) exempt, the rest registered in Copado";
-        return mk(id, "pass", extra.length + " commit(s) on the branch, " + note, lines);
+        const note = unreg.length === 0 ? "all registered" : unreg.length + " Copado auto-commit(s) exempt, rest registered";
+        return mk(id, "pass", extra.length + " commit(s), " + note, lines);
     }
     if (hard.length > 0) {
-        return mk(id, "fail", "Commit " + hard[0].sha10 + " is recorded in Copado with status \"" + hard[0].status + "\" (not Complete)", lines);
+        return mk(id, "fail", "Commit " + hard[0].sha10 + " has Copado status \"" + hard[0].status + "\"", lines);
     }
     if (uncoveredCommits.length > 0) {
-        return mk(id, "fail", uncoveredCommits.length + " commit(s) made outside Copado change components that are not registered on the story", lines);
+        return mk(id, "fail", uncoveredCommits.length + " commit(s) outside Copado change unregistered components", lines);
     }
     if (authors.length > 0) {
-        return mk(id, "fail", "needs manual verification: commit by " + authors.join(", ") + " (not a registered committer)", lines);
+        return mk(id, "fail", "Commit by " + authors.join(", ") + " is not a registered committer " + DASH + " verify manually", lines);
     }
     return mk(
         id,
         "warn",
-        effective.length + " commit(s) made outside Copado; every component is registered on the story and the author is the same",
+        effective.length + " commit(s) outside Copado; components registered, same author",
         lines
     );
 }
@@ -447,19 +452,20 @@ function checkMetadata(ctx) {
     const uncovered = comps.filter((c) => !ctx.isCovered(c));
     const lines = [];
     if (uncovered.length > 0) {
-        lines.push("changed in git but not registered on the story " + DASH + " add them in Copado or the promotion will miss them:");
-        lines.push(capList(uncovered, 100));
+        // Up to three names fit in the summary; a longer list goes in the details.
+        if (uncovered.length > 3) lines.push("Not registered: " + capList(uncovered, 100));
+        lines.push("Add them to the story in Copado, or the promotion will miss them.");
     }
     const changed = new Set(comps.map((c) => c.toLowerCase()));
     const changedList = Array.from(changed);
     const unchanged = Array.from(ctx.cfg.metadata).filter(
         (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
     );
-    if (unchanged.length > 0) lines.push("registered on the story but unchanged in git: " + capList(unchanged, 50));
+    if (unchanged.length > 0) lines.push("Registered but unchanged in git: " + capList(unchanged, 50));
     if (uncovered.length > 0) {
-        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed component(s) are not registered on the story", lines);
+        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered" + (uncovered.length <= 3 ? ": " + uncovered.join(", ") : ""), lines);
     }
-    return mk(id, "pass", comps.length === 0 ? "No changed components found in git" : "All " + comps.length + " changed components are registered", lines);
+    return mk(id, "pass", comps.length === 0 ? "No changed components found in git" : "All " + comps.length + " changed components registered", lines);
 }
 
 function guarded(id, ctx, fn) {
@@ -567,7 +573,7 @@ function main() {
     console.log(org.title + ": " + org.status + " - " + org.summary);
     checks.push(org);
     if (org.status === "fail") {
-        const why = "skipped because an environment branch merge brings in unrelated commits";
+        const why = "Skipped: environment branch merge detected";
         checks.push(mk("unregistered-commits", "skipped", why, []), mk("metadata-coverage", "skipped", why, []));
     } else {
         progress("Checking unregistered commits" + ELL);

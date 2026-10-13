@@ -62,6 +62,8 @@ public with sharing class StoryVerificationService {
     private static final String VERDICT_NOT_AHEAD = 'not-ahead';
     private static final String VERDICT_UNKNOWN = 'unknown';
     private static final String NO_ENVIRONMENT = 'no environment';
+    private static final String VIA_BASE_BRANCH = 'base branch';
+    private static final String VIA_DEPENDENCY = 'dependency';
     private static final String NO_GIT_RESULT_LINE = 'Git checks did not report a result - see the Job Execution logs.';
     @TestVisible
     private static final String NO_GIT_RESULT_DETAILS = 'The git checks did not report a result (nothing was verified from git). Open the Job Execution and its Function log.';
@@ -394,7 +396,7 @@ public with sharing class StoryVerificationService {
             findings.add(finding(SEVERITY_ISSUE, noCommitsMessage(otherCommitCount)));
         }
         if (metadataCount == 0) {
-            findings.add(finding(SEVERITY_ISSUE, 'No metadata is selected on this story.'));
+            findings.add(finding(SEVERITY_ISSUE, 'No metadata selected on this story.'));
         }
         addParentFindings(story, inputs, findings);
         addPendingTestsFinding(story, findings);
@@ -406,12 +408,12 @@ public with sharing class StoryVerificationService {
             findings.add(
                 finding(
                     SEVERITY_INFO,
-                    'Some commit, metadata or branch lists were truncated (at most ' + LIST_CAPS[0] + ' entries each) to fit the job size limit; the git checks may be incomplete.'
+                    'Lists cut at ' + LIST_CAPS[0] + ' entries to fit the job size; git checks may be incomplete.'
                 )
             );
         }
         if (pipelineId == null) {
-            findings.add(finding(SEVERITY_ISSUE, 'Story has no pipeline, git checks could not run'));
+            findings.add(finding(SEVERITY_ISSUE, 'Story has no pipeline; git checks could not run.'));
         }
         return findings;
     }
@@ -419,16 +421,15 @@ public with sharing class StoryVerificationService {
     @TestVisible
     private static String noCommitsMessage(Integer otherCommitCount) {
         if (otherCommitCount == null || otherCommitCount == 0) {
-            return 'No commits are registered in Copado for this story.';
+            return 'No registered commits.';
         }
-        return 'No Complete commits are registered in Copado for this story (' + otherCommitCount +
-            ' commit record(s) have another status, for example "Commit not in branch").';
+        return 'No Complete commits (' + otherCommitCount + ' other record(s), e.g. "Commit not in branch").';
     }
 
     @TestVisible
     private static String commitSummary(Integer completeCount, Integer otherCommitCount, Integer metadataCount) {
-        String other = otherCommitCount == null || otherCommitCount == 0 ? '' : ' (plus ' + otherCommitCount + ' not Complete)';
-        return 'Registered commits: ' + completeCount + other + ', selected metadata items: ' + metadataCount + '.';
+        String other = otherCommitCount == null || otherCommitCount == 0 ? '' : ' (+' + otherCommitCount + ' not Complete)';
+        return 'Registered commits: ' + completeCount + other + ', metadata items: ' + metadataCount + '.';
     }
 
     // A null count (never set by Copado) is treated as 0 pending tests.
@@ -440,21 +441,21 @@ public with sharing class StoryVerificationService {
             findings.add(
                 finding(
                     SEVERITY_ISSUE,
-                    'Pending tests: ' + shown + '. All tests must finish (0 pending) before promoting.',
+                    shown + ' pending - must be 0.',
                     GROUP_PENDING_TESTS
                 )
             );
             return;
         }
-        findings.add(finding(SEVERITY_INFO, 'Pending tests: 0.', GROUP_PENDING_TESTS));
+        findings.add(finding(SEVERITY_INFO, 'None pending.', GROUP_PENDING_TESTS));
     }
 
     private static void addPullRequestFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
         if (isPullRequestApproved(story.copado__Pull_Requests_Approved__c)) {
-            findings.add(finding(SEVERITY_INFO, 'Pull request approved.', GROUP_PULL_REQUEST));
+            findings.add(finding(SEVERITY_INFO, 'Approved.', GROUP_PULL_REQUEST));
             return;
         }
-        findings.add(finding(SEVERITY_ISSUE, 'Pull request is not approved yet.', GROUP_PULL_REQUEST));
+        findings.add(finding(SEVERITY_ISSUE, 'Not approved yet.', GROUP_PULL_REQUEST));
     }
 
     // Parents are the base-branch story (feature/<Name>) and the Copado dependencies where this story is the child.
@@ -474,7 +475,7 @@ public with sharing class StoryVerificationService {
         }
 
         List<copado__Team_Dependency__c> dependencies = [
-            SELECT copado__Provider_User_Story__c, copado__Relationship_Type__c
+            SELECT copado__Provider_User_Story__c
             FROM copado__Team_Dependency__c
             WHERE
                 copado__Dependent_User_Story__c = :story.Id
@@ -517,28 +518,25 @@ public with sharing class StoryVerificationService {
             if (baseParent == null) {
                 baseParentMissing = true;
             } else {
-                addLink(story, links, linkByStory, baseParent, 'via base branch');
+                addLink(story, links, linkByStory, baseParent, VIA_BASE_BRANCH);
             }
         }
         for (copado__Team_Dependency__c dependency : dependencies) {
-            String relationship = String.isBlank(dependency.copado__Relationship_Type__c)
-                ? 'via dependency'
-                : 'via dependency (' + dependency.copado__Relationship_Type__c + ')';
-            addLink(story, links, linkByStory, storiesById.get(dependency.copado__Provider_User_Story__c), relationship);
+            addLink(story, links, linkByStory, storiesById.get(dependency.copado__Provider_User_Story__c), VIA_DEPENDENCY);
         }
 
         if (baseParentMissing) {
             findings.add(
                 finding(
                     SEVERITY_INFO,
-                    'Base branch ' + baseBranch + ' looks like a feature branch but no story named ' + baseParentName + ' was found.',
+                    'Base branch ' + baseBranch + ' names no story (' + baseParentName + ' not found).',
                     GROUP_PARENTS
                 )
             );
         }
         if (links.isEmpty()) {
             if (!baseParentMissing) {
-                findings.add(finding(SEVERITY_INFO, 'No parent story dependencies.', GROUP_PARENTS));
+                findings.add(finding(SEVERITY_INFO, 'None.', GROUP_PARENTS));
             }
             return;
         }
@@ -551,7 +549,7 @@ public with sharing class StoryVerificationService {
             findings.add(
                 parentFinding(
                     parent.Name,
-                    String.join(link.labels, ' and '),
+                    String.join(link.labels, ' + '),
                     parent.copado__Status__c,
                     parent.copado__Environment__c,
                     parent.copado__Environment__r?.Name,
@@ -661,18 +659,14 @@ public with sharing class StoryVerificationService {
     ) {
         String parentText = environmentText(parentEnvironmentId, parentEnvironmentName);
         String childText = environmentText(childEnvironmentId, childEnvironmentName);
-        String prefix = 'Parent story ' + parentName + ' (' + via + ')';
+        String prefix = parentName + ' (' + via + ')';
         Boolean completed = parentStatus == 'Completed';
-        String ahead = prefix + ' is in ' + parentText + ', ahead of this story (' + childText + ').';
+        String ahead = prefix + ' is in ' + parentText + ' - ahead of ' + childText + '.';
         if (completed) {
             return finding(SEVERITY_INFO, ahead, GROUP_PARENTS);
         }
         if (parentEnvironmentId == null) {
-            return finding(
-                SEVERITY_ISSUE,
-                prefix + ' has no environment yet, so it has not been promoted.',
-                GROUP_PARENTS
-            );
+            return finding(SEVERITY_ISSUE, prefix + ' has no environment yet; promote it first.', GROUP_PARENTS);
         }
         Integer childLevel = childEnvironmentId == null || levels == null ? null : levels.get(childEnvironmentId);
         Integer parentLevel = levels == null ? null : levels.get(parentEnvironmentId);
@@ -683,18 +677,17 @@ public with sharing class StoryVerificationService {
         if (verdict == VERDICT_NOT_AHEAD) {
             return finding(
                 SEVERITY_ISSUE,
-                prefix + ' is in ' + parentText + ', not ahead of this story (' + childText + '). Promote the parent first.',
+                prefix + ' is in ' + parentText + ' - not ahead of ' + childText + '; promote it first.',
                 GROUP_PARENTS
             );
         }
         // No pipeline order available: fall back to "has the parent been promoted at all".
-        String note = ' (pipeline order not available to compare with this story\'s environment: ' + childText + ')';
         if (parentLastPromotion != null) {
-            return finding(SEVERITY_INFO, prefix + ' is in ' + parentText + ' and has been promoted' + note + '.', GROUP_PARENTS);
+            return finding(SEVERITY_INFO, prefix + ' is in ' + parentText + ', already promoted.', GROUP_PARENTS);
         }
         return finding(
             SEVERITY_ISSUE,
-            prefix + ' is in ' + parentText + ' and has not been promoted yet' + note + '. Promote the parent first.',
+            prefix + ' is in ' + parentText + ', not promoted yet; promote it first.',
             GROUP_PARENTS
         );
     }

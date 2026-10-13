@@ -30,21 +30,20 @@ const INTRO_ITEMS = [
 ];
 
 const FINDINGS = [
-    { severity: 'info', message: 'Registered commits: 1, selected metadata items: 1.' },
-    { severity: 'issue', message: 'No metadata is selected on this story.' }
+    { severity: 'info', message: 'Registered commits: 1, metadata items: 1.' },
+    { severity: 'issue', message: 'No metadata selected on this story.' }
 ];
 
-const PARENT_OK = 'Parent story US-0000010 (via base branch) is in INT-SFP, ahead of this story (Dev1-SFP).';
-const PARENT_BAD =
-    'Parent story US-0000011 (via dependency (Blocks)) is in Dev2-SFP, not ahead of this story (Dev1-SFP). Promote the parent first.';
+const PARENT_OK = 'US-0000010 (base branch) is in INT-SFP - ahead of Dev1-SFP.';
+const PARENT_BAD = 'US-0000011 (dependency) is in Dev2-SFP - not ahead of Dev1-SFP; promote it first.';
 
 // Deliberately NOT in display order: the popup must order the rows itself.
 const GROUPED_FINDINGS = [
     { severity: 'info', message: PARENT_OK, groupKey: 'parent-dependencies' },
-    { severity: 'info', message: 'Registered commits: 1, selected metadata items: 1.' },
+    { severity: 'info', message: 'Registered commits: 1, metadata items: 1.' },
     { severity: 'issue', message: PARENT_BAD, groupKey: 'parent-dependencies' },
-    { severity: 'info', message: 'Pending tests: 0.', groupKey: 'pending-tests' },
-    { severity: 'issue', message: 'Pull request is not approved yet.', groupKey: 'pull-request' }
+    { severity: 'info', message: 'None pending.', groupKey: 'pending-tests' },
+    { severity: 'issue', message: 'Not approved yet.', groupKey: 'pull-request' }
 ];
 
 const FACTS = [
@@ -113,6 +112,14 @@ function stepTitles(element) {
 
 function factRows(element) {
     return Array.from(element.shadowRoot.querySelectorAll('[data-id="fact"]'));
+}
+
+function factTexts(element) {
+    return factRows(element).map((span) => span.querySelector('[data-id="fact-text"]').textContent);
+}
+
+function separators(element) {
+    return Array.from(element.shadowRoot.querySelectorAll('[data-id="fact-separator"]'));
 }
 
 const CHECKS = [
@@ -343,15 +350,16 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'state').textContent).toContain('job queued in Copado');
         expect(byId(element, 'state-spinner')).not.toBeNull();
         const steps = stepTexts(element);
+        expect(stepTitles(element)[6]).toBe('Copado job: pending');
         expect(steps[0]).toContain('Unregistered commits: pending');
         expect(steps[1]).toContain('Metadata coverage: pending');
         expect(steps[2]).toContain('Pull request approval: pending');
         expect(steps[3]).toContain('Pending tests: pending');
         expect(steps[4]).toContain('Parent story dependencies: pending');
         expect(steps[5]).toContain('Org/environment branch merge: pending');
-        expect(steps[6]).toContain('Verification job in Copado');
+        expect(steps[6]).toContain('Copado job: pending');
         expect(steps[7]).toContain('Registered commits: 1');
-        expect(steps[8]).toContain('No metadata is selected');
+        expect(steps[8]).toContain('No metadata selected');
         expect(byId(element, 'state').textContent).not.toContain('finished');
 
         await tick();
@@ -380,7 +388,7 @@ describe('c-story-verification-popup', () => {
                 status: 'Issues',
                 isFinished: true,
                 jobStatus: 'Successful',
-                details: ['ISSUE: No metadata is selected on this story.', 'INFO: Registered commits: 1.']
+                details: ['ISSUE: No metadata selected on this story.', 'INFO: Registered commits: 1, metadata items: 1.']
             })
         );
 
@@ -414,7 +422,32 @@ describe('c-story-verification-popup', () => {
         expect(verdict.textContent).toBe('Verification finished: Failed');
         expect(verdict.className).toContain('slds-text-color_error');
         expect(byId(element, 'failure').textContent).toContain('Function exited with code 1');
-        expect(stepTexts(element).some((text) => text.includes('Verification job in Copado: failed'))).toBe(true);
+        expect(stepTitles(element)).toContain('Copado job: failed');
+    });
+
+    describe('job row wording', () => {
+        it('reads "Copado job: pending" when queued', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            const element = await mountAndVerify();
+
+            expect(stepTitles(element)[6]).toBe('Copado job: pending');
+        });
+
+        it('reads "Copado job: running" while the job is in progress', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+            const element = await mountAndVerify();
+            await tick();
+
+            expect(stepTitles(element)[6]).toBe('Copado job: running');
+        });
+
+        it('reads "Copado job: done" for a finished successful job', async () => {
+            const element = await mountFinished(CHECKS);
+
+            expect(stepTitles(element)[6]).toBe('Copado job: done');
+        });
     });
 
     it('stops polling and says so when a newer run replaced this one', async () => {
@@ -528,7 +561,7 @@ describe('c-story-verification-popup', () => {
         expect(getProgress).toHaveBeenLastCalledWith({ storyId: STORY_ID, runId: 'run-456' });
     });
 
-    it('renders the promotion readiness rows with ok and issue icons', async () => {
+    it('renders the compact "Live now" line with ok and issue icons', async () => {
         start.mockResolvedValue(
             snapshot({
                 facts: [
@@ -541,15 +574,47 @@ describe('c-story-verification-popup', () => {
 
         const element = await mountAndVerify();
 
-        expect(element.shadowRoot.textContent).toContain('Promotion readiness');
+        const line = byId(element, 'readiness-section');
+        expect(line).not.toBeNull();
+        expect(line.querySelector('[data-id="readiness-label"]').textContent).toBe('Live now:');
+        expect(element.shadowRoot.textContent).not.toContain('Promotion readiness');
         const rows = factRows(element);
         expect(rows).toHaveLength(2);
-        expect(rows[0].textContent).toBe('Pending tests: 3');
-        expect(rows[0].querySelector('lightning-icon').iconName).toBe('utility:close');
-        expect(rows[0].querySelector('lightning-icon').variant).toBe('error');
-        expect(rows[1].textContent).toBe('Pull request approved: Yes');
-        expect(rows[1].querySelector('lightning-icon').iconName).toBe('utility:check');
-        expect(rows[1].querySelector('lightning-icon').variant).toBe('success');
+        expect(factTexts(element)).toEqual(['Pending tests 3', 'Pull request approved Yes']);
+        const firstIcon = rows[0].querySelector('lightning-icon');
+        expect(firstIcon.iconName).toBe('utility:close');
+        expect(firstIcon.variant).toBe('error');
+        expect(firstIcon.alternativeText).toBe('Issue');
+        expect(firstIcon.size).toBe('x-small');
+        expect(rows[0].querySelector('[data-id="fact-text"]').className).toContain('slds-text-color_error');
+        const secondIcon = rows[1].querySelector('lightning-icon');
+        expect(secondIcon.iconName).toBe('utility:check');
+        expect(secondIcon.variant).toBe('success');
+        expect(secondIcon.alternativeText).toBe('OK');
+        expect(rows[1].querySelector('[data-id="fact-text"]').className).not.toContain('slds-text-color_error');
+    });
+
+    it('separates the facts with " · " and puts no separator before the first fact', async () => {
+        start.mockResolvedValue(
+            snapshot({
+                facts: [
+                    { label: 'Pending tests', value: '0', state: 'ok' },
+                    { label: 'Pull request approved', value: 'No', state: 'issue' },
+                    { label: 'Other', value: '1', state: 'ok' }
+                ]
+            })
+        );
+        getProgress.mockResolvedValue(snapshot());
+
+        const element = await mountAndVerify();
+
+        expect(factRows(element)).toHaveLength(3);
+        expect(separators(element)).toHaveLength(2);
+        separators(element).forEach((separator) => expect(separator.textContent).toBe(' · '));
+        const line = byId(element, 'readiness-section');
+        expect(line.firstElementChild.textContent).toBe('Live now:');
+        expect(line.querySelector('[data-id="fact-separator"]').nextElementSibling.dataset.id).toBe('fact');
+        expect(line.children[1].querySelector('[data-id="fact-separator"]')).toBeNull();
     });
 
     it('updates the readiness rows on the next poll', async () => {
@@ -564,28 +629,38 @@ describe('c-story-verification-popup', () => {
         getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
 
         const element = await mountAndVerify();
-        expect(factRows(element).map((li) => li.textContent)).toEqual([
-            'Pending tests: 2',
-            'Pull request approved: No'
-        ]);
+        expect(factTexts(element)).toEqual(['Pending tests 2', 'Pull request approved No']);
+        expect(factRows(element)[0].querySelector('lightning-icon').iconName).toBe('utility:close');
 
         await tick();
 
-        expect(factRows(element).map((li) => li.textContent)).toEqual([
-            'Pending tests: 0',
-            'Pull request approved: Yes'
-        ]);
+        expect(factTexts(element)).toEqual(['Pending tests 0', 'Pull request approved Yes']);
         expect(factRows(element)[0].querySelector('lightning-icon').iconName).toBe('utility:check');
+        expect(factRows(element)[1].querySelector('lightning-icon').iconName).toBe('utility:check');
+        expect(byId(element, 'readiness-section')).not.toBeNull();
     });
 
-    it('hides the readiness section when there are no facts', async () => {
+    it('hides the "Live now" line when there are no facts', async () => {
         start.mockResolvedValue(snapshot({ facts: [] }));
         getProgress.mockResolvedValue(snapshot({ facts: [] }));
 
         const element = await mountAndVerify();
 
         expect(byId(element, 'readiness-section')).toBeNull();
-        expect(element.shadowRoot.textContent).not.toContain('Promotion readiness');
+        expect(factRows(element)).toHaveLength(0);
+        expect(element.shadowRoot.textContent).not.toContain('Live now');
+    });
+
+    it('hides the "Live now" line again when a later poll has no facts', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ facts: [], jobStatus: 'In Progress' }));
+
+        const element = await mountAndVerify();
+        expect(byId(element, 'readiness-section')).not.toBeNull();
+
+        await tick();
+
+        expect(byId(element, 'readiness-section')).toBeNull();
     });
 
     it('shows the three git checks as pending rows while the job is queued', async () => {
@@ -773,7 +848,7 @@ describe('c-story-verification-popup', () => {
             'Pending tests',
             'Parent story dependencies',
             'Org/environment branch merge',
-            'Verification job in Copado',
+            'Copado job',
             'Registered commits'
         ];
 
@@ -806,13 +881,13 @@ describe('c-story-verification-popup', () => {
 
         it('accepts the group on a key named group as well', async () => {
             start.mockResolvedValue(
-                snapshot({ findings: [{ severity: 'issue', message: 'Pull request is not approved yet.', group: 'pull-request' }] })
+                snapshot({ findings: [{ severity: 'issue', message: 'Not approved yet.', group: 'pull-request' }] })
             );
             getProgress.mockResolvedValue(snapshot());
 
             const element = await mountAndVerify();
 
-            expect(stepTitles(element)[2]).toBe('Pull request approval: Pull request is not approved yet.');
+            expect(stepTitles(element)[2]).toBe('Pull request approval: Not approved yet.');
         });
 
         it('shows one grouped parent row with an issue icon and the counts when several parents differ', async () => {
@@ -856,7 +931,7 @@ describe('c-story-verification-popup', () => {
                     { severity: 'info', message: PARENT_OK, groupKey: 'parent-dependencies' },
                     {
                         severity: 'info',
-                        message: 'Parent story US-0000012 (via base branch) is in UAT-SFP, ahead of this story (INT-SFP).',
+                        message: 'US-0000012 (base branch + dependency) is in UAT-SFP - ahead of INT-SFP.',
                         groupKey: 'parent-dependencies'
                     }
                 ]
@@ -874,92 +949,108 @@ describe('c-story-verification-popup', () => {
 
         it('shows a single short grouped message as "Title: message" without a toggle', async () => {
             const element = await mountFinished(CHECKS, {
-                findings: [{ severity: 'info', message: 'No parent story dependencies.', groupKey: 'parent-dependencies' }]
+                findings: [{ severity: 'info', message: 'None.', groupKey: 'parent-dependencies' }]
             });
 
             const row = stepRow(element, 'Parent story dependencies');
-            expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
-                'Parent story dependencies: No parent story dependencies.'
-            );
+            expect(row.querySelector('[data-id="step-text"]').textContent).toBe('Parent story dependencies: None.');
             expect(row.querySelector('lightning-icon').iconName).toBe('utility:check');
             expect(row.querySelector('[data-id="toggle"]')).toBeNull();
         });
 
-        it('gives a single long grouped message a details toggle, open when it is an issue', async () => {
+        it('never gives a single long grouped message a toggle or a details list', async () => {
+            const longMessage = PARENT_BAD + ' ' + 'x'.repeat(200);
             const element = await mountFinished(CHECKS, {
-                findings: [{ severity: 'issue', message: PARENT_BAD, groupKey: 'parent-dependencies' }]
+                findings: [
+                    { severity: 'issue', message: PARENT_BAD, groupKey: 'parent-dependencies' },
+                    { severity: 'issue', message: longMessage, groupKey: 'pull-request' }
+                ]
             });
 
-            const row = stepRow(element, 'Parent story dependencies');
-            expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+            const parent = stepRow(element, 'Parent story dependencies');
+            expect(parent.querySelector('[data-id="step-text"]').textContent).toBe(
                 'Parent story dependencies: ' + PARENT_BAD
             );
-            expect(row.querySelector('lightning-icon').iconName).toBe('utility:close');
-            expect(row.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
-            expect(row.querySelector('[data-id="check-lines"]').textContent).toContain(PARENT_BAD);
+            expect(parent.querySelector('lightning-icon').iconName).toBe('utility:close');
+            expect(parent.querySelector('[data-id="toggle"]')).toBeNull();
+            expect(parent.querySelector('[data-id="check-lines"]')).toBeNull();
+
+            const pullRequest = stepRow(element, 'Pull request approval');
+            expect(pullRequest.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Pull request approval: ' + longMessage
+            );
+            expect(pullRequest.querySelector('[data-id="toggle"]')).toBeNull();
+            expect(pullRequest.querySelector('[data-id="check-lines"]')).toBeNull();
+        });
+
+        it('does not repeat the title when the single message already starts with it', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [{ severity: 'info', message: 'Pending tests: 0.', groupKey: 'pending-tests' }]
+            });
+
+            expect(stepRow(element, 'Pending tests').querySelector('[data-id="step-text"]').textContent).toBe(
+                'Pending tests: 0.'
+            );
         });
 
         it('renders the pull request and pending tests rows from their groups', async () => {
             const element = await mountFinished(CHECKS, {
                 findings: [
-                    { severity: 'issue', message: 'Pull request is not approved yet.', groupKey: 'pull-request' },
-                    {
-                        severity: 'issue',
-                        message: 'Pending tests: 3. All tests must finish (0 pending) before promoting.',
-                        groupKey: 'pending-tests'
-                    }
+                    { severity: 'issue', message: 'Not approved yet.', groupKey: 'pull-request' },
+                    { severity: 'issue', message: '3 pending - must be 0.', groupKey: 'pending-tests' }
                 ]
             });
 
             const pullRequest = stepRow(element, 'Pull request approval');
             expect(pullRequest.querySelector('[data-id="step-text"]').textContent).toBe(
-                'Pull request approval: Pull request is not approved yet.'
+                'Pull request approval: Not approved yet.'
             );
             expect(pullRequest.querySelector('lightning-icon').iconName).toBe('utility:close');
             expect(pullRequest.querySelector('[data-id="toggle"]')).toBeNull();
 
             const pending = stepRow(element, 'Pending tests');
             expect(pending.querySelector('[data-id="step-text"]').textContent).toBe(
-                'Pending tests: 3. All tests must finish (0 pending) before promoting.'
+                'Pending tests: 3 pending - must be 0.'
             );
             expect(pending.querySelector('lightning-icon').iconName).toBe('utility:close');
             expect(pending.querySelector('lightning-icon').variant).toBe('error');
+            expect(pending.querySelector('[data-id="toggle"]')).toBeNull();
         });
 
         it('renders passing pull request and pending tests rows with a green check', async () => {
             const element = await mountFinished(CHECKS, {
                 findings: [
-                    { severity: 'info', message: 'Pull request approved.', groupKey: 'pull-request' },
-                    { severity: 'info', message: 'Pending tests: 0.', groupKey: 'pending-tests' }
+                    { severity: 'info', message: 'Approved.', groupKey: 'pull-request' },
+                    { severity: 'info', message: 'None pending.', groupKey: 'pending-tests' }
                 ]
             });
 
             const pullRequest = stepRow(element, 'Pull request approval');
             expect(pullRequest.querySelector('[data-id="step-text"]').textContent).toBe(
-                'Pull request approval: Pull request approved.'
+                'Pull request approval: Approved.'
             );
             expect(pullRequest.querySelector('lightning-icon').iconName).toBe('utility:check');
             const pending = stepRow(element, 'Pending tests');
-            expect(pending.querySelector('[data-id="step-text"]').textContent).toBe('Pending tests: 0.');
+            expect(pending.querySelector('[data-id="step-text"]').textContent).toBe('Pending tests: None pending.');
             expect(pending.querySelector('lightning-icon').iconName).toBe('utility:check');
         });
 
         it('still shows ungrouped findings after the job row, with icons by severity', async () => {
             const element = await mountFinished(CHECKS, {
                 findings: [
-                    { severity: 'info', message: 'Registered commits: 1, selected metadata items: 1.' },
-                    { severity: 'issue', message: 'Story has no pipeline, git checks could not run' },
-                    { severity: 'info', message: 'Pull request approved.', groupKey: 'pull-request' }
+                    { severity: 'info', message: 'Registered commits: 1, metadata items: 1.' },
+                    { severity: 'issue', message: 'Story has no pipeline; git checks could not run.' },
+                    { severity: 'info', message: 'Approved.', groupKey: 'pull-request' }
                 ]
             });
 
             const titles = stepTitles(element);
             expect(titles).toHaveLength(9); // six fixed rows, the job row, then the two ungrouped findings
-            expect(titles[6]).toBe('Verification job in Copado: done');
-            expect(titles[7]).toBe('Registered commits: 1, selected metadata items: 1.');
-            expect(titles[8]).toBe('Story has no pipeline, git checks could not run');
+            expect(titles[6]).toBe('Copado job: done');
+            expect(titles[7]).toBe('Registered commits: 1, metadata items: 1.');
+            expect(titles[8]).toBe('Story has no pipeline; git checks could not run.');
             const issueRow = stepRow(element, 'Story has no pipeline');
-            expect(titles).toContain('Story has no pipeline, git checks could not run');
+            expect(titles).toContain('Story has no pipeline; git checks could not run.');
             expect(issueRow.querySelector('lightning-icon').iconName).toBe('utility:close');
             expect(stepRow(element, 'Registered commits').querySelector('lightning-icon').iconName).toBe(
                 'utility:check'

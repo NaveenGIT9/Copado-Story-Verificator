@@ -193,7 +193,7 @@ private class StoryVerificationCompleteTest {
             je.copado__DataJson__c = JSON.serialize(new Map<String, Object>{
                 'runId' => 'je-run-8',
                 'findings' => new List<Object>{
-                    new Map<String, Object>{ 'severity' => 'issue', 'message' => 'No metadata is selected on this story.' }
+                    new Map<String, Object>{ 'severity' => 'issue', 'message' => 'No metadata selected on this story.' }
                 }
             });
             update je;
@@ -202,7 +202,7 @@ private class StoryVerificationCompleteTest {
 
             copado__User_Story__c after = story();
             System.assertEquals('Issues', after.Verification_Status__c);
-            System.assert(after.Verification_Details__c.contains('ISSUE: No metadata is selected'), after.Verification_Details__c);
+            System.assert(after.Verification_Details__c.contains('ISSUE: No metadata selected on this story.'), after.Verification_Details__c);
             System.assert(
                 after.Verification_Details__c.endsWith('Git checks did not report a result - see the Job Execution logs.'),
                 after.Verification_Details__c

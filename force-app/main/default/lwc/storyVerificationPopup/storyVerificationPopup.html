@@ -75,12 +75,15 @@
             </ul>
 
             <template lwc:if={hasFacts}>
-                <div class="slds-m-bottom_small" data-id="readiness-section">
-                    <p class="slds-text-title_bold">Promotion readiness</p>
-                    <ul data-id="readiness">
-                        <template for:each={readinessRows} for:item="fact">
-                            <li key={fact.key} class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small" data-id="fact">
-                                <span class="step-icon slds-m-right_x-small">
+                <p class="slds-m-bottom_small" data-id="readiness-section">
+                    <span class="slds-text-title_bold slds-m-right_x-small" data-id="readiness-label">Live now:</span>
+                    <template for:each={readinessRows} for:item="fact">
+                        <span key={fact.key}>
+                            <template lwc:if={fact.hasSeparator}>
+                                <span class="fact-separator" data-id="fact-separator">{factSeparator}</span>
+                            </template>
+                            <span class="fact" data-id="fact">
+                                <span class="fact-icon">
                                     <lightning-icon
                                         icon-name={fact.iconName}
                                         variant={fact.iconVariant}
@@ -88,11 +91,11 @@
                                         alternative-text={fact.altText}
                                     ></lightning-icon>
                                 </span>
-                                <span class={fact.textClass}>{fact.text}</span>
-                            </li>
-                        </template>
-                    </ul>
-                </div>
+                                <span class={fact.textClass} data-id="fact-text">{fact.text}</span>
+                            </span>
+                        </span>
+                    </template>
+                </p>
             </template>
 
             <template lwc:if={isFinished}>
