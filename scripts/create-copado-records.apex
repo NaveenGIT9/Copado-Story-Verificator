@@ -36,8 +36,8 @@ final List<String> DATA_KEYS = new List<String>{
     'findings'
 };
 // Parameters that are not read from the DataJson (same shape as the standard functions).
-final List<String> OTHER_NAMES = new List<String>{ 'git_json', 'gitDepth', 'gitName', 'gitEmail' };
-final List<String> OTHER_VALUES = new List<String>{ '{$Context.Repository.Credential}', '200', '{$User.Name}', '{$User.Email}' };
+final List<String> OTHER_NAMES = new List<String>{ 'git_json', 'repositoryId', 'gitDepth', 'gitName', 'gitEmail' };
+final List<String> OTHER_VALUES = new List<String>{ '{$Context.Repository.Credential}', '{$Pipeline.Git_Repository__r.Id}', '200', '{$User.Name}', '{$User.Email}' };
 
 // Must stay identical to function/index.js (this block is written by the generator).
 final List<String> SCRIPT_LINES = new List<String>();
