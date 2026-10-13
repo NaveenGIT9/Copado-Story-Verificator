@@ -306,10 +306,11 @@ public with sharing class StoryVerificationService {
             if ('CustomLabel'.equalsIgnoreCase(metadataRecord.copado__Type__c)) {
                 inputs.hasCustomLabelMetadata = true;
             }
+            // Keep the exact spelling for display (Account.Custom__c); duplicates are detected case-insensitively.
             String name = String.isBlank(metadataRecord.copado__Metadata_API_Name__c)
                 ? null
-                : metadataRecord.copado__Metadata_API_Name__c.trim().toLowerCase();
-            if (name != null && seenNames.add(name)) {
+                : metadataRecord.copado__Metadata_API_Name__c.trim();
+            if (name != null && seenNames.add(name.toLowerCase())) {
                 inputs.registeredMetadata.add(name);
             }
         }

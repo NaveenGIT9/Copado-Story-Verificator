@@ -175,6 +175,11 @@ function skippedChecks(reason) {
 
 function readConfig() {
     const storyName = str(env.storyName);
+    const metadataNames = new Map();
+    parseList(env.registeredMetadataJson).forEach((s) => {
+        const name = str(s).trim();
+        if (name && !metadataNames.has(name.toLowerCase())) metadataNames.set(name.toLowerCase(), name);
+    });
     const depth = parseInt(env.gitDepth, 10);
     const envBranches = new Map();
     parseList(env.envBranchesJson).forEach((b) => {
@@ -197,7 +202,8 @@ function readConfig() {
         nonComplete: parseList(env.nonCompleteCommitsJson)
             .map((o) => ({ sha: str(o && o.sha).trim().toLowerCase(), status: str(o && o.status) || "Unknown" }))
             .filter((o) => o.sha),
-        metadata: new Set(parseList(env.registeredMetadataJson).map((s) => str(s).trim().toLowerCase()).filter(Boolean)),
+        metadata: new Set(metadataNames.keys()), // lowercase, for matching
+        metadataNames: metadataNames, // lowercase -> exact spelling, for display
         hasLabels: str(env.hasCustomLabelMetadata).toLowerCase() === "true",
         findings: findings
     };
@@ -461,7 +467,7 @@ function checkMetadata(ctx) {
     const unchanged = Array.from(ctx.cfg.metadata).filter(
         (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
     );
-    if (unchanged.length > 0) lines.push("Registered but unchanged in git: " + capList(unchanged, 50));
+    if (unchanged.length > 0) lines.push("Registered but unchanged in git: " + capList(unchanged.map((r) => ctx.cfg.metadataNames.get(r) || r), 50));
     if (uncovered.length > 0) {
         return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered" + (uncovered.length <= 3 ? ": " + uncovered.join(", ") : ""), lines);
     }

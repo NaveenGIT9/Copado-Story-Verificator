@@ -201,7 +201,7 @@ private class StoryVerificationServiceTest {
             System.assertEquals('false', (String) data.get('hasCustomLabelMetadata'));
             List<Object> metadata = (List<Object>) JSON.deserializeUntyped((String) data.get('registeredMetadataJson'));
             System.assertEquals(1, metadata.size());
-            System.assertEquals('account', metadata[0]);
+            System.assertEquals('Account', metadata[0], 'The exact spelling is kept');
             // Copado may derive the commit status from the snapshot, so accept either bucket, but the SHA must be in exactly one.
             List<Object> registered = (List<Object>) JSON.deserializeUntyped((String) data.get('registeredCommitsJson'));
             List<Object> nonComplete = (List<Object>) JSON.deserializeUntyped((String) data.get('nonCompleteCommitsJson'));
