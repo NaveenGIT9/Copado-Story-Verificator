@@ -29,7 +29,6 @@ const GROUP_WORDS = {
     'parent-dependencies': { noun: 'parent stories', allOk: 'all ahead' }
 };
 const DEFAULT_GROUP_WORDS = { noun: 'findings', allOk: 'all ok' };
-const FACT_SEPARATOR = ' · ';
 
 const CHECK_VISUALS = {
     pass: { iconName: 'utility:check', iconVariant: 'success', altText: 'Passed', textClass: '' },
@@ -319,7 +318,22 @@ export default class StoryVerificationPopup extends LightningElement {
         results
             .filter((r) => !GIT_CHECKS.some((check) => check.id === r.id))
             .forEach((r) => list.push(this.checkRow({ id: r.id, title: r.title || r.id, result: r })));
-        return list;
+        // While the run is going the order is fixed (rows do not jump as they resolve); once finished, passed checks come
+        // first, then warnings and skipped checks, then the failures.
+        return this.isFinished ? this.passedFirst(list) : list;
+    }
+
+    passedFirst(list) {
+        const rank = (row) => {
+            if (row.iconName === 'utility:check') return 0;
+            if (row.iconName === 'utility:close') return 3;
+            if (row.iconName === 'utility:dash') return 2;
+            return 1;
+        };
+        return list
+            .map((row, index) => ({ row, index }))
+            .sort((a, b) => rank(a.row) - rank(b.row) || a.index - b.index)
+            .map((entry) => entry.row);
     }
 
     gitRow(id) {
@@ -452,30 +466,6 @@ export default class StoryVerificationPopup extends LightningElement {
             return { ...step, isSpinner: true, altText: 'Running', text: step.text + ': running' };
         }
         return { ...step, iconName: 'utility:clock', altText: 'Pending', text: step.text + ': pending' };
-    }
-
-    get hasFacts() {
-        return !!(this.snapshot && this.snapshot.facts && this.snapshot.facts.length > 0);
-    }
-
-    get readinessRows() {
-        const facts = (this.snapshot && this.snapshot.facts) || [];
-        return facts.map((fact, index) => {
-            const isIssue = fact.state === 'issue';
-            return {
-                key: 'fact-' + index,
-                hasSeparator: index > 0,
-                iconName: isIssue ? 'utility:close' : 'utility:check',
-                iconVariant: isIssue ? 'error' : 'success',
-                altText: isIssue ? 'Issue' : 'OK',
-                text: fact.label + ' ' + fact.value,
-                textClass: isIssue ? 'slds-text-color_error' : ''
-            };
-        });
-    }
-
-    get factSeparator() {
-        return FACT_SEPARATOR;
     }
 
     // The heading carries the verdict: green for Clean, amber for Issues, red for Failed.

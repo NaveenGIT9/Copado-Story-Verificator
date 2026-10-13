@@ -74,30 +74,6 @@
                 </template>
             </ul>
 
-            <template lwc:if={hasFacts}>
-                <p class="slds-m-bottom_small" data-id="readiness-section">
-                    <span class="slds-text-title_bold slds-m-right_x-small" data-id="readiness-label">Live now:</span>
-                    <template for:each={readinessRows} for:item="fact">
-                        <span key={fact.key}>
-                            <template lwc:if={fact.hasSeparator}>
-                                <span class="fact-separator" data-id="fact-separator">{factSeparator}</span>
-                            </template>
-                            <span class="fact" data-id="fact">
-                                <span class="fact-icon">
-                                    <lightning-icon
-                                        icon-name={fact.iconName}
-                                        variant={fact.iconVariant}
-                                        size="x-small"
-                                        alternative-text={fact.altText}
-                                    ></lightning-icon>
-                                </span>
-                                <span class={fact.textClass} data-id="fact-text">{fact.text}</span>
-                            </span>
-                        </span>
-                    </template>
-                </p>
-            </template>
-
             <template lwc:if={isFinished}>
                 <template lwc:if={failureText}>
                     <div class="slds-box slds-box_small slds-theme_error slds-m-top_small" role="alert" data-id="failure">

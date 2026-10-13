@@ -17,21 +17,6 @@
     flex-shrink: 0;
 }
 
-.fact {
-    display: inline-flex;
-    align-items: center;
-    vertical-align: middle;
-}
-
-.fact-icon {
-    display: inline-flex;
-    margin-right: 0.25rem;
-}
-
-.fact-separator {
-    white-space: pre;
-}
-
 .state-issues {
     color: #b45309;
 }

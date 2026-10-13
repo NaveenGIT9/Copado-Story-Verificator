@@ -454,7 +454,7 @@ function checkMetadata(ctx) {
     if (uncovered.length > 0) {
         // Up to three names fit in the summary; a longer list goes in the details.
         if (uncovered.length > 3) lines.push("Not registered: " + capList(uncovered, 100));
-        lines.push("Add them to the story in Copado, or the promotion will miss them.");
+        lines.push("Their changes won't deploy to target - add them to the story in Copado.");
     }
     const changed = new Set(comps.map((c) => c.toLowerCase()));
     const changedList = Array.from(changed);
