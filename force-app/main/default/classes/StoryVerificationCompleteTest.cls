@@ -7,7 +7,11 @@
 private class StoryVerificationCompleteTest {
     @TestSetup
     static void setup() {
-        insert new copado__User_Story__c(copado__User_Story_Title__c = 'SVC Story');
+        insert new copado__User_Story__c(
+            copado__User_Story_Title__c = 'SVC Story',
+            copado__Pending_Tests__c = 0,
+            copado__Pull_Requests_Approved__c = true
+        );
     }
 
     private static User newAdmin() {

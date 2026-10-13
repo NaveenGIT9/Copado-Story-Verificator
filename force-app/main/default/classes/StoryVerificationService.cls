@@ -62,7 +62,14 @@ public with sharing class StoryVerificationService {
             throw new StoryVerificationException('Story Id is required');
         }
         List<copado__User_Story__c> stories = [
-            SELECT Id, Name, copado__Base_Branch__c, Verification_Status__c, Verification_Date__c
+            SELECT
+                Id,
+                Name,
+                copado__Base_Branch__c,
+                Verification_Status__c,
+                Verification_Date__c,
+                copado__Pending_Tests__c,
+                copado__Pull_Requests_Approved__c
             FROM copado__User_Story__c
             WHERE Id = :storyId
             LIMIT 1
@@ -155,6 +162,8 @@ public with sharing class StoryVerificationService {
             findings.add(finding(SEVERITY_ISSUE, 'No metadata is selected on this story.'));
         }
         addParentFinding(story, findings);
+        addPendingTestsFinding(story, findings);
+        addPullRequestFinding(story, findings);
         findings.add(
             finding(
                 SEVERITY_INFO,
@@ -162,6 +171,31 @@ public with sharing class StoryVerificationService {
             )
         );
         return findings;
+    }
+
+    // A null count (never set by Copado) is treated as 0 pending tests.
+    private static void addPendingTestsFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
+        Decimal pending = story.copado__Pending_Tests__c == null ? 0 : story.copado__Pending_Tests__c;
+        // stripTrailingZeros + toPlainString so 3.0 prints as 3 (and 100 as 100, not 1E+2).
+        String shown = pending.stripTrailingZeros().toPlainString();
+        if (pending > 0) {
+            findings.add(
+                finding(
+                    SEVERITY_ISSUE,
+                    'Pending tests: ' + shown + '. All tests must finish (0 pending) before promoting.'
+                )
+            );
+            return;
+        }
+        findings.add(finding(SEVERITY_INFO, 'Pending tests: 0.'));
+    }
+
+    private static void addPullRequestFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
+        if (story.copado__Pull_Requests_Approved__c == true) {
+            findings.add(finding(SEVERITY_INFO, 'Pull request approved.'));
+            return;
+        }
+        findings.add(finding(SEVERITY_ISSUE, 'Pull request is not approved yet.'));
     }
 
     private static void addParentFinding(copado__User_Story__c story, List<Map<String, String>> findings) {

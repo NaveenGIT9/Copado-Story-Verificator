@@ -267,6 +267,25 @@ export default class StoryVerificationPopup extends LightningElement {
         return { ...step, iconName: 'utility:clock', altText: 'Pending', text: step.text + ': pending' };
     }
 
+    get hasFacts() {
+        return !!(this.snapshot && this.snapshot.facts && this.snapshot.facts.length > 0);
+    }
+
+    get readinessRows() {
+        const facts = (this.snapshot && this.snapshot.facts) || [];
+        return facts.map((fact, index) => {
+            const isIssue = fact.state === 'issue';
+            return {
+                key: 'fact-' + index,
+                iconName: isIssue ? 'utility:close' : 'utility:check',
+                iconVariant: isIssue ? 'error' : 'success',
+                altText: isIssue ? 'Issue' : 'OK',
+                text: fact.label + ': ' + fact.value,
+                textClass: isIssue ? 'slds-text-color_error' : ''
+            };
+        });
+    }
+
     get bannerClass() {
         return (BANNER_CLASS[this.status] || BANNER_CLASS.Failed) + ' slds-m-top_small';
     }

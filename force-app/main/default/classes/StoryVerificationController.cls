@@ -27,6 +27,16 @@ public with sharing class StoryVerificationController {
         public String message;
     }
 
+    /** One live "promotion readiness" line, e.g. Pending tests: 3 (state issue). */
+    public class Fact {
+        @AuraEnabled
+        public String label;
+        @AuraEnabled
+        public String value;
+        @AuraEnabled
+        public String state; // ok | issue
+    }
+
     public class ProgressSnapshot {
         @AuraEnabled
         public String status;
@@ -48,6 +58,8 @@ public with sharing class StoryVerificationController {
         public String progressText;
         @AuraEnabled
         public String errorMessage;
+        @AuraEnabled
+        public List<Fact> facts = new List<Fact>();
     }
 
     /** Reduced view of the Copado job for one run. */
@@ -94,6 +106,38 @@ public with sharing class StoryVerificationController {
             info.error = match.copado__ErrorMessage__c;
             info.progressText = latestProgress(match.Id);
             return info;
+        }
+
+        /**
+         * Reads the two Copado promotion-readiness fields without sharing/FLS on purpose: it is read-only,
+         * only called for a story the caller was already proven able to read (loadStory), and the fields
+         * belong to the managed package, so a profile/FLS gap there must not break the whole popup.
+         */
+        public List<Fact> readFacts(Id storyId) {
+            List<Fact> facts = new List<Fact>();
+            List<copado__User_Story__c> rows = [
+                SELECT copado__Pending_Tests__c, copado__Pull_Requests_Approved__c
+                FROM copado__User_Story__c
+                WHERE Id = :storyId
+                LIMIT 1
+            ];
+            if (rows.isEmpty()) {
+                return facts;
+            }
+            Decimal pending = rows[0].copado__Pending_Tests__c == null ? 0 : rows[0].copado__Pending_Tests__c;
+            Fact pendingFact = new Fact();
+            pendingFact.label = 'Pending tests';
+            pendingFact.value = pending.stripTrailingZeros().toPlainString();
+            pendingFact.state = pending > 0 ? 'issue' : 'ok';
+            facts.add(pendingFact);
+
+            Boolean approved = rows[0].copado__Pull_Requests_Approved__c == true;
+            Fact prFact = new Fact();
+            prFact.label = 'Pull request approved';
+            prFact.value = approved ? 'Yes' : 'No';
+            prFact.state = approved ? 'ok' : 'issue';
+            facts.add(prFact);
+            return facts;
         }
 
         private String latestProgress(Id jobExecutionId) {
@@ -158,7 +202,9 @@ public with sharing class StoryVerificationController {
         snapshot.isCurrentRun = snapshot.runId == runId;
         snapshot.details = splitLines(story.Verification_Details__c);
 
-        JobInfo info = new JobReader().read(story.Id, snapshot.runId);
+        JobReader reader = new JobReader();
+        snapshot.facts = reader.readFacts(story.Id);
+        JobInfo info = reader.read(story.Id, snapshot.runId);
         snapshot.findings = info.findings;
         snapshot.jobStatus = info.status;
         snapshot.jobError = info.error;

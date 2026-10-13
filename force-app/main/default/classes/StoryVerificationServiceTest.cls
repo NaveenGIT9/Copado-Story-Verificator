@@ -20,9 +20,25 @@ private class StoryVerificationServiceTest {
     @TestSetup
     static void setup() {
         insert new List<copado__User_Story__c>{
-            new copado__User_Story__c(copado__User_Story_Title__c = STORY_TITLE),
-            new copado__User_Story__c(copado__User_Story_Title__c = PARENT_TITLE)
+            new copado__User_Story__c(
+                copado__User_Story_Title__c = STORY_TITLE,
+                copado__Pending_Tests__c = 0,
+                copado__Pull_Requests_Approved__c = true
+            ),
+            new copado__User_Story__c(
+                copado__User_Story_Title__c = PARENT_TITLE,
+                copado__Pending_Tests__c = 0,
+                copado__Pull_Requests_Approved__c = true
+            )
         };
+    }
+
+    private static void setReadiness(Id storyId, Decimal pendingTests, Boolean prApproved) {
+        update new copado__User_Story__c(
+            Id = storyId,
+            copado__Pending_Tests__c = pendingTests,
+            copado__Pull_Requests_Approved__c = prApproved
+        );
     }
 
     private static User newAdmin() {
@@ -137,8 +153,10 @@ private class StoryVerificationServiceTest {
             System.assertEquals(story.Name, String.valueOf(data.get('storyName')));
             System.assertEquals(after.Verification_Run_Id__c, String.valueOf(data.get('runId')));
             List<String> lines = findingLines(req);
-            System.assertEquals(1, lines.size());
-            System.assertEquals('info|Registered commits: 1, selected metadata items: 1.', lines[0]);
+            System.assertEquals(3, lines.size(), String.valueOf(lines));
+            System.assertEquals('info|Pending tests: 0.', lines[0]);
+            System.assertEquals('info|Pull request approved.', lines[1]);
+            System.assertEquals('info|Registered commits: 1, selected metadata items: 1.', lines[2]);
         }
     }
 
@@ -152,10 +170,12 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(storyByTitle(STORY_TITLE).Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(3, lines.size());
+            System.assertEquals(5, lines.size(), String.valueOf(lines));
             System.assertEquals('issue|No commits are registered in Copado for this story.', lines[0]);
             System.assertEquals('issue|No metadata is selected on this story.', lines[1]);
-            System.assertEquals('info|Registered commits: 0, selected metadata items: 0.', lines[2]);
+            System.assertEquals('info|Pending tests: 0.', lines[2]);
+            System.assertEquals('info|Pull request approved.', lines[3]);
+            System.assertEquals('info|Registered commits: 0, selected metadata items: 0.', lines[4]);
         }
     }
 
@@ -198,8 +218,11 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(1, lines.size(), 'Only the info line expected: ' + lines);
-            System.assert(lines[0].startsWith('info|Registered commits'));
+            System.assertEquals(3, lines.size(), 'Only info lines expected: ' + lines);
+            for (String line : lines) {
+                System.assert(line.startsWith('info|'), 'Completed parent must not raise an issue: ' + line);
+            }
+            System.assert(lines[2].startsWith('info|Registered commits'));
         }
     }
 
@@ -216,7 +239,7 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(2, lines.size());
+            System.assertEquals(4, lines.size(), String.valueOf(lines));
             System.assert(lines[0].startsWith('info|Base branch feature/US-NOPE-1'), lines[0]);
         }
     }
@@ -233,7 +256,109 @@ private class StoryVerificationServiceTest {
 
             StoryVerificationService.startVerification(story.Id);
 
-            System.assertEquals(1, findingLines(stub.requests[0]).size());
+            System.assertEquals(3, findingLines(stub.requests[0]).size());
+        }
+    }
+
+    @IsTest
+    static void startFlagsPendingTestsWithTheNumber() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            setReadiness(story.Id, 3, true);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(
+                lines.contains('issue|Pending tests: 3. All tests must finish (0 pending) before promoting.'),
+                String.valueOf(lines)
+            );
+            System.assert(!lines.contains('info|Pending tests: 0.'), String.valueOf(lines));
+        }
+    }
+
+    @IsTest
+    static void startTreatsNullPendingTestsAsZero() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            setReadiness(story.Id, null, true);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(lines.contains('info|Pending tests: 0.'), String.valueOf(lines));
+        }
+    }
+
+    @IsTest
+    static void startFlagsUnapprovedPullRequest() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            setReadiness(story.Id, 0, false);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(lines.contains('issue|Pull request is not approved yet.'), String.valueOf(lines));
+            System.assert(!lines.contains('info|Pull request approved.'), String.valueOf(lines));
+        }
+    }
+
+    @IsTest
+    static void startReportsTwoInfoFindingsWhenReadinessIsFine() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(lines.contains('info|Pending tests: 0.'), String.valueOf(lines));
+            System.assert(lines.contains('info|Pull request approved.'), String.valueOf(lines));
+            for (String line : lines) {
+                System.assert(line.startsWith('info|'), 'No issue expected: ' + line);
+            }
+        }
+    }
+
+    @IsTest
+    static void fallbackVerdictIsIssuesWhenPullRequestNotApproved() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            setReadiness(story.Id, 0, false);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+            StoryVerificationService.startVerification(story.Id);
+            copado__User_Story__c running = storyByTitle(STORY_TITLE);
+
+            // The job succeeded but returned no readable result: the verdict is rebuilt from the job's own input.
+            StoryVerificationService.JobOutcome o = outcome(story.Id, running.Verification_Run_Id__c, 'Successful', null);
+            o.dataJson = stub.requests[0].dataJson;
+            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ o });
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Issues', after.Verification_Status__c);
+            System.assert(
+                after.Verification_Details__c.contains('ISSUE: Pull request is not approved yet.'),
+                after.Verification_Details__c
+            );
         }
     }
 
@@ -310,7 +435,11 @@ private class StoryVerificationServiceTest {
                 System.assertEquals('Story Id is required', e.getMessage());
             }
 
-            copado__User_Story__c doomed = new copado__User_Story__c(copado__User_Story_Title__c = 'SV doomed');
+            copado__User_Story__c doomed = new copado__User_Story__c(
+                copado__User_Story_Title__c = 'SV doomed',
+                copado__Pending_Tests__c = 0,
+                copado__Pull_Requests_Approved__c = true
+            );
             insert doomed;
             delete doomed;
             try {
@@ -564,6 +693,8 @@ private class StoryVerificationServiceTest {
                 stories.add(
                     new copado__User_Story__c(
                         copado__User_Story_Title__c = 'SV bulk ' + i,
+                        copado__Pending_Tests__c = 0,
+                        copado__Pull_Requests_Approved__c = true,
                         Verification_Status__c = 'Running',
                         Verification_Run_Id__c = 'bulk-run-' + i,
                         Verification_Date__c = System.now()

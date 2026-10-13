@@ -23,8 +23,14 @@ const FINDINGS = [
     { severity: 'issue', message: 'No metadata is selected on this story.' }
 ];
 
+const FACTS = [
+    { label: 'Pending tests', value: '0', state: 'ok' },
+    { label: 'Pull request approved', value: 'Yes', state: 'ok' }
+];
+
 function snapshot(overrides = {}) {
     return {
+        facts: FACTS,
         status: 'Running',
         runId: RUN_ID,
         isFinished: false,
@@ -65,6 +71,10 @@ function byId(element, id) {
 
 function stepTexts(element) {
     return Array.from(element.shadowRoot.querySelectorAll('[data-id="step"]')).map((li) => li.textContent);
+}
+
+function factRows(element) {
+    return Array.from(element.shadowRoot.querySelectorAll('[data-id="fact"]'));
 }
 
 describe('c-story-verification-popup', () => {
@@ -291,6 +301,69 @@ describe('c-story-verification-popup', () => {
 
         await tick();
         expect(getProgress).toHaveBeenLastCalledWith({ storyId: STORY_ID, runId: 'run-456' });
+    });
+
+    it('renders the promotion readiness rows with ok and issue icons', async () => {
+        start.mockResolvedValue(
+            snapshot({
+                facts: [
+                    { label: 'Pending tests', value: '3', state: 'issue' },
+                    { label: 'Pull request approved', value: 'Yes', state: 'ok' }
+                ]
+            })
+        );
+        getProgress.mockResolvedValue(snapshot());
+
+        const element = mount();
+        await flush();
+
+        expect(element.shadowRoot.textContent).toContain('Promotion readiness');
+        const rows = factRows(element);
+        expect(rows).toHaveLength(2);
+        expect(rows[0].textContent).toBe('Pending tests: 3');
+        expect(rows[0].querySelector('lightning-icon').iconName).toBe('utility:close');
+        expect(rows[0].querySelector('lightning-icon').variant).toBe('error');
+        expect(rows[1].textContent).toBe('Pull request approved: Yes');
+        expect(rows[1].querySelector('lightning-icon').iconName).toBe('utility:check');
+        expect(rows[1].querySelector('lightning-icon').variant).toBe('success');
+    });
+
+    it('updates the readiness rows on the next poll', async () => {
+        start.mockResolvedValue(
+            snapshot({
+                facts: [
+                    { label: 'Pending tests', value: '2', state: 'issue' },
+                    { label: 'Pull request approved', value: 'No', state: 'issue' }
+                ]
+            })
+        );
+        getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+
+        const element = mount();
+        await flush();
+        expect(factRows(element).map((li) => li.textContent)).toEqual([
+            'Pending tests: 2',
+            'Pull request approved: No'
+        ]);
+
+        await tick();
+
+        expect(factRows(element).map((li) => li.textContent)).toEqual([
+            'Pending tests: 0',
+            'Pull request approved: Yes'
+        ]);
+        expect(factRows(element)[0].querySelector('lightning-icon').iconName).toBe('utility:check');
+    });
+
+    it('hides the readiness section when there are no facts', async () => {
+        start.mockResolvedValue(snapshot({ facts: [] }));
+        getProgress.mockResolvedValue(snapshot({ facts: [] }));
+
+        const element = mount();
+        await flush();
+
+        expect(byId(element, 'readiness-section')).toBeNull();
+        expect(element.shadowRoot.textContent).not.toContain('Promotion readiness');
     });
 
     it('dispatches the close event from the Close button', async () => {

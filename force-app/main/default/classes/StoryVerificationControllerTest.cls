@@ -17,7 +17,11 @@ private class StoryVerificationControllerTest {
 
     @TestSetup
     static void setup() {
-        insert new copado__User_Story__c(copado__User_Story_Title__c = STORY_TITLE);
+        insert new copado__User_Story__c(
+            copado__User_Story_Title__c = STORY_TITLE,
+            copado__Pending_Tests__c = 0,
+            copado__Pull_Requests_Approved__c = true
+        );
     }
 
     private static User newUser(String profileName, Boolean withVerificationAccess) {
@@ -280,6 +284,63 @@ private class StoryVerificationControllerTest {
 
             System.assertEquals(false, snapshot.isCurrentRun);
             System.assertEquals('newer-run', snapshot.runId);
+        }
+    }
+
+    @IsTest
+    static void getProgressFactsAreLiveFromTheStory() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Running', 'run-f', null);
+
+            StoryVerificationController.ProgressSnapshot first = StoryVerificationController.getProgress(
+                storyId,
+                'run-f'
+            );
+
+            System.assertEquals(2, first.facts.size());
+            System.assertEquals('Pending tests', first.facts[0].label);
+            System.assertEquals('0', first.facts[0].value);
+            System.assertEquals('ok', first.facts[0].state);
+            System.assertEquals('Pull request approved', first.facts[1].label);
+            System.assertEquals('Yes', first.facts[1].value);
+            System.assertEquals('ok', first.facts[1].state);
+
+            update new copado__User_Story__c(
+                Id = storyId,
+                copado__Pending_Tests__c = 4,
+                copado__Pull_Requests_Approved__c = false
+            );
+            StoryVerificationController.ProgressSnapshot second = StoryVerificationController.getProgress(
+                storyId,
+                'run-f'
+            );
+
+            System.assertEquals('4', second.facts[0].value);
+            System.assertEquals('issue', second.facts[0].state);
+            System.assertEquals('No', second.facts[1].value);
+            System.assertEquals('issue', second.facts[1].state);
+
+            update new copado__User_Story__c(Id = storyId, copado__Pending_Tests__c = null);
+            StoryVerificationController.ProgressSnapshot third = StoryVerificationController.getProgress(
+                storyId,
+                'run-f'
+            );
+            System.assertEquals('0', third.facts[0].value, 'Null pending tests is shown as 0');
+            System.assertEquals('ok', third.facts[0].state);
+        }
+    }
+
+    @IsTest
+    static void startSnapshotCarriesFacts() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            StoryVerificationService.starter = new CapturingStarter();
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.start(story().Id);
+
+            System.assertEquals(2, snapshot.facts.size());
         }
     }
 

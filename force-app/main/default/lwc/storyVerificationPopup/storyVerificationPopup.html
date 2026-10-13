@@ -38,6 +38,27 @@
             </template>
         </ul>
 
+        <template lwc:if={hasFacts}>
+            <div class="slds-m-bottom_small" data-id="readiness-section">
+                <p class="slds-text-title_bold">Promotion readiness</p>
+                <ul data-id="readiness">
+                    <template for:each={readinessRows} for:item="fact">
+                        <li key={fact.key} class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small" data-id="fact">
+                            <span class="step-icon slds-m-right_x-small">
+                                <lightning-icon
+                                    icon-name={fact.iconName}
+                                    variant={fact.iconVariant}
+                                    size="x-small"
+                                    alternative-text={fact.altText}
+                                ></lightning-icon>
+                            </span>
+                            <span class={fact.textClass}>{fact.text}</span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </template>
+
         <template lwc:if={isFinished}>
             <div class={bannerClass} role="status" data-id="banner">
                 <strong>{status}</strong>

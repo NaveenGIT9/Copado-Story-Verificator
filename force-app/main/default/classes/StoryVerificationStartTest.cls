@@ -11,8 +11,16 @@ private class StoryVerificationStartTest {
     @TestSetup
     static void setup() {
         insert new List<copado__User_Story__c>{
-            new copado__User_Story__c(copado__User_Story_Title__c = 'SVS Story 1'),
-            new copado__User_Story__c(copado__User_Story_Title__c = 'SVS Story 2')
+            new copado__User_Story__c(
+                copado__User_Story_Title__c = 'SVS Story 1',
+                copado__Pending_Tests__c = 0,
+                copado__Pull_Requests_Approved__c = true
+            ),
+            new copado__User_Story__c(
+                copado__User_Story_Title__c = 'SVS Story 2',
+                copado__Pending_Tests__c = 0,
+                copado__Pull_Requests_Approved__c = true
+            )
         };
     }
 
