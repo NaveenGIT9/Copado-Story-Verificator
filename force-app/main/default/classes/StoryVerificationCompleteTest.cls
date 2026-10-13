@@ -5,12 +5,22 @@
  */
 @IsTest
 private class StoryVerificationCompleteTest {
+    // Some orgs make Jira_Key__c mandatory on the story; fill it when the field exists (set by name so this compiles everywhere).
+    private static copado__User_Story__c withJira(copado__User_Story__c story) {
+        if (Schema.SObjectType.copado__User_Story__c.fields.getMap().containsKey('Jira_Key__c')) {
+            story.put('Jira_Key__c', 'SV-1');
+        }
+        return story;
+    }
+
     @TestSetup
     static void setup() {
-        insert new copado__User_Story__c(
-            copado__User_Story_Title__c = 'SVC Story',
-            copado__Pending_Tests__c = 0,
-            copado__Pull_Requests_Approved__c = true
+        insert withJira(
+            new copado__User_Story__c(
+                copado__User_Story_Title__c = 'SVC Story',
+                copado__Pending_Tests__c = 0,
+                copado__Pull_Requests_Approved__c = true
+            )
         );
     }
 

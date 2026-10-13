@@ -20,18 +20,30 @@ private class StoryVerificationServiceTest {
         }
     }
 
+    // Some orgs make Jira_Key__c mandatory on the story; fill it when the field exists (set by name so this compiles everywhere).
+    private static copado__User_Story__c withJira(copado__User_Story__c story) {
+        if (Schema.SObjectType.copado__User_Story__c.fields.getMap().containsKey('Jira_Key__c')) {
+            story.put('Jira_Key__c', 'SV-1');
+        }
+        return story;
+    }
+
     @TestSetup
     static void setup() {
         insert new List<copado__User_Story__c>{
-            new copado__User_Story__c(
-                copado__User_Story_Title__c = STORY_TITLE,
-                copado__Pending_Tests__c = 0,
-                copado__Pull_Requests_Approved__c = true
+            withJira(
+                new copado__User_Story__c(
+                    copado__User_Story_Title__c = STORY_TITLE,
+                    copado__Pending_Tests__c = 0,
+                    copado__Pull_Requests_Approved__c = true
+                )
             ),
-            new copado__User_Story__c(
-                copado__User_Story_Title__c = PARENT_TITLE,
-                copado__Pending_Tests__c = 0,
-                copado__Pull_Requests_Approved__c = true
+            withJira(
+                new copado__User_Story__c(
+                    copado__User_Story_Title__c = PARENT_TITLE,
+                    copado__Pending_Tests__c = 0,
+                    copado__Pull_Requests_Approved__c = true
+                )
             )
         };
     }
@@ -898,10 +910,12 @@ private class StoryVerificationServiceTest {
                 System.assertEquals('Story Id is required', e.getMessage());
             }
 
-            copado__User_Story__c doomed = new copado__User_Story__c(
-                copado__User_Story_Title__c = 'SV doomed',
-                copado__Pending_Tests__c = 0,
-                copado__Pull_Requests_Approved__c = true
+            copado__User_Story__c doomed = withJira(
+                new copado__User_Story__c(
+                    copado__User_Story_Title__c = 'SV doomed',
+                    copado__Pending_Tests__c = 0,
+                    copado__Pull_Requests_Approved__c = true
+                )
             );
             insert doomed;
             delete doomed;
@@ -1297,13 +1311,15 @@ private class StoryVerificationServiceTest {
             List<copado__User_Story__c> stories = new List<copado__User_Story__c>();
             for (Integer i = 0; i < 200; i++) {
                 stories.add(
-                    new copado__User_Story__c(
-                        copado__User_Story_Title__c = 'SV bulk ' + i,
-                        copado__Pending_Tests__c = 0,
-                        copado__Pull_Requests_Approved__c = true,
-                        Verification_Status__c = 'Running',
-                        Verification_Run_Id__c = 'bulk-run-' + i,
-                        Verification_Date__c = System.now()
+                    withJira(
+                        new copado__User_Story__c(
+                            copado__User_Story_Title__c = 'SV bulk ' + i,
+                            copado__Pending_Tests__c = 0,
+                            copado__Pull_Requests_Approved__c = true,
+                            Verification_Status__c = 'Running',
+                            Verification_Run_Id__c = 'bulk-run-' + i,
+                            Verification_Date__c = System.now()
+                        )
                     )
                 );
             }
