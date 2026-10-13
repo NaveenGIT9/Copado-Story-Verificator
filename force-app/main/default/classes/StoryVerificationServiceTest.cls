@@ -1228,17 +1228,10 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
-    static void commitWordingCountsOnlyCompleteCommitsAndMentionsTheOthers() {
-        System.assertEquals('Registered commits: 1, metadata items: 2.', StoryVerificationService.commitSummary(1, 0, 2));
-        System.assertEquals('Registered commits: 1 (+1 not Complete), metadata items: 2.', StoryVerificationService.commitSummary(1, 1, 2));
-        System.assertEquals('Registered commits: 0 (+3 not Complete), metadata items: 0.', StoryVerificationService.commitSummary(0, 3, 0));
-        System.assertEquals('Registered commits: 4, metadata items: 1.', StoryVerificationService.commitSummary(4, null, 1));
-        System.assertEquals('No registered commits.', StoryVerificationService.noCommitsMessage(0));
-        System.assertEquals('No registered commits.', StoryVerificationService.noCommitsMessage(null));
-        System.assertEquals(
-            'No Complete commits (2 other record(s), e.g. "Commit not in branch").',
-            StoryVerificationService.noCommitsMessage(2)
-        );
+    static void commitWordingIsShort() {
+        System.assertEquals('Registered commits: 1, metadata items: 2.', StoryVerificationService.commitSummary(1, 2));
+        System.assertEquals('Registered commits: 0, metadata items: 0.', StoryVerificationService.commitSummary(0, 0));
+        System.assertEquals('No registered commits.', StoryVerificationService.noCommitsMessage());
     }
 
     @IsTest

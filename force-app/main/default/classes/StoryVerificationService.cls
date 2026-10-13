@@ -375,16 +375,11 @@ public with sharing class StoryVerificationService {
     ) {
         List<Map<String, String>> findings = new List<Map<String, String>>();
 
-        // Only Complete commit records are registered; the others (for example "Commit not in branch") are counted apart.
+        // Only Complete commit records are registered; other statuses (for example "Commit not in branch") are not counted.
         Integer commitCount = [
             SELECT COUNT()
             FROM copado__User_Story_Commit__c
             WHERE copado__User_Story__c = :story.Id AND copado__Status__c = 'Complete'
-        ];
-        Integer otherCommitCount = [
-            SELECT COUNT()
-            FROM copado__User_Story_Commit__c
-            WHERE copado__User_Story__c = :story.Id AND copado__Status__c != 'Complete'
         ];
         Integer metadataCount = [
             SELECT COUNT()
@@ -393,7 +388,7 @@ public with sharing class StoryVerificationService {
         ];
 
         if (commitCount == 0) {
-            findings.add(finding(SEVERITY_ISSUE, noCommitsMessage(otherCommitCount)));
+            findings.add(finding(SEVERITY_ISSUE, noCommitsMessage()));
         }
         if (metadataCount == 0) {
             findings.add(finding(SEVERITY_ISSUE, 'No metadata selected on this story.'));
@@ -402,7 +397,7 @@ public with sharing class StoryVerificationService {
         addPendingTestsFinding(story, findings);
         addPullRequestFinding(story, findings);
         findings.add(
-            finding(SEVERITY_INFO, commitSummary(commitCount, otherCommitCount, metadataCount))
+            finding(SEVERITY_INFO, commitSummary(commitCount, metadataCount))
         );
         if (inputs.truncated) {
             findings.add(
@@ -419,17 +414,13 @@ public with sharing class StoryVerificationService {
     }
 
     @TestVisible
-    private static String noCommitsMessage(Integer otherCommitCount) {
-        if (otherCommitCount == null || otherCommitCount == 0) {
-            return 'No registered commits.';
-        }
-        return 'No Complete commits (' + otherCommitCount + ' other record(s), e.g. "Commit not in branch").';
+    private static String noCommitsMessage() {
+        return 'No registered commits.';
     }
 
     @TestVisible
-    private static String commitSummary(Integer completeCount, Integer otherCommitCount, Integer metadataCount) {
-        String other = otherCommitCount == null || otherCommitCount == 0 ? '' : ' (+' + otherCommitCount + ' not Complete)';
-        return 'Registered commits: ' + completeCount + other + ', metadata items: ' + metadataCount + '.';
+    private static String commitSummary(Integer completeCount, Integer metadataCount) {
+        return 'Registered commits: ' + completeCount + ', metadata items: ' + metadataCount + '.';
     }
 
     // A null count (never set by Copado) is treated as 0 pending tests.
