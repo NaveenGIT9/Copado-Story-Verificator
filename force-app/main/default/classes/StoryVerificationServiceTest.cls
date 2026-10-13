@@ -66,6 +66,7 @@ private class StoryVerificationServiceTest {
             SELECT
                 Id,
                 Name,
+                copado__Base_Branch__c,
                 Verification_Status__c,
                 Verification_Details__c,
                 Verification_Date__c,
