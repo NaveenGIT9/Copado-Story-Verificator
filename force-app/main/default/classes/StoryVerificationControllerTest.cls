@@ -289,6 +289,7 @@ private class StoryVerificationControllerTest {
 
     @IsTest
     static void getProgressFactsAreLiveFromTheStory() {
+        StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
         User user = newUser('System Administrator', true);
         System.runAs(user) {
             Id storyId = story().Id;
@@ -307,6 +308,7 @@ private class StoryVerificationControllerTest {
             System.assertEquals('Yes', first.facts[1].value);
             System.assertEquals('ok', first.facts[1].state);
 
+            StoryVerificationService.pullRequestApprovedOverride = false;
             update new copado__User_Story__c(
                 Id = storyId,
                 copado__Pending_Tests__c = 4,

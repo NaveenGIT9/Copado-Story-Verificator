@@ -125,6 +125,7 @@ private class StoryVerificationServiceTest {
 
     @IsTest
     static void startMarksRunningAndStartsJob() {
+        StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
         User admin = newAdmin();
         System.runAs(admin) {
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
@@ -162,6 +163,7 @@ private class StoryVerificationServiceTest {
 
     @IsTest
     static void startReportsMissingCommitsAndMetadata() {
+        StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
         User admin = newAdmin();
         System.runAs(admin) {
             CapturingStarter stub = new CapturingStarter();
@@ -205,6 +207,7 @@ private class StoryVerificationServiceTest {
 
     @IsTest
     static void startAcceptsCompletedParent() {
+        StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
         User admin = newAdmin();
         System.runAs(admin) {
             copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
@@ -318,6 +321,7 @@ private class StoryVerificationServiceTest {
 
     @IsTest
     static void startReportsTwoInfoFindingsWhenReadinessIsFine() {
+        StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
         User admin = newAdmin();
         System.runAs(admin) {
             copado__User_Story__c story = storyByTitle(STORY_TITLE);

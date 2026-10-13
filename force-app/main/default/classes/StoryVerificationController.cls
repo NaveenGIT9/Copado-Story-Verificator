@@ -131,7 +131,7 @@ public with sharing class StoryVerificationController {
             pendingFact.state = pending > 0 ? 'issue' : 'ok';
             facts.add(pendingFact);
 
-            Boolean approved = rows[0].copado__Pull_Requests_Approved__c == true;
+            Boolean approved = StoryVerificationService.isPullRequestApproved(rows[0].copado__Pull_Requests_Approved__c);
             Fact prFact = new Fact();
             prFact.label = 'Pull request approved';
             prFact.value = approved ? 'Yes' : 'No';

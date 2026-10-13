@@ -57,6 +57,15 @@ public with sharing class StoryVerificationService {
     }
 
     /** Returns the new run id so callers (the progress popup) can follow this specific run. */
+    // Tests only: Copado's own automation recomputes copado__Pull_Requests_Approved__c whenever a story is saved, so a test
+    // cannot set the real field. A test sets this override to control what the verification and the popup see.
+    @TestVisible
+    private static Boolean pullRequestApprovedOverride;
+
+    public static Boolean isPullRequestApproved(Boolean fieldValue) {
+        return pullRequestApprovedOverride != null ? pullRequestApprovedOverride : fieldValue == true;
+    }
+
     public static String startVerification(Id storyId) {
         if (storyId == null) {
             throw new StoryVerificationException('Story Id is required');
@@ -191,7 +200,7 @@ public with sharing class StoryVerificationService {
     }
 
     private static void addPullRequestFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
-        if (story.copado__Pull_Requests_Approved__c == true) {
+        if (isPullRequestApproved(story.copado__Pull_Requests_Approved__c)) {
             findings.add(finding(SEVERITY_INFO, 'Pull request approved.'));
             return;
         }
