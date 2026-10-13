@@ -83,7 +83,9 @@ function errMsg(e) {
         const tail = text.split("\n").map((l) => l.trim()).filter(Boolean).slice(-2).join(" | ");
         return clip(tail.replace(/\s+/g, " "), 400);
     }
-    return clip(text.replace(/\s+/g, " "), 400);
+    const flat = text.replace(/\s+/g, " ");
+    // Copado's git wrapper prints progress lines first and the actual git error last, so a long message keeps its end.
+    return flat.length > 400 ? ELL + flat.slice(-399) : flat;
 }
 
 function run(cmd, args, timeoutMs) {
