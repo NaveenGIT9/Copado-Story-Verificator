@@ -5,9 +5,5 @@
         <members>StoryVerificationStart</members>
         <name>ApexClass</name>
     </types>
-    <types>
-        <members>copado__User_Story__c.Verify_Story</members>
-        <name>QuickAction</name>
-    </types>
     <version>63.0</version>
 </Package>
