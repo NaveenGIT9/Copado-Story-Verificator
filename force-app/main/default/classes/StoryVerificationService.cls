@@ -56,7 +56,8 @@ public with sharing class StoryVerificationService {
         public String resultJson;
     }
 
-    public static void startVerification(Id storyId) {
+    /** Returns the new run id so callers (the progress popup) can follow this specific run. */
+    public static String startVerification(Id storyId) {
         if (storyId == null) {
             throw new StoryVerificationException('Story Id is required');
         }
@@ -116,6 +117,7 @@ public with sharing class StoryVerificationService {
             );
             throw e;
         }
+        return runId;
     }
 
     public static void completeVerification(Id jobExecutionId) {
@@ -316,7 +318,7 @@ public with sharing class StoryVerificationService {
     }
 
     private static copado__User_Story__c buildUpdate(Id storyId, String runId, JobOutcome outcome) {
-        if (outcome.status == 'Failed' || outcome.status == 'Error') {
+        if (outcome.status == 'Failed' || outcome.status == 'Error' || outcome.status == 'Canceled') {
             String message = String.isBlank(outcome.errorMessage)
                 ? 'The verification job ended with status ' + outcome.status + ' (no error message).'
                 : outcome.errorMessage;

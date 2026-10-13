@@ -56,7 +56,8 @@
     OR(
         ISPICKVAL({!$Record.copado__Status__c}, "Successful"),
         ISPICKVAL({!$Record.copado__Status__c}, "Failed"),
-        ISPICKVAL({!$Record.copado__Status__c}, "Error")
+        ISPICKVAL({!$Record.copado__Status__c}, "Error"),
+        ISPICKVAL({!$Record.copado__Status__c}, "Canceled")
     ),
     TEXT({!$Record__Prior.copado__Status__c}) &lt;&gt; TEXT({!$Record.copado__Status__c})
 )</filterFormula>

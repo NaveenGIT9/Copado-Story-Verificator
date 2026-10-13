@@ -1,0 +1,62 @@
+<template>
+    <lightning-quick-action-panel header="Verify story">
+        <template lwc:if={errorText}>
+            <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_small" role="alert" data-id="error">
+                <span>{errorText}</span>
+            </div>
+        </template>
+
+        <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_small">
+            <template lwc:if={showSpinner}>
+                <span class="spinner-holder slds-m-right_x-small" data-id="state-spinner">
+                    <lightning-spinner size="x-small" alternative-text="Verification in progress"></lightning-spinner>
+                </span>
+            </template>
+            <p class="slds-text-heading_small" aria-live="polite" data-id="state">{stateText}</p>
+        </div>
+
+        <ul class="slds-m-bottom_small" data-id="steps">
+            <template for:each={steps} for:item="step">
+                <li key={step.key} class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small" data-id="step">
+                    <template lwc:if={step.isSpinner}>
+                        <span class="spinner-holder slds-m-right_x-small">
+                            <lightning-spinner size="x-small" alternative-text={step.altText}></lightning-spinner>
+                        </span>
+                    </template>
+                    <template lwc:else>
+                        <span class="step-icon slds-m-right_x-small">
+                            <lightning-icon
+                                icon-name={step.iconName}
+                                variant={step.iconVariant}
+                                size="x-small"
+                                alternative-text={step.altText}
+                            ></lightning-icon>
+                        </span>
+                    </template>
+                    <span class={step.textClass}>{step.text}</span>
+                </li>
+            </template>
+        </ul>
+
+        <template lwc:if={isFinished}>
+            <div class={bannerClass} role="status" data-id="banner">
+                <strong>{status}</strong>
+            </div>
+            <div class="slds-m-top_small" data-id="why-section">
+                <p class="slds-text-title_bold">Why:</p>
+                <ul data-id="why">
+                    <template for:each={whyLines} for:item="line">
+                        <li key={line.key} class={line.cls}>{line.text}</li>
+                    </template>
+                </ul>
+            </div>
+        </template>
+
+        <div slot="footer">
+            <lightning-button class="slds-m-right_x-small" label="Close" onclick={handleClose} data-id="close"></lightning-button>
+            <template lwc:if={canRetry}>
+                <lightning-button variant="brand" label="Verify again" onclick={handleRetry} data-id="retry"></lightning-button>
+            </template>
+        </div>
+    </lightning-quick-action-panel>
+</template>
