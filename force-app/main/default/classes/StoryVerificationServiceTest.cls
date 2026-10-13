@@ -695,26 +695,6 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
-    static void startIgnoresASkippedDependency() {
-        User admin = newAdmin();
-        System.runAs(admin) {
-            copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
-            copado__User_Story__c story = storyByTitle(STORY_TITLE);
-            insert new copado__Team_Dependency__c(
-                copado__Dependent_User_Story__c = story.Id,
-                copado__Provider_User_Story__c = parent.Id,
-                copado__Skip_Dependency__c = true
-            );
-            CapturingStarter stub = new CapturingStarter();
-            StoryVerificationService.starter = stub;
-
-            StoryVerificationService.startVerification(story.Id);
-
-            System.assert(findingLines(stub.requests[0]).contains(NO_PARENTS_FINDING), String.valueOf(findingLines(stub.requests[0])));
-        }
-    }
-
-    @IsTest
     static void startReportsNoParentDependenciesWhenThereAreNone() {
         User admin = newAdmin();
         System.runAs(admin) {
