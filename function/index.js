@@ -384,6 +384,17 @@ function checkOrgMerge(ctx) {
     return mk(id, "pass", "No environment branch merged", notes);
 }
 
+// Author emails (lower case) of the registered commits that exist in the local history; unknown or abbreviated-ambiguous ids are skipped.
+function registeredAuthorEmails(shas) {
+    const known = shas
+        .filter((s) => /^[0-9a-f]{7,40}$/.test(s))
+        .slice(0, 200)
+        .filter((s) => tryRun("git", ["cat-file", "-e", s + "^{commit}"]) !== null);
+    if (known.length === 0) return [];
+    const out = tryRun("git", ["log", "--no-walk", "--format=%ae"].concat(known));
+    return out === null ? [] : out.split("\n").map((l) => l.trim().toLowerCase()).filter(Boolean);
+}
+
 function checkUnregistered(ctx) {
     const id = "unregistered-commits";
     const cfg = ctx.cfg;
@@ -401,7 +412,10 @@ function checkUnregistered(ctx) {
         const s = sha.toLowerCase();
         return regSet.has(s) || cfg.registered.some((r) => r.length >= 7 && (r.startsWith(s) || s.startsWith(r)));
     };
+    // "Registered committer" = an author email on any commit registered for this story. Registered commits that are already in
+    // the base branch are not in base..HEAD, so their authors are read straight from the registered commit ids too.
     const regEmails = new Set(extra.filter((c) => isReg(c.sha) && c.email).map((c) => c.email));
+    registeredAuthorEmails(cfg.registered).forEach((e) => regEmails.add(e));
     const unreg = extra.filter((c) => !isReg(c.sha));
     const analysed = unreg.slice(0, MAX_ANALYSE);
     const details = analysed.map((c) => {
