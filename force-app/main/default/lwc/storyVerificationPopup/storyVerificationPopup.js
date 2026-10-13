@@ -78,6 +78,8 @@ export default class StoryVerificationPopup extends LightningElement {
     // The story id captured when a run starts; every call of that run uses it, whatever recordId does later.
     _storyId;
     _startedAt = 0;
+    // How long the run took, from the click on Verify to the final result (set once, when the finished result arrives).
+    durationMs;
     // Bumped on every (re)start and on disconnect so late Apex responses from an old session are ignored.
     _session = 0;
 
@@ -101,6 +103,7 @@ export default class StoryVerificationPopup extends LightningElement {
         this._runId = undefined;
         this.starting = true;
         this._startedAt = Date.now();
+        this.durationMs = undefined;
         try {
             this._storyId = this._recordId;
             const result = await start({ storyId: this._storyId });
@@ -131,6 +134,9 @@ export default class StoryVerificationPopup extends LightningElement {
             return;
         }
         if (result.isFinished) {
+            if (this.durationMs === undefined) {
+                this.durationMs = Date.now() - this._startedAt;
+            }
             return;
         }
         // setTimeout (not setInterval) so two Apex calls can never overlap.
@@ -437,6 +443,16 @@ export default class StoryVerificationPopup extends LightningElement {
             return { ...row, isSpinner: true, altText: 'Running', text: title + ': running' };
         }
         return { ...row, iconName: 'utility:clock', iconVariant: undefined, altText: 'Pending', text: title + ': pending' };
+    }
+
+    // "Time taken: 17 s" or "Time taken: 2 min 23 s"; empty until the run has finished.
+    get timeTakenText() {
+        if (!this.isFinished || this.durationMs === undefined) {
+            return '';
+        }
+        const seconds = Math.max(0, Math.round(this.durationMs / 1000));
+        const minutes = Math.floor(seconds / 60);
+        return 'Time taken: ' + (minutes > 0 ? minutes + ' min ' + (seconds % 60) + ' s' : seconds + ' s');
     }
 
     get failureText() {

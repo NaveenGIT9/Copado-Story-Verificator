@@ -743,6 +743,50 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'failure').className).toContain('failure-text');
     });
 
+    it('shows how long a finished run took, at the bottom right', async () => {
+        const element = await mountFinished(CHECKS);
+
+        const timeTaken = byId(element, 'time-taken');
+        expect(timeTaken.textContent).toMatch(/^Time taken: \d+ s$/);
+        expect(timeTaken.className).toContain('slds-text-align_right');
+    });
+
+    it('shows the time taken in minutes and seconds for a long run', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+        const element = await mountAndVerify();
+        for (let i = 0; i < 36; i++) {
+            // eslint-disable-next-line no-await-in-loop
+            await tick();
+        }
+        expect(byId(element, 'time-taken')).toBeNull(); // nothing shown until the run has finished
+
+        getProgress.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful' }));
+        await tick();
+
+        expect(byId(element, 'time-taken').textContent).toMatch(/^Time taken: 1 min \d+ s$/);
+    });
+
+    it('shows no time taken while the run is still going', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+        const element = await mountAndVerify();
+        await tick();
+
+        expect(byId(element, 'time-taken')).toBeNull();
+    });
+
+    it('shows the time taken for a Failed run too', async () => {
+        const element = await mountFinished([], {
+            status: 'Failed',
+            jobStatus: 'Failed',
+            jobError: 'Function exited with code 1',
+            details: ['Verification job failed: Function exited with code 1']
+        });
+
+        expect(byId(element, 'time-taken').textContent).toMatch(/^Time taken: \d+ s$/);
+    });
+
     it('keeps the Copado job row visible when the run Failed, to help explain what happened', async () => {
         const element = await mountFinished([], {
             status: 'Failed',
