@@ -1,6 +1,6 @@
 /**
- * Logic for the Story Verification Gate. Invocable entry points live in StoryVerificationStart /
- * StoryVerificationComplete so each @InvocableMethod stays alone in its class.
+ * Logic for the Story Verification Gate. The invocable entry point lives in StoryVerificationComplete so its
+ * @InvocableMethod stays alone in its class.
  *
  * Record reads/writes run in system mode on purpose (with sharing still applies): normal users have
  * NO edit access to the Verification_* fields, and the completion path runs as whichever user/system

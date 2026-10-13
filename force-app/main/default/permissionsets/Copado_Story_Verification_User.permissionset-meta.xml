@@ -42,10 +42,6 @@
         <field>copado__User_Story__c.Verification_Checks__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <flowAccesses>
-        <enabled>true</enabled>
-        <flow>Verify_Story_Screen</flow>
-    </flowAccesses>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Copado Story Verification User</label>
 </PermissionSet>

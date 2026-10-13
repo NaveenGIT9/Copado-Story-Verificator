@@ -8,8 +8,6 @@
         <members>StoryVerificationException</members>
         <members>StoryVerificationService</members>
         <members>StoryVerificationServiceTest</members>
-        <members>StoryVerificationStart</members>
-        <members>StoryVerificationStartTest</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -30,7 +28,6 @@
     </types>
     <types>
         <members>Story_Verification_Completion</members>
-        <members>Verify_Story_Screen</members>
         <name>Flow</name>
     </types>
     <types>
@@ -40,7 +37,6 @@
         <name>PermissionSet</name>
     </types>
     <types>
-        <members>copado__User_Story__c.Verify_Story</members>
         <members>copado__User_Story__c.Verify_Story_Live</members>
         <name>QuickAction</name>
     </types>
