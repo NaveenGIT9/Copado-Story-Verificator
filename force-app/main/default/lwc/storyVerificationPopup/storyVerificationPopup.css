@@ -11,6 +11,13 @@
     overflow-wrap: anywhere;
 }
 
+/* Component names under a "not registered" headline: dark blue monospace, so they read as names to act on and not as another red error. */
+.check-lines li.component-names {
+    color: #0b5cab;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-weight: 600;
+}
+
 .step-icon {
     display: inline-flex;
     width: 1.5rem;

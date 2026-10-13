@@ -479,8 +479,8 @@ function checkMetadata(ctx) {
     const uncovered = comps.filter((c) => !ctx.isCovered(c));
     const lines = [];
     if (uncovered.length > 0) {
-        // Up to three names fit in the summary; a longer list goes in the details.
-        if (uncovered.length > 3) lines.push("Not registered: " + capList(uncovered, 100));
+        // The names always get their own detail line under the headline (the popup shows it in its own colour).
+        lines.push("Not registered: " + capList(uncovered, 100));
         lines.push("Their changes won't deploy to target - add them to the story in Copado.");
     }
     const changed = new Set(comps.map((c) => c.toLowerCase()));
@@ -490,7 +490,7 @@ function checkMetadata(ctx) {
     );
     if (unchanged.length > 0) lines.push("Registered but unchanged in git: " + capList(unchanged.map((r) => ctx.cfg.metadataNames.get(r) || r), 50));
     if (uncovered.length > 0) {
-        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered" + (uncovered.length <= 3 ? ": " + uncovered.join(", ") : ""), lines);
+        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered", lines);
     }
     return mk(id, "pass", comps.length === 0 ? "No changed components found in git" : "All " + comps.length + " changed components registered", lines);
 }

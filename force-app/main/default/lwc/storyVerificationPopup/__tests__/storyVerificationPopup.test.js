@@ -632,6 +632,26 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'state').textContent).toContain('Issues');
     });
 
+    it('puts the not-registered component names on their own line under the headline, in their own style', async () => {
+        const checks = [
+            {
+                id: 'metadata-coverage',
+                title: 'Metadata coverage',
+                status: 'fail',
+                summary: '1 of 2 changed components not registered',
+                lines: ['Not registered: Account.Foo__c', "Their changes won't deploy to target - add them to the story in Copado."]
+            }
+        ];
+        const element = await mountFinished(checks);
+
+        const row = stepRow(element, 'Metadata coverage');
+        expect(row.querySelector('[data-id="step-text"]').textContent).toBe('Metadata coverage: 1 of 2 changed components not registered');
+        const items = Array.from(row.querySelectorAll('[data-id="check-lines"] li'));
+        expect(items[0].textContent).toBe('Not registered: Account.Foo__c');
+        expect(items[0].classList.contains('component-names')).toBe(true);
+        expect(items[1].classList.contains('component-names')).toBe(false);
+    });
+
     it('expands fail and warn checks by default and collapses pass checks', async () => {
         const element = await mountFinished(CHECKS);
 

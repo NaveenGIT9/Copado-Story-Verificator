@@ -66,7 +66,7 @@
                         <template lwc:if={step.expanded}>
                             <ul class="check-lines slds-text-body_small slds-m-left_xx-large" data-id="check-lines">
                                 <template for:each={step.lines} for:item="checkLine">
-                                    <li key={checkLine.key}>{checkLine.text}</li>
+                                    <li key={checkLine.key} class={checkLine.cssClass}>{checkLine.text}</li>
                                 </template>
                             </ul>
                         </template>

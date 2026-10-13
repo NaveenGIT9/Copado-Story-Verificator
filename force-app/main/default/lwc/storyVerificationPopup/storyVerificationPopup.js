@@ -439,7 +439,12 @@ export default class StoryVerificationPopup extends LightningElement {
         };
         if (this.isFinished && result) {
             const visual = CHECK_VISUALS[result.status] || CHECK_VISUALS.skipped;
-            const lines = (result.lines || []).map((text, index) => ({ key: 'check-' + id + '-' + index, text }));
+            // The "Not registered: <components>" line is shown in its own colour so the names stand out under the headline.
+            const lines = (result.lines || []).map((text, index) => ({
+                key: 'check-' + id + '-' + index,
+                text,
+                cssClass: /^Not registered:/.test(text) ? 'component-names' : ''
+            }));
             const expanded = lines.length > 0 && this.isExpanded(id, result.status);
             return {
                 ...row,
