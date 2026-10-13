@@ -9,9 +9,5 @@
         <members>copado__User_Story__c.Verify_Story</members>
         <name>QuickAction</name>
     </types>
-    <types>
-        <members>Verify_Story_Screen</members>
-        <name>Flow</name>
-    </types>
     <version>63.0</version>
 </Package>
