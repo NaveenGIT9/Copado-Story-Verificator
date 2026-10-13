@@ -27,7 +27,10 @@ export default class StoryVerificationPopup extends LightningElement {
         return this._recordId;
     }
     set recordId(value) {
-        this._recordId = value;
+        // The quick action framework can clear and re-set recordId after the component opens; never forget a known id.
+        if (value) {
+            this._recordId = value;
+        }
         this.startWhenReady();
     }
 
@@ -39,6 +42,8 @@ export default class StoryVerificationPopup extends LightningElement {
 
     _timer;
     _runId;
+    // The story id captured when a run starts; every call of that run uses it, whatever recordId does later.
+    _storyId;
     _startedAt = 0;
     // Bumped on every (re)start and on disconnect so late Apex responses from an old session are ignored.
     _session = 0;
@@ -76,7 +81,8 @@ export default class StoryVerificationPopup extends LightningElement {
         this.starting = true;
         this._startedAt = Date.now();
         try {
-            const result = await start({ storyId: this.recordId });
+            this._storyId = this._recordId;
+            const result = await start({ storyId: this._storyId });
             if (session !== this._session) {
                 return;
             }
@@ -121,7 +127,7 @@ export default class StoryVerificationPopup extends LightningElement {
             return;
         }
         try {
-            const result = await getProgress({ storyId: this.recordId, runId: this._runId });
+            const result = await getProgress({ storyId: this._storyId, runId: this._runId });
             if (session !== this._session) {
                 return;
             }

@@ -264,6 +264,19 @@ describe('c-story-verification-popup', () => {
         expect(start).toHaveBeenCalledTimes(1);
         expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
     });
+    it('keeps using the story id captured at the start even if recordId is cleared later', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful' }));
+        const element = mount();
+        await flush();
+        expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
+
+        element.recordId = undefined; // what the quick action framework can do after opening
+        await tick();
+
+        expect(getProgress).toHaveBeenCalledWith({ storyId: STORY_ID, runId: RUN_ID });
+    });
+
 
 
     it('clears the poll timer when disconnected', async () => {
