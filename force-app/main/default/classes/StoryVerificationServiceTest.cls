@@ -4,6 +4,7 @@ private class StoryVerificationServiceTest {
     private static final String PARENT_TITLE = 'SV Test Parent Story';
     private static final String COMMIT_SHA = 'ABCDEF1234567890ABCDEF1234567890ABCDEF12';
     private static final String NO_PIPELINE_FINDING = 'issue|Story has no pipeline, git checks could not run';
+    private static final String NO_PARENTS_FINDING = 'info|No parent story dependencies.';
 
     /** Stub for the managed copado.CreateExecution, which cannot be mocked. */
     private class CapturingStarter implements StoryVerificationService.JobStarter {
@@ -165,11 +166,12 @@ private class StoryVerificationServiceTest {
             System.assertEquals(after.Verification_Run_Id__c, String.valueOf(data.get('runId')));
             System.assertEquals('feature/' + story.Name, String.valueOf(data.get('featureBranch')));
             List<String> lines = findingLines(req);
-            System.assertEquals(4, lines.size(), String.valueOf(lines));
-            System.assertEquals('info|Pending tests: 0.', lines[0]);
-            System.assertEquals('info|Pull request approved.', lines[1]);
-            System.assertEquals('info|Registered commits: 1, selected metadata items: 1.', lines[2]);
-            System.assertEquals(NO_PIPELINE_FINDING, lines[3]);
+            System.assertEquals(5, lines.size(), String.valueOf(lines));
+            System.assertEquals(NO_PARENTS_FINDING, lines[0]);
+            System.assertEquals('info|Pending tests: 0.', lines[1]);
+            System.assertEquals('info|Pull request approved.', lines[2]);
+            System.assertEquals('info|Registered commits: 1, selected metadata items: 1.', lines[3]);
+            System.assertEquals(NO_PIPELINE_FINDING, lines[4]);
         }
     }
 
@@ -364,13 +366,14 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(storyByTitle(STORY_TITLE).Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(6, lines.size(), String.valueOf(lines));
+            System.assertEquals(7, lines.size(), String.valueOf(lines));
             System.assertEquals('issue|No commits are registered in Copado for this story.', lines[0]);
             System.assertEquals('issue|No metadata is selected on this story.', lines[1]);
-            System.assertEquals('info|Pending tests: 0.', lines[2]);
-            System.assertEquals('info|Pull request approved.', lines[3]);
-            System.assertEquals('info|Registered commits: 0, selected metadata items: 0.', lines[4]);
-            System.assertEquals(NO_PIPELINE_FINDING, lines[5]);
+            System.assertEquals(NO_PARENTS_FINDING, lines[2]);
+            System.assertEquals('info|Pending tests: 0.', lines[3]);
+            System.assertEquals('info|Pull request approved.', lines[4]);
+            System.assertEquals('info|Registered commits: 0, selected metadata items: 0.', lines[5]);
+            System.assertEquals(NO_PIPELINE_FINDING, lines[6]);
         }
     }
 
@@ -389,12 +392,14 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
+            // The parent has no environment, so it cannot have been promoted.
             System.assert(
                 lines.contains(
-                    'issue|Base branch is the feature branch of ' + parent.Name + ', which has not been promoted yet.'
+                    'issue|Parent story ' + parent.Name + ' (via base branch) has no environment yet, so it has not been promoted.'
                 ),
                 'Unpromoted parent must be an issue: ' + lines
             );
+            System.assert(!lines.contains(NO_PARENTS_FINDING), 'A parent was found: ' + lines);
         }
     }
 
@@ -414,13 +419,17 @@ private class StoryVerificationServiceTest {
             StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(4, lines.size(), 'Only info lines (plus the no-pipeline issue) expected: ' + lines);
+            System.assertEquals(5, lines.size(), 'Only info lines (plus the no-pipeline issue) expected: ' + lines);
             for (String line : lines) {
                 if (line != NO_PIPELINE_FINDING) {
                     System.assert(line.startsWith('info|'), 'Completed parent must not raise an issue: ' + line);
                 }
             }
-            System.assert(lines[2].startsWith('info|Registered commits'));
+            System.assertEquals(
+                'info|Parent story ' + parent.Name + ' (via base branch) is in no environment, ahead of this story (no environment).',
+                lines[0]
+            );
+            System.assert(lines[3].startsWith('info|Registered commits'));
         }
     }
 
@@ -454,7 +463,291 @@ private class StoryVerificationServiceTest {
 
             StoryVerificationService.startVerification(story.Id);
 
-            System.assertEquals(4, findingLines(stub.requests[0]).size());
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assertEquals(5, lines.size(), String.valueOf(lines));
+            System.assertEquals(NO_PARENTS_FINDING, lines[0]);
+        }
+    }
+
+    // ---- parent story dependencies ----
+
+    private static Id fakeId(Integer n) {
+        return Id.valueOf('001' + String.valueOf(n).leftPad(12, '0'));
+    }
+
+    private static StoryVerificationService.StepEdge edge(Integer sourceNumber, Integer destinationNumber) {
+        return new StoryVerificationService.StepEdge(fakeId(sourceNumber), fakeId(destinationNumber));
+    }
+
+    private static Map<String, Object> findingWithMessage(copado.CreateExecution.Request req, String messagePrefix) {
+        Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(req.dataJson);
+        for (Object o : (List<Object>) data.get('findings')) {
+            Map<String, Object> f = (Map<String, Object>) o;
+            if (String.valueOf(f.get('message')).startsWith(messagePrefix)) {
+                return f;
+            }
+        }
+        return null;
+    }
+
+    @IsTest
+    static void computeLevelsHandlesAChain() {
+        // 1 -> 2 -> 3 -> 4
+        Map<Id, Integer> levels = StoryVerificationService.computeLevels(
+            new List<StoryVerificationService.StepEdge>{ edge(3, 4), edge(1, 2), edge(2, 3) }
+        );
+        System.assertEquals(4, levels.size());
+        System.assertEquals(0, levels.get(fakeId(1)));
+        System.assertEquals(1, levels.get(fakeId(2)));
+        System.assertEquals(2, levels.get(fakeId(3)));
+        System.assertEquals(3, levels.get(fakeId(4)));
+    }
+
+    @IsTest
+    static void computeLevelsHandlesTwoRootsAndALongestPath() {
+        // Dev1 (1) and Dev2 (2) -> INT (3) -> UAT (4) -> Prod (5); Hotfix (6) -> Prod (5)
+        Map<Id, Integer> levels = StoryVerificationService.computeLevels(
+            new List<StoryVerificationService.StepEdge>{
+                edge(1, 3),
+                edge(2, 3),
+                edge(3, 4),
+                edge(4, 5),
+                edge(6, 5)
+            }
+        );
+        System.assertEquals(0, levels.get(fakeId(1)));
+        System.assertEquals(0, levels.get(fakeId(2)));
+        System.assertEquals(1, levels.get(fakeId(3)));
+        System.assertEquals(2, levels.get(fakeId(4)));
+        System.assertEquals(0, levels.get(fakeId(6)));
+        System.assertEquals(3, levels.get(fakeId(5)), 'Production takes the longest path, not the Hotfix shortcut');
+    }
+
+    @IsTest
+    static void computeLevelsSurvivesCycles() {
+        // A pure cycle has no root, so nothing gets a level (and nothing loops forever).
+        Map<Id, Integer> pureCycle = StoryVerificationService.computeLevels(
+            new List<StoryVerificationService.StepEdge>{ edge(1, 2), edge(2, 1) }
+        );
+        System.assertEquals(0, pureCycle.size());
+
+        // A cycle behind a root terminates and keeps the root at 0.
+        Map<Id, Integer> reachable = StoryVerificationService.computeLevels(
+            new List<StoryVerificationService.StepEdge>{ edge(1, 2), edge(2, 3), edge(3, 2) }
+        );
+        System.assertEquals(0, reachable.get(fakeId(1)));
+        System.assert(reachable.containsKey(fakeId(2)));
+        System.assert(reachable.containsKey(fakeId(3)));
+    }
+
+    @IsTest
+    static void computeLevelsHandlesEmptyAndIncompleteInput() {
+        System.assertEquals(0, StoryVerificationService.computeLevels(null).size());
+        System.assertEquals(0, StoryVerificationService.computeLevels(new List<StoryVerificationService.StepEdge>()).size());
+        Map<Id, Integer> levels = StoryVerificationService.computeLevels(
+            new List<StoryVerificationService.StepEdge>{
+                new StoryVerificationService.StepEdge(),
+                new StoryVerificationService.StepEdge(fakeId(1), null),
+                null,
+                edge(2, 3)
+            }
+        );
+        System.assertEquals(2, levels.size(), 'Only the complete edge counts');
+        System.assertEquals(0, levels.get(fakeId(2)));
+        System.assertEquals(1, levels.get(fakeId(3)));
+    }
+
+    @IsTest
+    static void parentVerdictCoversAheadNotAheadCompletedAndUnknown() {
+        System.assertEquals('ahead', StoryVerificationService.parentVerdict(0, 2, false));
+        System.assertEquals('not-ahead', StoryVerificationService.parentVerdict(2, 1, false));
+        System.assertEquals('not-ahead', StoryVerificationService.parentVerdict(1, 1, false), 'Same environment is not ahead');
+        System.assertEquals('ahead', StoryVerificationService.parentVerdict(3, 0, true), 'Completed always counts as ahead');
+        System.assertEquals('ahead', StoryVerificationService.parentVerdict(null, null, true));
+        System.assertEquals('unknown', StoryVerificationService.parentVerdict(null, 1, false));
+        System.assertEquals('unknown', StoryVerificationService.parentVerdict(1, null, false));
+        System.assertEquals('ahead', StoryVerificationService.parentVerdict(1, 2, null), 'A null Completed flag counts as not completed');
+    }
+
+    @IsTest
+    static void parentFindingWordingForEveryCase() {
+        Id devEnv = fakeId(1);
+        Id intEnv = fakeId(2);
+        Id otherEnv = fakeId(9);
+        Map<Id, Integer> levels = new Map<Id, Integer>{ devEnv => 0, intEnv => 1 };
+
+        Map<String, String> ahead = StoryVerificationService.parentFinding(
+            'US-1', 'via base branch', 'In Progress', intEnv, 'INT-SFP', null, devEnv, 'Dev1-SFP', levels
+        );
+        System.assertEquals('info', ahead.get('severity'));
+        System.assertEquals(
+            'Parent story US-1 (via base branch) is in INT-SFP, ahead of this story (Dev1-SFP).',
+            ahead.get('message')
+        );
+        System.assertEquals('parent-dependencies', ahead.get('group'));
+
+        Map<String, String> notAhead = StoryVerificationService.parentFinding(
+            'US-2', 'via dependency (Blocks)', 'In Progress', devEnv, 'Dev2-SFP', null, intEnv, 'INT-SFP', levels
+        );
+        System.assertEquals('issue', notAhead.get('severity'));
+        System.assertEquals(
+            'Parent story US-2 (via dependency (Blocks)) is in Dev2-SFP, not ahead of this story (INT-SFP). Promote the parent first.',
+            notAhead.get('message')
+        );
+
+        Map<String, String> completed = StoryVerificationService.parentFinding(
+            'US-3', 'via base branch', 'Completed', devEnv, 'Dev1-SFP', null, intEnv, 'INT-SFP', levels
+        );
+        System.assertEquals('info', completed.get('severity'));
+        System.assertEquals(
+            'Parent story US-3 (via base branch) is in Dev1-SFP, ahead of this story (INT-SFP).',
+            completed.get('message')
+        );
+
+        Map<String, String> noEnvironment = StoryVerificationService.parentFinding(
+            'US-4', 'via base branch', 'In Progress', null, null, null, intEnv, 'INT-SFP', levels
+        );
+        System.assertEquals('issue', noEnvironment.get('severity'));
+        System.assertEquals(
+            'Parent story US-4 (via base branch) has no environment yet, so it has not been promoted.',
+            noEnvironment.get('message')
+        );
+
+        // An environment missing from the pipeline steps: fall back to the promotion date, still naming the environments.
+        Map<String, String> fallbackOk = StoryVerificationService.parentFinding(
+            'US-5', 'via base branch', 'In Progress', otherEnv, 'Elsewhere', System.now(), devEnv, 'Dev1-SFP', levels
+        );
+        System.assertEquals('info', fallbackOk.get('severity'));
+        System.assert(fallbackOk.get('message').startsWith('Parent story US-5 (via base branch) is in Elsewhere and has been promoted'), fallbackOk.get('message'));
+        System.assert(fallbackOk.get('message').contains('Dev1-SFP'), fallbackOk.get('message'));
+
+        Map<String, String> fallbackIssue = StoryVerificationService.parentFinding(
+            'US-6', 'via base branch', 'In Progress', otherEnv, 'Elsewhere', null, null, null, new Map<Id, Integer>()
+        );
+        System.assertEquals('issue', fallbackIssue.get('severity'));
+        System.assert(fallbackIssue.get('message').startsWith('Parent story US-6 (via base branch) is in Elsewhere and has not been promoted yet'), fallbackIssue.get('message'));
+        System.assert(fallbackIssue.get('message').contains('no environment'), fallbackIssue.get('message'));
+        System.assert(fallbackIssue.get('message').endsWith('Promote the parent first.'), fallbackIssue.get('message'));
+    }
+
+    @IsTest
+    static void startFlagsACopadoDependencyParentWithoutPipelineUsingTheFallbackRule() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__Environment__c parentEnv = new copado__Environment__c(Name = 'SV parent env');
+            insert parentEnv;
+            copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            update new copado__User_Story__c(Id = parent.Id, copado__Status__c = 'In Progress', copado__Environment__c = parentEnv.Id);
+            // The relationship type picklist values were not confirmed, so none is set: the label is plain "via dependency".
+            insert new copado__Team_Dependency__c(
+                copado__Dependent_User_Story__c = story.Id,
+                copado__Provider_User_Story__c = parent.Id
+            );
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            Map<String, Object> found = findingWithMessage(stub.requests[0], 'Parent story ' + parent.Name);
+            System.assertNotEquals(null, found, String.valueOf(findingLines(stub.requests[0])));
+            String message = String.valueOf(found.get('message'));
+            System.assertEquals('issue', found.get('severity'), message);
+            System.assertEquals('parent-dependencies', found.get('group'));
+            System.assert(message.contains('(via dependency)'), message);
+            System.assert(message.contains('is in SV parent env'), message);
+            System.assert(message.contains('has not been promoted yet'), message);
+            System.assert(!findingLines(stub.requests[0]).contains(NO_PARENTS_FINDING));
+        }
+    }
+
+    @IsTest
+    static void startListsAParentReachedByBaseBranchAndDependencyOnce() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            update new copado__User_Story__c(Id = parent.Id, copado__Status__c = 'Completed');
+            update new copado__User_Story__c(Id = story.Id, copado__Base_Branch__c = 'feature/' + parent.Name);
+            insert new copado__Team_Dependency__c(
+                copado__Dependent_User_Story__c = story.Id,
+                copado__Provider_User_Story__c = parent.Id
+            );
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            Integer parentLines = 0;
+            String parentMessage;
+            for (String line : findingLines(stub.requests[0])) {
+                if (line.contains('Parent story ' + parent.Name)) {
+                    parentLines++;
+                    parentMessage = line;
+                }
+            }
+            System.assertEquals(1, parentLines, String.valueOf(findingLines(stub.requests[0])));
+            System.assert(parentMessage.contains('(via base branch and via dependency)'), parentMessage);
+            System.assert(parentMessage.startsWith('info|'), parentMessage);
+        }
+    }
+
+    @IsTest
+    static void startIgnoresASkippedDependency() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c parent = storyByTitle(PARENT_TITLE);
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            insert new copado__Team_Dependency__c(
+                copado__Dependent_User_Story__c = story.Id,
+                copado__Provider_User_Story__c = parent.Id,
+                copado__Skip_Dependency__c = true
+            );
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            System.assert(findingLines(stub.requests[0]).contains(NO_PARENTS_FINDING), String.valueOf(findingLines(stub.requests[0])));
+        }
+    }
+
+    @IsTest
+    static void startReportsNoParentDependenciesWhenThereAreNone() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(storyByTitle(STORY_TITLE).Id);
+
+            Map<String, Object> found = findingWithMessage(stub.requests[0], 'No parent story dependencies.');
+            System.assertNotEquals(null, found);
+            System.assertEquals('info', found.get('severity'));
+            System.assertEquals('parent-dependencies', found.get('group'));
+        }
+    }
+
+    @IsTest
+    static void startMarksGroupedFindingsWithTheirGroup() {
+        StoryVerificationService.pullRequestApprovedOverride = true;
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            addCommitAndMetadata(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            copado.CreateExecution.Request req = stub.requests[0];
+            System.assertEquals('pull-request', findingWithMessage(req, 'Pull request').get('group'));
+            System.assertEquals('pending-tests', findingWithMessage(req, 'Pending tests').get('group'));
+            System.assertEquals('parent-dependencies', findingWithMessage(req, 'No parent story').get('group'));
+            Map<String, Object> ungrouped = findingWithMessage(req, 'Registered commits');
+            System.assertEquals(false, ungrouped.containsKey('group'), 'Ungrouped findings carry no group key');
         }
     }
 

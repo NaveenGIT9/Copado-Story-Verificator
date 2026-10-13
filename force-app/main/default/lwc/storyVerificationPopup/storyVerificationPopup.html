@@ -6,90 +6,109 @@
             </div>
         </template>
 
-        <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_small">
-            <template lwc:if={showSpinner}>
-                <span class="spinner-holder slds-m-right_x-small" data-id="state-spinner">
-                    <lightning-spinner size="x-small" alternative-text="Verification in progress"></lightning-spinner>
-                </span>
-            </template>
-            <p class={stateClass} aria-live="polite" data-id="state">{stateText}</p>
-        </div>
-
-        <ul class="slds-m-bottom_small" data-id="steps">
-            <template for:each={steps} for:item="step">
-                <li key={step.key} class="slds-p-vertical_xx-small" data-id="step">
-                    <div class="slds-grid slds-grid_vertical-align-center">
-                        <template lwc:if={step.isSpinner}>
-                            <span class="spinner-holder slds-m-right_x-small">
-                                <lightning-spinner size="x-small" alternative-text={step.altText}></lightning-spinner>
-                            </span>
-                        </template>
-                        <template lwc:else>
-                            <span class="step-icon slds-m-right_x-small">
-                                <lightning-icon
-                                    icon-name={step.iconName}
-                                    variant={step.iconVariant}
-                                    size="x-small"
-                                    alternative-text={step.altText}
-                                ></lightning-icon>
-                            </span>
-                        </template>
-                        <span class={step.textClass} data-id="step-text">{step.text}</span>
-                        <template lwc:if={step.hasLines}>
-                            <button
-                                type="button"
-                                class="slds-button slds-m-left_x-small"
-                                aria-expanded={step.ariaExpanded}
-                                data-id="toggle"
-                                data-check-id={step.checkId}
-                                onclick={handleToggle}
-                            >
-                                {step.toggleLabel}
-                            </button>
-                        </template>
-                    </div>
-                    <template lwc:if={step.expanded}>
-                        <ul class="check-lines slds-text-body_small slds-m-left_xx-large" data-id="check-lines">
-                            <template for:each={step.lines} for:item="checkLine">
-                                <li key={checkLine.key}>{checkLine.text}</li>
-                            </template>
-                        </ul>
-                    </template>
-                </li>
-            </template>
-        </ul>
-
-        <template lwc:if={hasFacts}>
-            <div class="slds-m-bottom_small" data-id="readiness-section">
-                <p class="slds-text-title_bold">Promotion readiness</p>
-                <ul data-id="readiness">
-                    <template for:each={readinessRows} for:item="fact">
-                        <li key={fact.key} class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small" data-id="fact">
-                            <span class="step-icon slds-m-right_x-small">
-                                <lightning-icon
-                                    icon-name={fact.iconName}
-                                    variant={fact.iconVariant}
-                                    size="x-small"
-                                    alternative-text={fact.altText}
-                                ></lightning-icon>
-                            </span>
-                            <span class={fact.textClass}>{fact.text}</span>
-                        </li>
-                    </template>
+        <template lwc:if={showIntro}>
+            <div data-id="intro">
+                <p class="slds-m-bottom_small" data-id="intro-text">{introText}</p>
+                <ul class="slds-list_dotted slds-m-bottom_small" data-id="intro-list">
+                    <li data-id="intro-item">Unregistered commits</li>
+                    <li data-id="intro-item">Metadata coverage</li>
+                    <li data-id="intro-item">Pull request approval</li>
+                    <li data-id="intro-item">Pending tests</li>
+                    <li data-id="intro-item">Parent story dependencies (and which environment the parent is in)</li>
+                    <li data-id="intro-item">Org/environment branch merge into the feature branch</li>
                 </ul>
             </div>
         </template>
 
-        <template lwc:if={isFinished}>
-            <template lwc:if={failureText}>
-                <div class="slds-box slds-box_small slds-theme_error slds-m-top_small" role="alert" data-id="failure">
-                    {failureText}
+        <template lwc:if={showRun}>
+            <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_small">
+                <template lwc:if={showSpinner}>
+                    <span class="spinner-holder slds-m-right_x-small" data-id="state-spinner">
+                        <lightning-spinner size="x-small" alternative-text="Verification in progress"></lightning-spinner>
+                    </span>
+                </template>
+                <p class={stateClass} aria-live="polite" data-id="state">{stateText}</p>
+            </div>
+
+            <ul class="slds-m-bottom_small" data-id="steps">
+                <template for:each={steps} for:item="step">
+                    <li key={step.key} class="slds-p-vertical_xx-small" data-id="step">
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <template lwc:if={step.isSpinner}>
+                                <span class="spinner-holder slds-m-right_x-small">
+                                    <lightning-spinner size="x-small" alternative-text={step.altText}></lightning-spinner>
+                                </span>
+                            </template>
+                            <template lwc:else>
+                                <span class="step-icon slds-m-right_x-small">
+                                    <lightning-icon
+                                        icon-name={step.iconName}
+                                        variant={step.iconVariant}
+                                        size="x-small"
+                                        alternative-text={step.altText}
+                                    ></lightning-icon>
+                                </span>
+                            </template>
+                            <span class={step.textClass} data-id="step-text">{step.text}</span>
+                            <template lwc:if={step.hasLines}>
+                                <button
+                                    type="button"
+                                    class="slds-button slds-m-left_x-small"
+                                    aria-expanded={step.ariaExpanded}
+                                    data-id="toggle"
+                                    data-check-id={step.checkId}
+                                    onclick={handleToggle}
+                                >
+                                    {step.toggleLabel}
+                                </button>
+                            </template>
+                        </div>
+                        <template lwc:if={step.expanded}>
+                            <ul class="check-lines slds-text-body_small slds-m-left_xx-large" data-id="check-lines">
+                                <template for:each={step.lines} for:item="checkLine">
+                                    <li key={checkLine.key}>{checkLine.text}</li>
+                                </template>
+                            </ul>
+                        </template>
+                    </li>
+                </template>
+            </ul>
+
+            <template lwc:if={hasFacts}>
+                <div class="slds-m-bottom_small" data-id="readiness-section">
+                    <p class="slds-text-title_bold">Promotion readiness</p>
+                    <ul data-id="readiness">
+                        <template for:each={readinessRows} for:item="fact">
+                            <li key={fact.key} class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small" data-id="fact">
+                                <span class="step-icon slds-m-right_x-small">
+                                    <lightning-icon
+                                        icon-name={fact.iconName}
+                                        variant={fact.iconVariant}
+                                        size="x-small"
+                                        alternative-text={fact.altText}
+                                    ></lightning-icon>
+                                </span>
+                                <span class={fact.textClass}>{fact.text}</span>
+                            </li>
+                        </template>
+                    </ul>
                 </div>
+            </template>
+
+            <template lwc:if={isFinished}>
+                <template lwc:if={failureText}>
+                    <div class="slds-box slds-box_small slds-theme_error slds-m-top_small" role="alert" data-id="failure">
+                        {failureText}
+                    </div>
+                </template>
             </template>
         </template>
 
         <div slot="footer">
             <lightning-button class="slds-m-right_x-small" label="Close" onclick={handleClose} data-id="close"></lightning-button>
+            <template lwc:if={showIntro}>
+                <lightning-button variant="brand" label="Verify" onclick={handleVerify} data-id="verify"></lightning-button>
+            </template>
             <template lwc:if={canRetry}>
                 <lightning-button variant="brand" label="Verify again" onclick={handleRetry} data-id="retry"></lightning-button>
             </template>

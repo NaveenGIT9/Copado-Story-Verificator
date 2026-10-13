@@ -1,5 +1,7 @@
-import { LightningElement, api } from 'lwc';
+import { LightningElement, api, wire } from 'lwc';
 import { CloseActionScreenEvent } from 'lightning/actions';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
+import NAME_FIELD from '@salesforce/schema/copado__User_Story__c.Name';
 import start from '@salesforce/apex/StoryVerificationController.start';
 import getProgress from '@salesforce/apex/StoryVerificationController.getProgress';
 
@@ -10,13 +12,25 @@ const TIMEOUT_TEXT = 'Still running. You can close this window; open the story l
 const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
 
-
-// The three git checks run by the Copado Function, in display order (ids match function/index.js).
+// The three git checks run by the Copado Function (ids match function/index.js).
 const GIT_CHECKS = [
     { id: 'unregistered-commits', title: 'Unregistered commits' },
     { id: 'metadata-coverage', title: 'Metadata coverage' },
     { id: 'org-branch-merge', title: 'Org/environment branch merge' }
 ];
+
+// Apex findings that carry a group are shown as ONE row per group.
+const GROUP_TITLES = {
+    'pull-request': 'Pull request approval',
+    'pending-tests': 'Pending tests',
+    'parent-dependencies': 'Parent story dependencies'
+};
+const GROUP_WORDS = {
+    'parent-dependencies': { noun: 'parent stories', allOk: 'all ahead' }
+};
+const DEFAULT_GROUP_WORDS = { noun: 'findings', allOk: 'all ok' };
+// A single message longer than this also gets the details toggle.
+const LONG_MESSAGE_LENGTH = 100;
 
 const CHECK_VISUALS = {
     pass: { iconName: 'utility:check', iconVariant: 'success', altText: 'Passed', textClass: '' },
@@ -26,10 +40,7 @@ const CHECK_VISUALS = {
 };
 
 export default class StoryVerificationPopup extends LightningElement {
-    // In a quick action the record id is set AFTER connectedCallback, so the run starts only once both are true.
     _recordId;
-    _connected = false;
-    _started = false;
 
     @api
     get recordId() {
@@ -40,12 +51,25 @@ export default class StoryVerificationPopup extends LightningElement {
         if (value) {
             this._recordId = value;
         }
-        this.startWhenReady();
+    }
+
+    // Story name for the confirmation text, loaded through Lightning Data Service.
+    storyName;
+    // False while the confirmation (intro) screen is shown; nothing runs until the user clicks Verify.
+    runStarted = false;
+
+    @wire(getRecord, { recordId: '$recordId', fields: [NAME_FIELD] })
+    wiredStory({ data, error }) {
+        if (data) {
+            this.storyName = getFieldValue(data, NAME_FIELD);
+        } else if (error) {
+            this.storyName = undefined;
+        }
     }
 
     snapshot;
     errorText;
-    starting = true;
+    starting = false;
     timedOut = false;
     superseded = false;
     // check id -> true/false once the user has toggled that row; untouched rows use the default (open for fail/warn).
@@ -59,23 +83,9 @@ export default class StoryVerificationPopup extends LightningElement {
     // Bumped on every (re)start and on disconnect so late Apex responses from an old session are ignored.
     _session = 0;
 
-    connectedCallback() {
-        this._connected = true;
-        this.startWhenReady();
-    }
-
     disconnectedCallback() {
-        this._connected = false;
-        this._started = false;
         this.clearTimer();
         this._session += 1;
-    }
-
-    startWhenReady() {
-        if (this._connected && this._recordId && !this._started) {
-            this._started = true;
-            this.begin();
-        }
     }
 
     // ---- lifecycle of one run ----
@@ -84,6 +94,7 @@ export default class StoryVerificationPopup extends LightningElement {
         this.clearTimer();
         this._session += 1;
         const session = this._session;
+        this.runStarted = true;
         this.snapshot = undefined;
         this.errorText = undefined;
         this.timedOut = false;
@@ -175,6 +186,13 @@ export default class StoryVerificationPopup extends LightningElement {
         this.dispatchEvent(new CloseActionScreenEvent());
     }
 
+    handleVerify() {
+        if (!this._recordId || this.runStarted) {
+            return;
+        }
+        this.begin();
+    }
+
     handleRetry() {
         this.begin();
     }
@@ -189,6 +207,18 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     // ---- view state ----
+
+    get showIntro() {
+        return !this.runStarted;
+    }
+
+    get showRun() {
+        return this.runStarted;
+    }
+
+    get introText() {
+        return this.storyName ? 'Verify ' + this.storyName + ' for' : 'Verify this story for';
+    }
 
     get isFinished() {
         return !this.superseded && !!(this.snapshot && this.snapshot.isFinished);
@@ -207,7 +237,7 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get canRetry() {
-        return this.isFinished || !!this.errorText;
+        return this.runStarted && (this.isFinished || !!this.errorText);
     }
 
     get jobStatus() {
@@ -249,9 +279,31 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get steps() {
-        const list = [];
         const findings = (this.snapshot && this.snapshot.findings) || [];
+        const grouped = {};
+        const ungrouped = [];
         findings.forEach((finding, index) => {
+            // The Apex field is exposed as groupKey (see StoryVerificationController.Finding); group is accepted too.
+            const group = finding.groupKey || finding.group;
+            if (group && GROUP_TITLES[group]) {
+                grouped[group] = grouped[group] || [];
+                grouped[group].push(finding);
+            } else {
+                ungrouped.push({ finding, index });
+            }
+        });
+
+        // One fixed order, the same as the confirmation screen.
+        const list = [
+            this.gitRow('unregistered-commits'),
+            this.gitRow('metadata-coverage'),
+            this.groupRow('pull-request', grouped['pull-request'] || []),
+            this.groupRow('pending-tests', grouped['pending-tests'] || []),
+            this.groupRow('parent-dependencies', grouped['parent-dependencies'] || []),
+            this.gitRow('org-branch-merge'),
+            this.jobStep()
+        ];
+        ungrouped.forEach(({ finding, index }) => {
             const isIssue = finding.severity === 'issue';
             list.push({
                 key: 'finding-' + index,
@@ -263,23 +315,67 @@ export default class StoryVerificationPopup extends LightningElement {
                 textClass: isIssue ? 'slds-text-color_error' : ''
             });
         });
-        list.push(this.jobStep());
-        this.gitCheckItems().forEach((item) => list.push(this.checkRow(item)));
+        // Any extra check the Function reported that this popup does not know about.
+        const results = (this.snapshot && this.snapshot.checks) || [];
+        results
+            .filter((r) => !GIT_CHECKS.some((check) => check.id === r.id))
+            .forEach((r) => list.push(this.checkRow({ id: r.id, title: r.title || r.id, result: r })));
         return list;
     }
 
-    // The three known checks first (always shown), then any extra check the Function reported.
-    gitCheckItems() {
+    gitRow(id) {
+        const check = GIT_CHECKS.find((c) => c.id === id);
         const results = (this.snapshot && this.snapshot.checks) || [];
-        const items = GIT_CHECKS.map((check) => ({
-            id: check.id,
-            title: check.title,
-            result: results.find((r) => r.id === check.id)
-        }));
-        results
-            .filter((r) => !GIT_CHECKS.some((check) => check.id === r.id))
-            .forEach((r) => items.push({ id: r.id, title: r.title || r.id, result: r }));
-        return items;
+        return this.checkRow({ id, title: check.title, result: results.find((r) => r.id === id) });
+    }
+
+    // One row for all the Apex findings of a group; the individual messages sit behind the details toggle.
+    groupRow(group, findings) {
+        const title = GROUP_TITLES[group];
+        const checkId = 'group-' + group;
+        const row = {
+            key: checkId,
+            checkId,
+            isSpinner: false,
+            hasLines: false,
+            expanded: false,
+            ariaExpanded: 'false',
+            toggleLabel: 'Show details',
+            lines: [],
+            textClass: ''
+        };
+        if (findings.length === 0) {
+            if (this.isFinished) {
+                return { ...row, ...CHECK_VISUALS.skipped, text: title + ': no result was reported' };
+            }
+            return { ...row, iconName: 'utility:clock', iconVariant: undefined, altText: 'Pending', text: title + ': pending' };
+        }
+        const issueCount = findings.filter((f) => f.severity === 'issue').length;
+        const visual = issueCount > 0 ? CHECK_VISUALS.fail : CHECK_VISUALS.pass;
+        let text;
+        if (findings.length === 1) {
+            const message = String(findings[0].message || '');
+            // Avoid "Pending tests: Pending tests: 0." when the message already starts with the title.
+            text = message.startsWith(title + ':') ? message : title + ': ' + message;
+        } else {
+            const words = GROUP_WORDS[group] || DEFAULT_GROUP_WORDS;
+            text =
+                issueCount > 0
+                    ? title + ': ' + findings.length + ' ' + words.noun + ' — ' + issueCount + ' need attention'
+                    : title + ': ' + findings.length + ' ' + words.noun + ', ' + words.allOk;
+        }
+        const hasLines = findings.length > 1 || String(findings[0].message || '').length > LONG_MESSAGE_LENGTH;
+        const expanded = hasLines && this.isExpanded(checkId, issueCount > 0 ? 'fail' : 'pass');
+        return {
+            ...row,
+            ...visual,
+            text,
+            hasLines,
+            lines: findings.map((f, index) => ({ key: checkId + '-' + index, text: f.message })),
+            expanded,
+            ariaExpanded: String(expanded),
+            toggleLabel: expanded ? 'Hide details' : 'Show details'
+        };
     }
 
     isExpanded(checkId, status) {

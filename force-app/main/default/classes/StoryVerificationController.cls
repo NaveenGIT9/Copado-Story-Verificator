@@ -26,6 +26,10 @@ public with sharing class StoryVerificationController {
         public String severity;
         @AuraEnabled
         public String message;
+        // The finding's "group" key (pull-request | pending-tests | parent-dependencies), blank for ungrouped findings.
+        // Named groupKey (not group) because group is a SOQL keyword and may not be usable as an Apex identifier; the popup reads groupKey.
+        @AuraEnabled
+        public String groupKey;
     }
 
     /** Result of one git check as reported by the Function (state: pass | fail | warn | skipped). */
@@ -292,6 +296,8 @@ public with sharing class StoryVerificationController {
             Finding finding = new Finding();
             finding.severity = 'issue' == String.valueOf(map1.get('severity')) ? 'issue' : 'info';
             finding.message = map1.get('message') == null ? '' : String.valueOf(map1.get('message'));
+            String groupText = map1.get('group') == null ? '' : String.valueOf(map1.get('group')).trim();
+            finding.groupKey = String.isBlank(groupText) ? null : groupText;
             findings.add(finding);
         }
         return findings;

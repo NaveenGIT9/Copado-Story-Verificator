@@ -53,12 +53,43 @@ public with sharing class StoryVerificationService {
     private static final Integer COMMIT_QUERY_LIMIT = 4001;
     private static final Integer METADATA_QUERY_LIMIT = 2001;
     private static final Integer STEP_QUERY_LIMIT = 2000;
+    private static final Integer MAX_PARENTS = 50;
+    private static final Integer PARENT_QUERY_LIMIT = 51;
+    private static final String GROUP_PULL_REQUEST = 'pull-request';
+    private static final String GROUP_PENDING_TESTS = 'pending-tests';
+    private static final String GROUP_PARENTS = 'parent-dependencies';
+    private static final String VERDICT_AHEAD = 'ahead';
+    private static final String VERDICT_NOT_AHEAD = 'not-ahead';
+    private static final String VERDICT_UNKNOWN = 'unknown';
+    private static final String NO_ENVIRONMENT = 'no environment';
     private static final String NO_GIT_RESULT_LINE = 'Git checks did not report a result - see the Job Execution logs.';
     @TestVisible
     private static final String NO_GIT_RESULT_DETAILS = 'The git checks did not report a result (nothing was verified from git). Open the Job Execution and its Function log.';
 
+    /** One pipeline step reduced to its two environments (used to rank environments, no DML needed to test it). */
+    public class StepEdge {
+        public Id sourceId;
+        public Id destinationId;
+
+        public StepEdge() {
+        }
+
+        public StepEdge(Id sourceId, Id destinationId) {
+            this.sourceId = sourceId;
+            this.destinationId = destinationId;
+        }
+    }
+
+    /** A parent story plus every way it was reached (base branch and/or Copado dependency). */
+    public class ParentLink {
+        public copado__User_Story__c story;
+        public List<String> labels = new List<String>();
+    }
+
     /** Everything the Function needs from Copado data to run the git checks (it has no Salesforce access). */
     public class GitInputs {
+        // Not sent to the Function: only used by the parent story check.
+        public List<StepEdge> pipelineEdges = new List<StepEdge>();
         public List<String> envBranches = new List<String>();
         public List<String> registeredCommits = new List<String>();
         public List<Map<String, String>> nonCompleteCommits = new List<Map<String, String>>();
@@ -120,6 +151,7 @@ public with sharing class StoryVerificationService {
                 Name,
                 copado__Base_Branch__c,
                 copado__Environment__c,
+                copado__Environment__r.Name,
                 copado__Project__r.copado__Deployment_Flow__c,
                 Verification_Status__c,
                 Verification_Date__c,
@@ -286,13 +318,20 @@ public with sharing class StoryVerificationService {
         if (pipelineId != null) {
             Set<String> seenBranches = new Set<String>();
             for (copado__Deployment_Flow_Step__c pipelineStep : [
-                SELECT copado__Branch__c, copado__Destination_Branch__c
+                SELECT
+                    copado__Branch__c,
+                    copado__Destination_Branch__c,
+                    copado__Source_Environment__c,
+                    copado__Destination_Environment__c
                 FROM copado__Deployment_Flow_Step__c
                 WHERE copado__Deployment_Flow__c = :pipelineId
                 LIMIT :STEP_QUERY_LIMIT
             ]) {
                 addBranch(inputs, seenBranches, pipelineStep.copado__Branch__c);
                 addBranch(inputs, seenBranches, pipelineStep.copado__Destination_Branch__c);
+                inputs.pipelineEdges.add(
+                    new StepEdge(pipelineStep.copado__Source_Environment__c, pipelineStep.copado__Destination_Environment__c)
+                );
             }
         }
         return inputs;
@@ -351,7 +390,7 @@ public with sharing class StoryVerificationService {
         if (metadataCount == 0) {
             findings.add(finding(SEVERITY_ISSUE, 'No metadata is selected on this story.'));
         }
-        addParentFinding(story, findings);
+        addParentFindings(story, inputs, findings);
         addPendingTestsFinding(story, findings);
         addPullRequestFinding(story, findings);
         findings.add(
@@ -383,59 +422,280 @@ public with sharing class StoryVerificationService {
             findings.add(
                 finding(
                     SEVERITY_ISSUE,
-                    'Pending tests: ' + shown + '. All tests must finish (0 pending) before promoting.'
+                    'Pending tests: ' + shown + '. All tests must finish (0 pending) before promoting.',
+                    GROUP_PENDING_TESTS
                 )
             );
             return;
         }
-        findings.add(finding(SEVERITY_INFO, 'Pending tests: 0.'));
+        findings.add(finding(SEVERITY_INFO, 'Pending tests: 0.', GROUP_PENDING_TESTS));
     }
 
     private static void addPullRequestFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
         if (isPullRequestApproved(story.copado__Pull_Requests_Approved__c)) {
-            findings.add(finding(SEVERITY_INFO, 'Pull request approved.'));
+            findings.add(finding(SEVERITY_INFO, 'Pull request approved.', GROUP_PULL_REQUEST));
             return;
         }
-        findings.add(finding(SEVERITY_ISSUE, 'Pull request is not approved yet.'));
+        findings.add(finding(SEVERITY_ISSUE, 'Pull request is not approved yet.', GROUP_PULL_REQUEST));
     }
 
-    private static void addParentFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
+    // Parents are the base-branch story (feature/<Name>) and the Copado dependencies where this story is the child.
+    // One finding per parent, all in the parent-dependencies group. Two SOQL statements, whatever the number of parents.
+    private static void addParentFindings(
+        copado__User_Story__c story,
+        GitInputs inputs,
+        List<Map<String, String>> findings
+    ) {
         String baseBranch = story.copado__Base_Branch__c;
-        if (String.isBlank(baseBranch) || !baseBranch.startsWith(FEATURE_PREFIX)) {
-            return;
+        String baseParentName = null;
+        if (String.isNotBlank(baseBranch) && baseBranch.startsWith(FEATURE_PREFIX)) {
+            String rest = baseBranch.substring(FEATURE_PREFIX.length()).trim();
+            if (String.isNotBlank(rest)) {
+                baseParentName = rest;
+            }
         }
-        String parentName = baseBranch.substring(FEATURE_PREFIX.length()).trim();
-        if (String.isBlank(parentName)) {
-            return;
-        }
-        List<copado__User_Story__c> parents = [
-            SELECT Id, Name, copado__Status__c, copado__Last_Promotion_Date__c
-            FROM copado__User_Story__c
-            WHERE Name = :parentName
-            LIMIT 1
+
+        List<copado__Team_Dependency__c> dependencies = [
+            SELECT copado__Provider_User_Story__c, copado__Relationship_Type__c
+            FROM copado__Team_Dependency__c
+            WHERE
+                copado__Dependent_User_Story__c = :story.Id
+                AND copado__Skip_Dependency__c = FALSE
+                AND copado__Provider_User_Story__c != NULL
+            ORDER BY CreatedDate
+            LIMIT :MAX_PARENTS
         ];
-        if (parents.isEmpty()) {
+        Set<Id> providerIds = new Set<Id>();
+        for (copado__Team_Dependency__c dependency : dependencies) {
+            providerIds.add(dependency.copado__Provider_User_Story__c);
+        }
+
+        List<copado__User_Story__c> found = new List<copado__User_Story__c>();
+        if (baseParentName != null || !providerIds.isEmpty()) {
+            found = [
+                SELECT
+                    Id,
+                    Name,
+                    copado__Status__c,
+                    copado__Last_Promotion_Date__c,
+                    copado__Environment__c,
+                    copado__Environment__r.Name
+                FROM copado__User_Story__c
+                WHERE Id IN :providerIds OR Name = :baseParentName
+                LIMIT :PARENT_QUERY_LIMIT
+            ];
+        }
+        Map<Id, copado__User_Story__c> storiesById = new Map<Id, copado__User_Story__c>(found);
+        Map<String, copado__User_Story__c> storiesByName = new Map<String, copado__User_Story__c>();
+        for (copado__User_Story__c candidate : found) {
+            storiesByName.put(candidate.Name.toLowerCase(), candidate);
+        }
+
+        List<ParentLink> links = new List<ParentLink>();
+        Map<Id, ParentLink> linkByStory = new Map<Id, ParentLink>();
+        Boolean baseParentMissing = false;
+        if (baseParentName != null) {
+            copado__User_Story__c baseParent = storiesByName.get(baseParentName.toLowerCase());
+            if (baseParent == null) {
+                baseParentMissing = true;
+            } else {
+                addLink(story, links, linkByStory, baseParent, 'via base branch');
+            }
+        }
+        for (copado__Team_Dependency__c dependency : dependencies) {
+            String relationship = String.isBlank(dependency.copado__Relationship_Type__c)
+                ? 'via dependency'
+                : 'via dependency (' + dependency.copado__Relationship_Type__c + ')';
+            addLink(story, links, linkByStory, storiesById.get(dependency.copado__Provider_User_Story__c), relationship);
+        }
+
+        if (baseParentMissing) {
             findings.add(
                 finding(
                     SEVERITY_INFO,
-                    'Base branch ' + baseBranch + ' looks like a feature branch but no story named ' + parentName + ' was found.'
+                    'Base branch ' + baseBranch + ' looks like a feature branch but no story named ' + baseParentName + ' was found.',
+                    GROUP_PARENTS
                 )
             );
+        }
+        if (links.isEmpty()) {
+            if (!baseParentMissing) {
+                findings.add(finding(SEVERITY_INFO, 'No parent story dependencies.', GROUP_PARENTS));
+            }
             return;
         }
-        copado__User_Story__c parent = parents[0];
-        if (parent.copado__Status__c != 'Completed' && parent.copado__Last_Promotion_Date__c == null) {
+
+        Map<Id, Integer> levels = computeLevels(inputs.pipelineEdges);
+        Integer childLevel = story.copado__Environment__c == null ? null : levels.get(story.copado__Environment__c);
+        String childEnvironmentName = story.copado__Environment__r?.Name;
+        for (ParentLink link : links) {
+            copado__User_Story__c parent = link.story;
             findings.add(
-                finding(
-                    SEVERITY_ISSUE,
-                    'Base branch is the feature branch of ' + parent.Name + ', which has not been promoted yet.'
+                parentFinding(
+                    parent.Name,
+                    String.join(link.labels, ' and '),
+                    parent.copado__Status__c,
+                    parent.copado__Environment__c,
+                    parent.copado__Environment__r?.Name,
+                    parent.copado__Last_Promotion_Date__c,
+                    story.copado__Environment__c,
+                    childEnvironmentName,
+                    levels
                 )
             );
         }
+    }
+
+    // A parent reached more than one way is listed once with every label. A story is never its own parent.
+    private static void addLink(
+        copado__User_Story__c child,
+        List<ParentLink> links,
+        Map<Id, ParentLink> linkByStory,
+        copado__User_Story__c parent,
+        String label
+    ) {
+        if (parent == null || parent.Id == child.Id) {
+            return;
+        }
+        ParentLink existing = linkByStory.get(parent.Id);
+        if (existing == null) {
+            if (links.size() >= MAX_PARENTS) {
+                return;
+            }
+            existing = new ParentLink();
+            existing.story = parent;
+            links.add(existing);
+            linkByStory.put(parent.Id, existing);
+        }
+        if (!existing.labels.contains(label)) {
+            existing.labels.add(label);
+        }
+    }
+
+    /**
+     * Level of every environment of a pipeline: the longest distance from an environment that is never a destination
+     * (a root, level 0). Iterative relaxation limited to the number of steps, so a cycle cannot loop forever. An
+     * environment that is not reachable from a root (for example a pure cycle) gets no level.
+     */
+    @TestVisible
+    private static Map<Id, Integer> computeLevels(List<StepEdge> edges) {
+        Map<Id, Integer> levels = new Map<Id, Integer>();
+        if (edges == null || edges.isEmpty()) {
+            return levels;
+        }
+        List<StepEdge> usable = new List<StepEdge>();
+        Set<Id> destinations = new Set<Id>();
+        for (StepEdge edge : edges) {
+            if (edge != null && edge.sourceId != null && edge.destinationId != null) {
+                usable.add(edge);
+                destinations.add(edge.destinationId);
+            }
+        }
+        for (StepEdge edge : usable) {
+            if (!destinations.contains(edge.sourceId)) {
+                levels.put(edge.sourceId, 0);
+            }
+        }
+        for (Integer pass = 0; pass < usable.size(); pass++) {
+            Boolean changed = false;
+            for (StepEdge edge : usable) {
+                Integer sourceLevel = levels.get(edge.sourceId);
+                if (sourceLevel == null) {
+                    continue;
+                }
+                Integer known = levels.get(edge.destinationId);
+                if (known == null || known < sourceLevel + 1) {
+                    levels.put(edge.destinationId, sourceLevel + 1);
+                    changed = true;
+                }
+            }
+            if (!changed) {
+                break;
+            }
+        }
+        return levels;
+    }
+
+    /** ahead | not-ahead | unknown. A Completed parent is always ahead; without both levels the answer is unknown. */
+    @TestVisible
+    private static String parentVerdict(Integer childLevel, Integer parentLevel, Boolean parentCompleted) {
+        if (parentCompleted == true) {
+            return VERDICT_AHEAD;
+        }
+        if (childLevel == null || parentLevel == null) {
+            return VERDICT_UNKNOWN;
+        }
+        return parentLevel > childLevel ? VERDICT_AHEAD : VERDICT_NOT_AHEAD;
+    }
+
+    // Pure (no SOQL/DML) so every wording can be unit-tested.
+    @TestVisible
+    private static Map<String, String> parentFinding(
+        String parentName,
+        String via,
+        String parentStatus,
+        Id parentEnvironmentId,
+        String parentEnvironmentName,
+        Datetime parentLastPromotion, // copado__Last_Promotion_Date__c is a date/time field
+        Id childEnvironmentId,
+        String childEnvironmentName,
+        Map<Id, Integer> levels
+    ) {
+        String parentText = environmentText(parentEnvironmentId, parentEnvironmentName);
+        String childText = environmentText(childEnvironmentId, childEnvironmentName);
+        String prefix = 'Parent story ' + parentName + ' (' + via + ')';
+        Boolean completed = parentStatus == 'Completed';
+        String ahead = prefix + ' is in ' + parentText + ', ahead of this story (' + childText + ').';
+        if (completed) {
+            return finding(SEVERITY_INFO, ahead, GROUP_PARENTS);
+        }
+        if (parentEnvironmentId == null) {
+            return finding(
+                SEVERITY_ISSUE,
+                prefix + ' has no environment yet, so it has not been promoted.',
+                GROUP_PARENTS
+            );
+        }
+        Integer childLevel = childEnvironmentId == null || levels == null ? null : levels.get(childEnvironmentId);
+        Integer parentLevel = levels == null ? null : levels.get(parentEnvironmentId);
+        String verdict = parentVerdict(childLevel, parentLevel, completed);
+        if (verdict == VERDICT_AHEAD) {
+            return finding(SEVERITY_INFO, ahead, GROUP_PARENTS);
+        }
+        if (verdict == VERDICT_NOT_AHEAD) {
+            return finding(
+                SEVERITY_ISSUE,
+                prefix + ' is in ' + parentText + ', not ahead of this story (' + childText + '). Promote the parent first.',
+                GROUP_PARENTS
+            );
+        }
+        // No pipeline order available: fall back to "has the parent been promoted at all".
+        String note = ' (pipeline order not available to compare with this story\'s environment: ' + childText + ')';
+        if (parentLastPromotion != null) {
+            return finding(SEVERITY_INFO, prefix + ' is in ' + parentText + ' and has been promoted' + note + '.', GROUP_PARENTS);
+        }
+        return finding(
+            SEVERITY_ISSUE,
+            prefix + ' is in ' + parentText + ' and has not been promoted yet' + note + '. Promote the parent first.',
+            GROUP_PARENTS
+        );
+    }
+
+    private static String environmentText(Id environmentId, String environmentName) {
+        if (environmentId == null) {
+            return NO_ENVIRONMENT;
+        }
+        return String.isBlank(environmentName) ? 'an unnamed environment' : environmentName;
     }
 
     private static Map<String, String> finding(String severity, String message) {
         return new Map<String, String>{ 'severity' => severity, 'message' => message };
+    }
+
+    private static Map<String, String> finding(String severity, String message, String groupName) {
+        Map<String, String> result = finding(severity, message);
+        result.put('group', groupName);
+        return result;
     }
 
     private static List<JobOutcome> loadOutcomes(Set<Id> jobExecutionIds) {

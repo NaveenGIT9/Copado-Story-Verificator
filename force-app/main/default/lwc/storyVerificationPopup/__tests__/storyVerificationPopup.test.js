@@ -1,5 +1,6 @@
 import { createElement } from 'lwc';
 import StoryVerificationPopup from 'c/storyVerificationPopup';
+import { getRecord } from 'lightning/uiRecordApi';
 import start from '@salesforce/apex/StoryVerificationController.start';
 import getProgress from '@salesforce/apex/StoryVerificationController.getProgress';
 
@@ -15,12 +16,35 @@ jest.mock(
 );
 
 const STORY_ID = 'a0X000000000001AAA';
+const STORY_NAME = 'US-0000026';
 const RUN_ID = 'run-123';
 const TIMEOUT_TEXT = 'Still running. You can close this window; open the story later and check Verification Status.';
+
+const INTRO_ITEMS = [
+    'Unregistered commits',
+    'Metadata coverage',
+    'Pull request approval',
+    'Pending tests',
+    'Parent story dependencies (and which environment the parent is in)',
+    'Org/environment branch merge into the feature branch'
+];
 
 const FINDINGS = [
     { severity: 'info', message: 'Registered commits: 1, selected metadata items: 1.' },
     { severity: 'issue', message: 'No metadata is selected on this story.' }
+];
+
+const PARENT_OK = 'Parent story US-0000010 (via base branch) is in INT-SFP, ahead of this story (Dev1-SFP).';
+const PARENT_BAD =
+    'Parent story US-0000011 (via dependency (Blocks)) is in Dev2-SFP, not ahead of this story (Dev1-SFP). Promote the parent first.';
+
+// Deliberately NOT in display order: the popup must order the rows itself.
+const GROUPED_FINDINGS = [
+    { severity: 'info', message: PARENT_OK, groupKey: 'parent-dependencies' },
+    { severity: 'info', message: 'Registered commits: 1, selected metadata items: 1.' },
+    { severity: 'issue', message: PARENT_BAD, groupKey: 'parent-dependencies' },
+    { severity: 'info', message: 'Pending tests: 0.', groupKey: 'pending-tests' },
+    { severity: 'issue', message: 'Pull request is not approved yet.', groupKey: 'pull-request' }
 ];
 
 const FACTS = [
@@ -58,6 +82,7 @@ async function tick(ms = 2000) {
     await flush();
 }
 
+// Mounts the popup in its intro phase (nothing has run yet).
 function mount() {
     const element = createElement('c-story-verification-popup', { is: StoryVerificationPopup });
     element.recordId = STORY_ID;
@@ -69,8 +94,21 @@ function byId(element, id) {
     return element.shadowRoot.querySelector(`[data-id="${id}"]`);
 }
 
+// Mounts and clicks Verify, so the run has started once the mocked start() has resolved.
+async function mountAndVerify() {
+    const element = mount();
+    await flush();
+    byId(element, 'verify').click();
+    await flush();
+    return element;
+}
+
 function stepTexts(element) {
     return Array.from(element.shadowRoot.querySelectorAll('[data-id="step"]')).map((li) => li.textContent);
+}
+
+function stepTitles(element) {
+    return Array.from(element.shadowRoot.querySelectorAll('[data-id="step-text"]')).map((span) => span.textContent);
 }
 
 function factRows(element) {
@@ -122,8 +160,7 @@ function stepRow(element, title) {
 async function mountFinished(checks, overrides) {
     start.mockResolvedValue(snapshot());
     getProgress.mockResolvedValue(finishedSnapshot(checks, overrides));
-    const element = mount();
-    await flush();
+    const element = await mountAndVerify();
     await tick();
     return element;
 }
@@ -143,6 +180,150 @@ describe('c-story-verification-popup', () => {
         jest.useRealTimers();
     });
 
+    describe('confirmation screen', () => {
+        it('shows the story name loaded by the getRecord wire', async () => {
+            const element = mount();
+            getRecord.emit({ fields: { Name: { value: STORY_NAME } } });
+            await flush();
+
+            expect(byId(element, 'intro-text').textContent).toBe('Verify ' + STORY_NAME + ' for');
+        });
+
+        it('shows a fallback text until the story name has loaded', async () => {
+            const element = mount();
+            await flush();
+
+            expect(byId(element, 'intro-text').textContent).toBe('Verify this story for');
+        });
+
+        it('falls back to the generic text when the wire reports an error', async () => {
+            const element = mount();
+            getRecord.emit({ fields: { Name: { value: STORY_NAME } } });
+            await flush();
+            getRecord.error();
+            await flush();
+
+            expect(byId(element, 'intro-text').textContent).toBe('Verify this story for');
+        });
+
+        it('lists the six checks in order as a dotted (bullet) list', async () => {
+            const element = mount();
+            await flush();
+
+            const list = byId(element, 'intro-list');
+            expect(list.tagName).toBe('UL');
+            expect(list.classList.contains('slds-list_dotted')).toBe(true);
+            const items = Array.from(element.shadowRoot.querySelectorAll('[data-id="intro-item"]')).map(
+                (li) => li.textContent
+            );
+            expect(items).toEqual(INTRO_ITEMS);
+        });
+
+        it('has a brand Verify button and a Close button and no run view or retry button', async () => {
+            const element = mount();
+            await flush();
+
+            expect(byId(element, 'verify')).not.toBeNull();
+            expect(byId(element, 'verify').variant).toBe('brand');
+            expect(byId(element, 'verify').label).toBe('Verify');
+            expect(byId(element, 'close')).not.toBeNull();
+            expect(byId(element, 'retry')).toBeNull();
+            expect(byId(element, 'state')).toBeNull();
+            expect(byId(element, 'steps')).toBeNull();
+            expect(byId(element, 'readiness-section')).toBeNull();
+        });
+
+        it('sends nothing to Apex before Verify is clicked', async () => {
+            mount();
+            await flush();
+            await tick(10000);
+
+            expect(start).not.toHaveBeenCalled();
+            expect(getProgress).not.toHaveBeenCalled();
+            expect(jest.getTimerCount()).toBe(0);
+        });
+
+        it('starts the run when Verify is clicked and replaces the intro with the run view', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            const element = mount();
+            await flush();
+
+            byId(element, 'verify').click();
+            await flush();
+
+            expect(start).toHaveBeenCalledTimes(1);
+            expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
+            expect(byId(element, 'intro')).toBeNull();
+            expect(byId(element, 'intro-text')).toBeNull();
+            expect(byId(element, 'intro-list')).toBeNull();
+            expect(byId(element, 'verify')).toBeNull();
+            expect(byId(element, 'state')).not.toBeNull();
+            expect(byId(element, 'close')).not.toBeNull();
+        });
+
+        it('starts only one run when Verify is clicked repeatedly', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            const element = mount();
+            await flush();
+
+            const button = byId(element, 'verify');
+            button.click();
+            button.click();
+            await flush();
+
+            expect(start).toHaveBeenCalledTimes(1);
+        });
+
+        it('does nothing when Verify is clicked before a record id is known', async () => {
+            const element = createElement('c-story-verification-popup', { is: StoryVerificationPopup });
+            document.body.appendChild(element);
+            await flush();
+
+            byId(element, 'verify').click();
+            await flush();
+
+            expect(start).not.toHaveBeenCalled();
+            expect(byId(element, 'intro')).not.toBeNull();
+        });
+
+        it('uses the record id set after connecting (quick actions set it late)', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            const element = createElement('c-story-verification-popup', { is: StoryVerificationPopup });
+            document.body.appendChild(element);
+            await flush();
+            element.recordId = STORY_ID;
+            await flush();
+
+            byId(element, 'verify').click();
+            await flush();
+
+            expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
+        });
+
+        it('dispatches the close event from the Close button in the intro', async () => {
+            const element = mount();
+            await flush();
+            const handler = jest.fn();
+            element.addEventListener('lightning__actionsclosescreen', handler);
+
+            byId(element, 'close').click();
+
+            expect(handler).toHaveBeenCalledTimes(1);
+            expect(start).not.toHaveBeenCalled();
+        });
+
+        it('keeps the intro hidden after the run finished', async () => {
+            const element = await mountFinished(CHECKS);
+
+            expect(byId(element, 'intro')).toBeNull();
+            expect(byId(element, 'verify')).toBeNull();
+            expect(byId(element, 'retry')).not.toBeNull();
+        });
+    });
+
     it('starts the run, shows the running state, then the final Clean result', async () => {
         start.mockResolvedValue(snapshot());
         getProgress
@@ -156,19 +337,21 @@ describe('c-story-verification-popup', () => {
                 })
             );
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
 
         expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
         expect(byId(element, 'state').textContent).toContain('job queued in Copado');
         expect(byId(element, 'state-spinner')).not.toBeNull();
         const steps = stepTexts(element);
-        expect(steps[0]).toContain('Registered commits: 1');
-        expect(steps[1]).toContain('No metadata is selected');
-        expect(steps[2]).toContain('Verification job in Copado');
-        expect(steps[3]).toContain('Unregistered commits: pending');
-        expect(steps[4]).toContain('Metadata coverage: pending');
+        expect(steps[0]).toContain('Unregistered commits: pending');
+        expect(steps[1]).toContain('Metadata coverage: pending');
+        expect(steps[2]).toContain('Pull request approval: pending');
+        expect(steps[3]).toContain('Pending tests: pending');
+        expect(steps[4]).toContain('Parent story dependencies: pending');
         expect(steps[5]).toContain('Org/environment branch merge: pending');
+        expect(steps[6]).toContain('Verification job in Copado');
+        expect(steps[7]).toContain('Registered commits: 1');
+        expect(steps[8]).toContain('No metadata is selected');
         expect(byId(element, 'state').textContent).not.toContain('finished');
 
         await tick();
@@ -201,8 +384,7 @@ describe('c-story-verification-popup', () => {
             })
         );
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
 
         const verdict = byId(element, 'state');
@@ -225,8 +407,7 @@ describe('c-story-verification-popup', () => {
             })
         );
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
 
         const verdict = byId(element, 'state');
@@ -240,8 +421,7 @@ describe('c-story-verification-popup', () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot({ runId: 'newer-run', isCurrentRun: false }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
 
         expect(byId(element, 'state').textContent).toContain('newer verification run');
@@ -255,8 +435,7 @@ describe('c-story-verification-popup', () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         for (let i = 0; i < 160; i++) {
             // eslint-disable-next-line no-await-in-loop
             await tick();
@@ -273,19 +452,18 @@ describe('c-story-verification-popup', () => {
     it('shows an error banner when start fails in Apex', async () => {
         start.mockRejectedValue({ body: { message: 'You do not have access to this story.' } });
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
 
         expect(byId(element, 'error').textContent).toContain('You do not have access to this story.');
         expect(getProgress).not.toHaveBeenCalled();
         expect(byId(element, 'state-spinner')).toBeNull();
+        expect(byId(element, 'retry')).not.toBeNull();
     });
 
     it('shows the message when start reports that a run is already in progress', async () => {
         start.mockResolvedValue({ errorMessage: 'Verification is already running' });
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
 
         expect(byId(element, 'error').textContent).toContain('Verification is already running');
         expect(getProgress).not.toHaveBeenCalled();
@@ -295,31 +473,17 @@ describe('c-story-verification-popup', () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockRejectedValue({ body: { message: 'Polling failed' } });
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
 
         expect(byId(element, 'error').textContent).toContain('Polling failed');
         expect(jest.getTimerCount()).toBe(0);
     });
-    it('waits for the record id before starting (quick actions set it after connecting)', async () => {
-        const element = createElement('c-story-verification-popup', { is: StoryVerificationPopup });
-        document.body.appendChild(element);
-        await Promise.resolve();
-        expect(start).not.toHaveBeenCalled();
 
-        start.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful', details: ['INFO: ok'] }));
-        element.recordId = STORY_ID;
-        await flush();
-
-        expect(start).toHaveBeenCalledTimes(1);
-        expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
-    });
     it('keeps using the story id captured at the start even if recordId is cleared later', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful' }));
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
 
         element.recordId = undefined; // what the quick action framework can do after opening
@@ -328,14 +492,11 @@ describe('c-story-verification-popup', () => {
         expect(getProgress).toHaveBeenCalledWith({ storyId: STORY_ID, runId: RUN_ID });
     });
 
-
-
     it('clears the poll timer when disconnected', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot());
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         expect(jest.getTimerCount()).toBe(1);
 
         document.body.removeChild(element);
@@ -345,14 +506,13 @@ describe('c-story-verification-popup', () => {
         expect(getProgress).not.toHaveBeenCalled();
     });
 
-    it('restarts the whole run when Verify again is clicked', async () => {
+    it('restarts the whole run directly (no intro) when Verify again is clicked', async () => {
         start.mockResolvedValueOnce(snapshot()).mockResolvedValueOnce(snapshot({ runId: 'run-456' }));
         getProgress
             .mockResolvedValueOnce(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful' }))
             .mockResolvedValue(snapshot({ runId: 'run-456', jobStatus: 'In Progress' }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
         expect(byId(element, 'state').textContent).toContain('Verification finished');
 
@@ -360,6 +520,7 @@ describe('c-story-verification-popup', () => {
         await flush();
 
         expect(start).toHaveBeenCalledTimes(2);
+        expect(byId(element, 'intro')).toBeNull();
         expect(byId(element, 'state').textContent).not.toContain('Verification finished');
         expect(byId(element, 'state-spinner')).not.toBeNull();
 
@@ -378,8 +539,7 @@ describe('c-story-verification-popup', () => {
         );
         getProgress.mockResolvedValue(snapshot());
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
 
         expect(element.shadowRoot.textContent).toContain('Promotion readiness');
         const rows = factRows(element);
@@ -403,8 +563,7 @@ describe('c-story-verification-popup', () => {
         );
         getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         expect(factRows(element).map((li) => li.textContent)).toEqual([
             'Pending tests: 2',
             'Pull request approved: No'
@@ -423,8 +582,7 @@ describe('c-story-verification-popup', () => {
         start.mockResolvedValue(snapshot({ facts: [] }));
         getProgress.mockResolvedValue(snapshot({ facts: [] }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
 
         expect(byId(element, 'readiness-section')).toBeNull();
         expect(element.shadowRoot.textContent).not.toContain('Promotion readiness');
@@ -434,8 +592,7 @@ describe('c-story-verification-popup', () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot());
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
 
         ['Unregistered commits', 'Metadata coverage', 'Org/environment branch merge'].forEach((title) => {
             const row = stepRow(element, title);
@@ -451,8 +608,7 @@ describe('c-story-verification-popup', () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
 
         const row = stepRow(element, 'Metadata coverage');
@@ -468,8 +624,7 @@ describe('c-story-verification-popup', () => {
             .mockResolvedValueOnce(snapshot({ jobStatus: 'In Progress', progressText: 'Checking unregistered commits…' }))
             .mockResolvedValue(snapshot({ jobStatus: 'In Progress', progressText: 'Checking metadata coverage…' }));
 
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         await tick();
         expect(byId(element, 'state').textContent).toBe('Cloning repository…');
 
@@ -610,11 +765,228 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'failure')).toBeNull();
     });
 
-    it('dispatches the close event from the Close button', async () => {
+    describe('one fixed list of checks', () => {
+        const EXPECTED_ORDER_PREFIXES = [
+            'Unregistered commits',
+            'Metadata coverage',
+            'Pull request approval',
+            'Pending tests',
+            'Parent story dependencies',
+            'Org/environment branch merge',
+            'Verification job in Copado',
+            'Registered commits'
+        ];
+
+        it('orders the rows like the confirmation screen while the job is running', async () => {
+            start.mockResolvedValue(snapshot({ findings: GROUPED_FINDINGS }));
+            getProgress.mockResolvedValue(snapshot({ findings: GROUPED_FINDINGS, jobStatus: 'In Progress' }));
+
+            const element = await mountAndVerify();
+            await tick();
+
+            const titles = stepTitles(element);
+            expect(titles).toHaveLength(EXPECTED_ORDER_PREFIXES.length);
+            EXPECTED_ORDER_PREFIXES.forEach((prefix, index) => {
+                expect(titles[index].startsWith(prefix)).toBe(true);
+            });
+            // Git checks still running, grouped Apex rows already known.
+            expect(titles[0]).toBe('Unregistered commits: running');
+            expect(titles[5]).toBe('Org/environment branch merge: running');
+        });
+
+        it('keeps the same order when the run has finished', async () => {
+            const element = await mountFinished(CHECKS, { findings: GROUPED_FINDINGS });
+
+            const titles = stepTitles(element);
+            expect(titles).toHaveLength(EXPECTED_ORDER_PREFIXES.length);
+            EXPECTED_ORDER_PREFIXES.forEach((prefix, index) => {
+                expect(titles[index].startsWith(prefix)).toBe(true);
+            });
+        });
+
+        it('accepts the group on a key named group as well', async () => {
+            start.mockResolvedValue(
+                snapshot({ findings: [{ severity: 'issue', message: 'Pull request is not approved yet.', group: 'pull-request' }] })
+            );
+            getProgress.mockResolvedValue(snapshot());
+
+            const element = await mountAndVerify();
+
+            expect(stepTitles(element)[2]).toBe('Pull request approval: Pull request is not approved yet.');
+        });
+
+        it('shows one grouped parent row with an issue icon and the counts when several parents differ', async () => {
+            const element = await mountFinished(CHECKS, { findings: GROUPED_FINDINGS });
+
+            const parentRows = Array.from(element.shadowRoot.querySelectorAll('[data-id="step"]')).filter((li) =>
+                li.querySelector('[data-id="step-text"]').textContent.startsWith('Parent story dependencies')
+            );
+            expect(parentRows).toHaveLength(1);
+            const row = parentRows[0];
+            expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Parent story dependencies: 2 parent stories — 1 need attention'
+            );
+            expect(row.querySelector('[data-id="step-text"]').className).toContain('slds-text-color_error');
+            expect(row.querySelector('lightning-icon').iconName).toBe('utility:close');
+            expect(row.querySelector('lightning-icon').variant).toBe('error');
+            expect(row.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
+            const lines = Array.from(row.querySelectorAll('[data-id="check-lines"] li')).map((li) => li.textContent);
+            expect(lines).toEqual([PARENT_OK, PARENT_BAD]);
+        });
+
+        it('collapses and re-expands the grouped parent details with the toggle', async () => {
+            const element = await mountFinished(CHECKS, { findings: GROUPED_FINDINGS });
+
+            stepRow(element, 'Parent story dependencies').querySelector('[data-id="toggle"]').click();
+            await flush();
+            let row = stepRow(element, 'Parent story dependencies');
+            expect(row.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('false');
+            expect(row.querySelector('[data-id="check-lines"]')).toBeNull();
+
+            row.querySelector('[data-id="toggle"]').click();
+            await flush();
+            row = stepRow(element, 'Parent story dependencies');
+            expect(row.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
+            expect(row.querySelector('[data-id="check-lines"]')).not.toBeNull();
+        });
+
+        it('shows a green check and "all ahead" when every parent is fine, details collapsed', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [
+                    { severity: 'info', message: PARENT_OK, groupKey: 'parent-dependencies' },
+                    {
+                        severity: 'info',
+                        message: 'Parent story US-0000012 (via base branch) is in UAT-SFP, ahead of this story (INT-SFP).',
+                        groupKey: 'parent-dependencies'
+                    }
+                ]
+            });
+
+            const row = stepRow(element, 'Parent story dependencies');
+            expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Parent story dependencies: 2 parent stories, all ahead'
+            );
+            expect(row.querySelector('lightning-icon').iconName).toBe('utility:check');
+            expect(row.querySelector('lightning-icon').variant).toBe('success');
+            expect(row.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('false');
+            expect(row.querySelector('[data-id="check-lines"]')).toBeNull();
+        });
+
+        it('shows a single short grouped message as "Title: message" without a toggle', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [{ severity: 'info', message: 'No parent story dependencies.', groupKey: 'parent-dependencies' }]
+            });
+
+            const row = stepRow(element, 'Parent story dependencies');
+            expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Parent story dependencies: No parent story dependencies.'
+            );
+            expect(row.querySelector('lightning-icon').iconName).toBe('utility:check');
+            expect(row.querySelector('[data-id="toggle"]')).toBeNull();
+        });
+
+        it('gives a single long grouped message a details toggle, open when it is an issue', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [{ severity: 'issue', message: PARENT_BAD, groupKey: 'parent-dependencies' }]
+            });
+
+            const row = stepRow(element, 'Parent story dependencies');
+            expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Parent story dependencies: ' + PARENT_BAD
+            );
+            expect(row.querySelector('lightning-icon').iconName).toBe('utility:close');
+            expect(row.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
+            expect(row.querySelector('[data-id="check-lines"]').textContent).toContain(PARENT_BAD);
+        });
+
+        it('renders the pull request and pending tests rows from their groups', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [
+                    { severity: 'issue', message: 'Pull request is not approved yet.', groupKey: 'pull-request' },
+                    {
+                        severity: 'issue',
+                        message: 'Pending tests: 3. All tests must finish (0 pending) before promoting.',
+                        groupKey: 'pending-tests'
+                    }
+                ]
+            });
+
+            const pullRequest = stepRow(element, 'Pull request approval');
+            expect(pullRequest.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Pull request approval: Pull request is not approved yet.'
+            );
+            expect(pullRequest.querySelector('lightning-icon').iconName).toBe('utility:close');
+            expect(pullRequest.querySelector('[data-id="toggle"]')).toBeNull();
+
+            const pending = stepRow(element, 'Pending tests');
+            expect(pending.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Pending tests: 3. All tests must finish (0 pending) before promoting.'
+            );
+            expect(pending.querySelector('lightning-icon').iconName).toBe('utility:close');
+            expect(pending.querySelector('lightning-icon').variant).toBe('error');
+        });
+
+        it('renders passing pull request and pending tests rows with a green check', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [
+                    { severity: 'info', message: 'Pull request approved.', groupKey: 'pull-request' },
+                    { severity: 'info', message: 'Pending tests: 0.', groupKey: 'pending-tests' }
+                ]
+            });
+
+            const pullRequest = stepRow(element, 'Pull request approval');
+            expect(pullRequest.querySelector('[data-id="step-text"]').textContent).toBe(
+                'Pull request approval: Pull request approved.'
+            );
+            expect(pullRequest.querySelector('lightning-icon').iconName).toBe('utility:check');
+            const pending = stepRow(element, 'Pending tests');
+            expect(pending.querySelector('[data-id="step-text"]').textContent).toBe('Pending tests: 0.');
+            expect(pending.querySelector('lightning-icon').iconName).toBe('utility:check');
+        });
+
+        it('still shows ungrouped findings after the job row, with icons by severity', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [
+                    { severity: 'info', message: 'Registered commits: 1, selected metadata items: 1.' },
+                    { severity: 'issue', message: 'Story has no pipeline, git checks could not run' },
+                    { severity: 'info', message: 'Pull request approved.', groupKey: 'pull-request' }
+                ]
+            });
+
+            const titles = stepTitles(element);
+            expect(titles).toHaveLength(9); // six fixed rows, the job row, then the two ungrouped findings
+            expect(titles[6]).toBe('Verification job in Copado: done');
+            expect(titles[7]).toBe('Registered commits: 1, selected metadata items: 1.');
+            expect(titles[8]).toBe('Story has no pipeline, git checks could not run');
+            const issueRow = stepRow(element, 'Story has no pipeline');
+            expect(titles).toContain('Story has no pipeline, git checks could not run');
+            expect(issueRow.querySelector('lightning-icon').iconName).toBe('utility:close');
+            expect(stepRow(element, 'Registered commits').querySelector('lightning-icon').iconName).toBe(
+                'utility:check'
+            );
+        });
+
+        it('shows the grouped rows as pending when no findings have arrived yet', async () => {
+            start.mockResolvedValue(snapshot({ findings: [] }));
+            getProgress.mockResolvedValue(snapshot({ findings: [] }));
+
+            const element = await mountAndVerify();
+
+            expect(stepTitles(element).slice(0, 6)).toEqual([
+                'Unregistered commits: pending',
+                'Metadata coverage: pending',
+                'Pull request approval: pending',
+                'Pending tests: pending',
+                'Parent story dependencies: pending',
+                'Org/environment branch merge: pending'
+            ]);
+        });
+    });
+
+    it('dispatches the close event from the Close button during a run', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot());
-        const element = mount();
-        await flush();
+        const element = await mountAndVerify();
         const handler = jest.fn();
         element.addEventListener('lightning__actionsclosescreen', handler);
 
