@@ -311,9 +311,7 @@ public with sharing class StoryVerificationController {
         return findings;
     }
 
-    // Accepts the stored {checks:[...], salesforceFindings:[...]}; anything unreadable gives no checks (the popup then
-    // falls back to the details text).
-    @TestVisible
+    // How long the Function script ran (seconds), from the stored result; null when absent or unreadable.
     @TestVisible
     private static Integer parseScriptSeconds(String raw) {
         Map<String, Object> parsed = parseMap(raw);
@@ -327,6 +325,9 @@ public with sharing class StoryVerificationController {
         }
     }
 
+    // Accepts the stored {checks:[...], salesforceFindings:[...]}; anything unreadable gives no checks (the popup then
+    // falls back to the details text).
+    @TestVisible
     private static List<CheckResult> parseChecks(String raw) {
         List<CheckResult> checks = new List<CheckResult>();
         Map<String, Object> parsed = parseMap(raw);
