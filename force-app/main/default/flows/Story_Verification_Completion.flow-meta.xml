@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>Complete_Verification</name>
+        <label>Complete Verification</label>
+        <locationX>50</locationX>
+        <locationY>134</locationY>
+        <actionName>StoryVerificationComplete</actionName>
+        <actionType>apex</actionType>
+        <faultConnector>
+            <targetReference>Swallow_Fault</targetReference>
+        </faultConnector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>jobExecutionId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+    </actionCalls>
+    <apiVersion>63.0</apiVersion>
+    <assignments>
+        <description>Fault handler: record the error and end quietly so a verification problem never rolls back the Copado Job Execution status update.</description>
+        <name>Swallow_Fault</name>
+        <label>Swallow Fault</label>
+        <locationX>314</locationX>
+        <locationY>242</locationY>
+        <assignmentItems>
+            <assignToReference>Var_Fault_Message</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Flow.FaultMessage</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <description>When a Copado Job Execution finishes (Successful/Failed/Error), lets Apex write the Story Verification result back to the story. Apex ignores job executions of other templates.</description>
+    <environments>Default</environments>
+    <interviewLabel>Story Verification Completion {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Story Verification Completion</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Complete_Verification</targetReference>
+        </connector>
+        <filterFormula>AND(
+    {!$Record.copado__Template__r.Name} = "Story_Verification",
+    NOT(ISBLANK({!$Record.copado__ParentRecord_Id__c})),
+    OR(
+        ISPICKVAL({!$Record.copado__Status__c}, "Successful"),
+        ISPICKVAL({!$Record.copado__Status__c}, "Failed"),
+        ISPICKVAL({!$Record.copado__Status__c}, "Error")
+    ),
+    TEXT({!$Record__Prior.copado__Status__c}) &lt;&gt; TEXT({!$Record.copado__Status__c})
+)</filterFormula>
+        <object>copado__JobExecution__c</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+    <variables>
+        <name>Var_Fault_Message</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+</Flow>

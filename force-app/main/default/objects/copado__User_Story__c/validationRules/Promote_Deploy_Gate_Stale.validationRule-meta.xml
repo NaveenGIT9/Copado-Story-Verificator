@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Promote_Deploy_Gate_Stale</fullName>
+    <active>false</active>
+    <description>Story Verification Gate: blocks Promote and Deploy when there are commits newer than the last clean verification.</description>
+    <errorConditionFormula>AND(
+  NOT($Permission.Bypass_Verification_Gate),
+  AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
+  AND(ISPICKVAL(Verification_Status__c, "Clean"), OR(ISBLANK(Verification_Date__c), AND(NOT(ISBLANK(copado__Latest_Commit_Date__c)), Verification_Date__c &lt; copado__Latest_Commit_Date__c)))
+)</errorConditionFormula>
+    <errorMessage>There are new commits since the last verification. Run Verify again, then tick Promote and Deploy again.</errorMessage>
+</ValidationRule>

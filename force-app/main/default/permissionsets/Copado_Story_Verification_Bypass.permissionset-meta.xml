@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Bypass_Verification_Gate</name>
+    </customPermissions>
+    <description>Bypasses the Story Verification Gate validation rules. Assign only to emergency users.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Copado Story Verification Bypass</label>
+</PermissionSet>

@@ -1,0 +1,12 @@
+{
+  "Name": "SFDX Execute Apex",
+  "copado__API_Name__c": "sfdx_execute_apex",
+  "copado__Type__c": "Standard",
+  "copado__Parameters__c": "[ {\n  \"required\" : true,\n  \"name\" : \"destinationSessionid\",\n  \"defaultValue\" : \"{$Destination.Credential.SessionId}\"\n}, {\n  \"required\" : true,\n  \"name\" : \"destinationEndpoint\",\n  \"defaultValue\" : \"{$Destination.Credential.Endpoint}\"\n}, {\n  \"required\" : false,\n  \"name\" : \"script\"\n}, {\n  \"required\" : true,\n  \"name\" : \"destinationEnvVar\",\n  \"defaultValue\" : \"{$Destination.apex.EnvironmentVariables}\"\n}, {\n  \"required\" : true,\n  \"name\" : \"isValidation\",\n  \"defaultValue\" : \"{$Context.JobExecution__r.DataJson.deploymentDryRun}\"\n}, {\n  \"name\" : \"maxBuffer\",\n  \"defaultValue\" : \"5242880\"\n}, {\n  \"name\" : \"stepConfigJson\",\n  \"defaultValue\" : \"{$Context.ConfigJson__c}\"\n} ]",
+  "copado__Options__c": "[ ]",
+  "copado__Callback_Type__c": null,
+  "copado__Image_Name__c": "copado-multicloud-dx:v6",
+  "copado__Worker_Size__c": "S",
+  "copado__Timeout__c": 60,
+  "copado__Version__c": "1"
+}

@@ -1,0 +1,15 @@
+OBJECT copado__User_Story_Commit__c  label=User Story Commit
+createable=true updateable=true
+FIELDS (name | type | len | notes):
+  Id | id | 18 | read-only 
+  Name | string | 80 | 
+  CreatedDate | datetime |  | read-only 
+  LastModifiedDate | datetime |  | read-only 
+  copado__User_Story__c | reference->copado__User_Story__c | 18 | read-only 
+  copado__Snapshot_Commit__c | reference->copado__Git_Org_Commit__c | 18 | read-only 
+  copado__CommitMessage__c | string | 1300 | read-only 
+  copado__External_Id__c | string | 255 | 
+  copado__LastJobExecutionId__c | string | 18 | 
+  copado__Status__c | string | 1300 | read-only 
+  copado__View_in_Git__c | string | 1300 | read-only 
+  copado__Backend_Bypass__c | boolean |  | 
