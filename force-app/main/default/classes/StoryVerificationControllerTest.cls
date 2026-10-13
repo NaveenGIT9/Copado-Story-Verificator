@@ -166,11 +166,12 @@ private class StoryVerificationControllerTest {
             Id storyId = story().Id;
             setState(storyId, 'Running', 'run-b', null);
             // An execution of the same template for an older run must be skipped.
-            jobExecution(template('Story_Verification').Id, storyId, 'Successful', dataJson('old-run'));
+            copado__JobTemplate__c verificationTemplate = template('Story_Verification'); // one template: names must be unique
+            jobExecution(verificationTemplate.Id, storyId, 'Successful', dataJson('old-run'));
             copado__JobExecution__c je = jobExecution(
-                template('Story_Verification').Id,
+                verificationTemplate.Id,
                 storyId,
-                'Failed',
+                'Error',
                 dataJson('run-b')
             );
             // The status does not change here, so the completion flow (status-change trigger) does not fire.
@@ -186,7 +187,7 @@ private class StoryVerificationControllerTest {
             System.assertEquals('issue', snapshot.findings[0].severity);
             System.assertEquals('No commits are registered.', snapshot.findings[0].message);
             System.assertEquals('info', snapshot.findings[1].severity);
-            System.assertEquals('Failed', snapshot.jobStatus);
+            System.assertEquals('Error', snapshot.jobStatus);
             System.assertEquals('job exploded', snapshot.jobError);
         }
     }
