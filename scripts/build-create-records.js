@@ -49,13 +49,41 @@ function apexLiteral(line) {
     return out;
 }
 
+// Anonymous Apex has a size limit, so the embedded copy of the Function is compacted: blank lines, comment-only lines and
+// indentation are dropped (function/index.js has no template literals, so indentation never matters). The shebang stays.
+function compact(source) {
+    return source
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .split("\n")
+        .map((l, i) => (i === 0 ? l : l.replace(/^\s+/, "")))
+        .filter((l, i) => i === 0 || (l !== "" && !l.startsWith("//")));
+}
+
 function scriptBlock(source) {
-    const lines = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+    const lines = compact(source);
+    // Pack consecutive lines into literals of at most MAX_LITERAL characters (joined with a newline) to cut the per-line overhead.
+    const MAX_LITERAL = 800;
+    const groups = [];
+    let current = [];
+    let size = 0;
+    lines.forEach((l) => {
+        if (current.length > 0 && size + l.length + 1 > MAX_LITERAL) {
+            groups.push(current);
+            current = [];
+            size = 0;
+        }
+        current.push(l);
+        size += l.length + 1;
+    });
+    if (current.length > 0) {
+        groups.push(current);
+    }
     const chunks = [];
-    for (let i = 0; i < lines.length; i += CHUNK_LINES) {
-        const body = lines
+    for (let i = 0; i < groups.length; i += CHUNK_LINES) {
+        const body = groups
             .slice(i, i + CHUNK_LINES)
-            .map((l) => "        '" + apexLiteral(l) + "'")
+            .map((g) => "        '" + g.map(apexLiteral).join("\\n") + "'")
             .join(",\n");
         chunks.push("SCRIPT_LINES.addAll(\n    new List<String>{\n" + body + "\n    }\n);\n");
     }
