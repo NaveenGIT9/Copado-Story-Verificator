@@ -540,7 +540,12 @@ function prepareRepository(cfg) {
             const clone = "git clone --quiet --no-checkout --filter=blob:none --single-branch --depth " + cfg.depth +
                 " --branch " + cfg.feature + ' "' + url + '" "' + dir + '"';
             gitG(clone, CLONE_TIMEOUT_MS);
+            // The Copado wrapper can report success without having cloned anything, so check that the folder holds a repository
+            // with the feature branch checked out as HEAD before relying on it.
             process.chdir(dir);
+            if (!fs.existsSync(".git") || tryRun("git", ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]) === null) {
+                throw new Error("the light clone reported success but left no repository in " + dir);
+            }
             console.log("Light clone ready (commit history only, no file contents).");
             return "light";
         } catch (e) {
