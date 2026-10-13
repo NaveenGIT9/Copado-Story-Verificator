@@ -995,7 +995,7 @@ describe('c-story-verification-popup', () => {
             expect(titles).toHaveLength(8); // six fixed rows, then the two ungrouped findings (no job row once finished)
             expect(titles).toContain('Registered commits: 1, metadata items: 1.');
             // The failed ungrouped finding sorts to the bottom with the other failures.
-            expect(titles[8]).toBe('Story has no pipeline; git checks could not run.');
+            expect(titles[7]).toBe('Story has no pipeline; git checks could not run.');
             const issueRow = stepRow(element, 'Story has no pipeline');
             expect(titles).toContain('Story has no pipeline; git checks could not run.');
             expect(issueRow.querySelector('lightning-icon').iconName).toBe('utility:close');
