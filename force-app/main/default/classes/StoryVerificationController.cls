@@ -81,6 +81,9 @@ public with sharing class StoryVerificationController {
         public List<Fact> facts = new List<Fact>();
         @AuraEnabled
         public List<CheckResult> checks = new List<CheckResult>();
+        // How long the Function script itself ran (seconds); the rest of the wait was Copado starting the job.
+        @AuraEnabled
+        public Integer scriptSeconds;
     }
 
     /** Reduced view of the Copado job for one run. */
@@ -97,6 +100,9 @@ public with sharing class StoryVerificationController {
      * (with sharing, USER_MODE) in loadStory, and it never writes.
      */
     private without sharing class JobReader {
+        // Set by readChecks from the same stored JSON (no extra query).
+        public Integer scriptSeconds;
+
         public JobInfo read(Id storyId, String runId) {
             JobInfo info = new JobInfo();
             if (String.isBlank(runId)) {
@@ -175,6 +181,7 @@ public with sharing class StoryVerificationController {
             if (rows.isEmpty()) {
                 return new List<CheckResult>();
             }
+            scriptSeconds = parseScriptSeconds(rows[0].Verification_Checks__c);
             return parseChecks(rows[0].Verification_Checks__c);
         }
 
@@ -243,6 +250,7 @@ public with sharing class StoryVerificationController {
         JobReader reader = new JobReader();
         snapshot.facts = reader.readFacts(story.Id);
         snapshot.checks = reader.readChecks(story.Id);
+        snapshot.scriptSeconds = reader.scriptSeconds;
         JobInfo info = reader.read(story.Id, snapshot.runId);
         snapshot.findings = info.findings;
         snapshot.jobStatus = info.status;
@@ -306,6 +314,19 @@ public with sharing class StoryVerificationController {
     // Accepts the stored {checks:[...], salesforceFindings:[...]}; anything unreadable gives no checks (the popup then
     // falls back to the details text).
     @TestVisible
+    @TestVisible
+    private static Integer parseScriptSeconds(String raw) {
+        Map<String, Object> parsed = parseMap(raw);
+        if (parsed == null || parsed.get('scriptSeconds') == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(String.valueOf(parsed.get('scriptSeconds')));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static List<CheckResult> parseChecks(String raw) {
         List<CheckResult> checks = new List<CheckResult>();
         Map<String, Object> parsed = parseMap(raw);

@@ -767,6 +767,38 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'time-taken').textContent).toMatch(/^Time taken: 1 min \d+ s$/);
     });
 
+    it('says Copado is starting the job (and for how long) while its own queue text shows', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress', progressText: 'Accepted by Backend. Scheduling.' }));
+        const element = await mountAndVerify();
+        await tick();
+
+        const state = byId(element, 'state').textContent;
+        expect(state).toMatch(/^Waiting for Copado to start the job \(Accepted by Backend\. Scheduling\)/);
+        expect(state).toMatch(/\d+ s$/);
+    });
+
+    it('splits a long total into Copado queue time and the checks when the function reported its run time', async () => {
+        start.mockResolvedValue(snapshot());
+        getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+        const element = await mountAndVerify();
+        for (let i = 0; i < 60; i++) {
+            // eslint-disable-next-line no-await-in-loop
+            await tick();
+        }
+        getProgress.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful', scriptSeconds: 18 }));
+        await tick();
+
+        const text = byId(element, 'time-taken').textContent;
+        expect(text).toMatch(/^Time taken: 2 min \d+ s \(Copado queue 1 min \d+ s \+ checks 18 s\)$/);
+    });
+
+    it('does not split a short run into queue and checks', async () => {
+        const element = await mountFinished(CHECKS, { scriptSeconds: 3 });
+
+        expect(byId(element, 'time-taken').textContent).toMatch(/^Time taken: \d+ s$/);
+    });
+
     it('shows no time taken while the run is still going', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));

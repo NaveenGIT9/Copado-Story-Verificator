@@ -861,6 +861,9 @@ public with sharing class StoryVerificationService {
         } else {
             payload.put('salesforceFindings', new List<Object>());
         }
+        if (result.get('scriptSeconds') != null) {
+            payload.put('scriptSeconds', result.get('scriptSeconds'));
+        }
         String checksText = JSON.serialize(payload);
         if (checksText.length() <= MAX_CHECKS_LENGTH) {
             return checksText;

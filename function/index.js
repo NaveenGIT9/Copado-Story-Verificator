@@ -499,7 +499,8 @@ function buildResult(cfg, status, notes, checks, cap) {
         text.push(ch.title + ": " + ch.status.toUpperCase() + " " + DASH + " " + ch.summary);
         ch.lines.forEach((l) => text.push("  " + l));
     });
-    return { runId: cfg.runId, status: status, details: text.join("\n"), checks: cut, salesforceFindings: cfg.findings };
+    // scriptSeconds: how long this script ran, so the popup can tell Copado's queue time from the checks' own time.
+    return { runId: cfg.runId, status: status, details: text.join("\n"), checks: cut, salesforceFindings: cfg.findings, scriptSeconds: Math.round((Date.now() - startedAt) / 1000) };
 }
 
 function finish(cfg, status, notes, checks) {
@@ -606,7 +607,8 @@ try {
             status: "Failed",
             details: "Fatal: " + msg,
             checks: skippedChecks("Not run: " + msg),
-            salesforceFindings: []
+            salesforceFindings: [],
+            scriptSeconds: Math.round((Date.now() - startedAt) / 1000)
         })
     );
     process.exit(1);

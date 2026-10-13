@@ -8,6 +8,13 @@ import getProgress from '@salesforce/apex/StoryVerificationController.getProgres
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_MS = 5 * 60 * 1000;
 
+// 17 s, or 2 min 23 s
+function formatDuration(ms) {
+    const seconds = Math.max(0, Math.round(ms / 1000));
+    const minutes = Math.floor(seconds / 60);
+    return minutes > 0 ? minutes + ' min ' + (seconds % 60) + ' s' : seconds + ' s';
+}
+
 const TIMEOUT_TEXT = 'Still running. You can close this window; open the story later and check Verification Status.';
 const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
@@ -274,6 +281,15 @@ export default class StoryVerificationPopup extends LightningElement {
         // The Function's own "copado -p" message, e.g. "Checking unregistered commits…".
         const progress = this.snapshot.progressText;
         if (progress) {
+            // Copado's own text before it has started the Function ("Accepted by Backend. Scheduling."): say whose wait it is.
+            if (/accepted by backend|scheduling/i.test(progress)) {
+                return (
+                    'Waiting for Copado to start the job (' +
+                    progress.replace(/\.$/, '') +
+                    ') — ' +
+                    formatDuration(Date.now() - this._startedAt)
+                );
+            }
             return progress;
         }
         if (jobStatus === 'In Progress') {
@@ -450,9 +466,16 @@ export default class StoryVerificationPopup extends LightningElement {
         if (!this.isFinished || this.durationMs === undefined) {
             return '';
         }
-        const seconds = Math.max(0, Math.round(this.durationMs / 1000));
-        const minutes = Math.floor(seconds / 60);
-        return 'Time taken: ' + (minutes > 0 ? minutes + ' min ' + (seconds % 60) + ' s' : seconds + ' s');
+        const total = 'Time taken: ' + formatDuration(this.durationMs);
+        // When the Function reported its own run time, split the total into Copado's queue time and the checks themselves.
+        const script = this.snapshot && this.snapshot.scriptSeconds;
+        if (typeof script === 'number' && script >= 0) {
+            const queueMs = this.durationMs - script * 1000;
+            if (queueMs >= 15000) {
+                return total + ' (Copado queue ' + formatDuration(queueMs) + ' + checks ' + formatDuration(script * 1000) + ')';
+            }
+        }
+        return total;
     }
 
     get failureText() {

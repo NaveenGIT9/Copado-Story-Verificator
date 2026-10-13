@@ -368,6 +368,16 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void parseScriptSecondsReadsTheStoredDurationAndIgnoresJunk() {
+        System.assertEquals(18, StoryVerificationController.parseScriptSeconds('{"checks":[],"scriptSeconds":18}'));
+        System.assertEquals(7, StoryVerificationController.parseScriptSeconds('{"scriptSeconds":"7"}'));
+        System.assertEquals(null, StoryVerificationController.parseScriptSeconds('{"checks":[]}'));
+        System.assertEquals(null, StoryVerificationController.parseScriptSeconds('{"scriptSeconds":"soon"}'));
+        System.assertEquals(null, StoryVerificationController.parseScriptSeconds('not json'));
+        System.assertEquals(null, StoryVerificationController.parseScriptSeconds(null));
+    }
+
+    @IsTest
     static void getProgressFactsAreLiveFromTheStory() {
         StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
         User user = newUser('System Administrator', true);
