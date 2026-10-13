@@ -20,7 +20,7 @@
 final String FUNCTION_API_NAME = 'Story_Verification';
 final String TEMPLATE_NAME = 'Story_Verification';
 final String TEMPLATE_API_NAME = 'Story_Verification_1';
-final String STEP_API_NAME = 'Story_Verification_1_Story_Verification';
+final String STEP_API_NAME = 'Story_Verification_1_Story_Verification_1'; // Copado normalises the step API name to this on insert
 final List<String> PARAM_KEYS = new List<String>{ 'storyId', 'storyName', 'runId', 'baseBranch', 'findings' };
 
 // Must stay identical to function/index.js (which contains no single quotes or backslashes, so no escaping is needed).
