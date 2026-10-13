@@ -549,7 +549,34 @@ function prepareRepository(cfg) {
         }
     }
     console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature], STANDARD_CLONE_TIMEOUT_MS)));
+    enterClonedRepository();
     return "standard";
+}
+
+// Depending on how the repository is connected, the standard clone may land in a sub-folder of the working directory instead of
+// the working directory itself. Every later git command runs in the current directory, so move into the folder that holds .git.
+function enterClonedRepository() {
+    if (fs.existsSync(".git")) return;
+    const here = process.cwd();
+    let entries = [];
+    try {
+        entries = fs.readdirSync(here);
+    } catch (e) {
+        entries = [];
+    }
+    const found = entries.find((n) => {
+        try {
+            return fs.statSync(path.join(here, n)).isDirectory() && fs.existsSync(path.join(here, n, ".git"));
+        } catch (e) {
+            return false;
+        }
+    });
+    if (found) {
+        process.chdir(path.join(here, found));
+        console.log("The clone is in the sub-folder " + found + "; working there.");
+        return;
+    }
+    throw new Error("The clone finished but no git repository was found in " + here + " (contents: " + clip(entries.slice(0, 15).join(", "), 200) + ")");
 }
 
 function main() {
