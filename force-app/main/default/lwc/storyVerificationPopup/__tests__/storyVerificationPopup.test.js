@@ -241,6 +241,20 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'error').textContent).toContain('Polling failed');
         expect(jest.getTimerCount()).toBe(0);
     });
+    it('waits for the record id before starting (quick actions set it after connecting)', async () => {
+        const element = createElement('c-story-verification-popup', { is: StoryVerificationPopup });
+        document.body.appendChild(element);
+        await Promise.resolve();
+        expect(start).not.toHaveBeenCalled();
+
+        start.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful', details: ['INFO: ok'] }));
+        element.recordId = STORY_ID;
+        await flush();
+
+        expect(start).toHaveBeenCalledTimes(1);
+        expect(start).toHaveBeenCalledWith({ storyId: STORY_ID });
+    });
+
 
     it('clears the poll timer when disconnected', async () => {
         start.mockResolvedValue(snapshot());

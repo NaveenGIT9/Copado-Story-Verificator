@@ -17,11 +17,23 @@ const BANNER_CLASS = {
 };
 
 export default class StoryVerificationPopup extends LightningElement {
-    @api recordId;
+    // In a quick action the record id is set AFTER connectedCallback, so the run starts only once both are true.
+    _recordId;
+    _connected = false;
+    _started = false;
+
+    @api
+    get recordId() {
+        return this._recordId;
+    }
+    set recordId(value) {
+        this._recordId = value;
+        this.startWhenReady();
+    }
 
     snapshot;
     errorText;
-    starting = false;
+    starting = true;
     timedOut = false;
     superseded = false;
 
@@ -32,12 +44,22 @@ export default class StoryVerificationPopup extends LightningElement {
     _session = 0;
 
     connectedCallback() {
-        this.begin();
+        this._connected = true;
+        this.startWhenReady();
     }
 
     disconnectedCallback() {
+        this._connected = false;
+        this._started = false;
         this.clearTimer();
         this._session += 1;
+    }
+
+    startWhenReady() {
+        if (this._connected && this._recordId && !this._started) {
+            this._started = true;
+            this.begin();
+        }
     }
 
     // ---- lifecycle of one run ----
