@@ -463,6 +463,43 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
+    static void completeRebuildsVerdictFromFindingsWhenResultMissing() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+
+            // Clean: only info findings
+            markRunning(story.Id, 'run-fb1');
+            StoryVerificationService.JobOutcome clean = outcome(story.Id, 'run-fb1', 'Successful', null);
+            clean.dataJson = JSON.serialize(new Map<String, Object>{
+                'runId' => 'run-fb1',
+                'findings' => new List<Object>{
+                    new Map<String, Object>{ 'severity' => 'info', 'message' => 'Registered commits: 1' }
+                }
+            });
+            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ clean });
+            copado__User_Story__c afterClean = storyByTitle(STORY_TITLE);
+            System.assertEquals('Clean', afterClean.Verification_Status__c);
+            System.assert(afterClean.Verification_Details__c.contains('INFO: Registered commits: 1'), afterClean.Verification_Details__c);
+            System.assert(afterClean.Verification_Details__c.contains('NOT RUN: git checks'), afterClean.Verification_Details__c);
+
+            // Issues: one issue finding
+            markRunning(story.Id, 'run-fb2');
+            StoryVerificationService.JobOutcome issues = outcome(story.Id, 'run-fb2', 'Successful', 'not json');
+            issues.dataJson = JSON.serialize(new Map<String, Object>{
+                'runId' => 'run-fb2',
+                'findings' => new List<Object>{
+                    new Map<String, Object>{ 'severity' => 'issue', 'message' => 'No commits are registered in Copado for this story.' }
+                }
+            });
+            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ issues });
+            copado__User_Story__c afterIssues = storyByTitle(STORY_TITLE);
+            System.assertEquals('Issues', afterIssues.Verification_Status__c);
+            System.assert(afterIssues.Verification_Details__c.contains('ISSUE: No commits are registered'), afterIssues.Verification_Details__c);
+        }
+    }
+
+    @IsTest
     static void completeIsIdempotent() {
         User admin = newAdmin();
         System.runAs(admin) {

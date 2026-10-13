@@ -327,20 +327,47 @@ public with sharing class StoryVerificationService {
         }
         Map<String, Object> result = parseResult(outcome.resultJson);
         if (result == null) {
-            return failed(storyId, 'Result could not be read');
+            return fallbackFromFindings(storyId, outcome);
         }
         String resultStatus = String.valueOf(result.get('status'));
         String resultRunId = result.containsKey('runId') ? String.valueOf(result.get('runId')) : runId;
         boolean validStatus =
             resultStatus == VerificationStatus.Clean.name() || resultStatus == VerificationStatus.Issues.name();
         if (!validStatus || resultRunId != runId) {
-            return failed(storyId, 'Result could not be read');
+            return fallbackFromFindings(storyId, outcome);
         }
         Object details = result.get('details');
         return new copado__User_Story__c(
             Id = storyId,
             Verification_Status__c = resultStatus,
             Verification_Details__c = truncate(details == null ? '' : String.valueOf(details))
+        );
+    }
+
+    // The Function's result is not reliably returned through Copado. In phase A every finding is computed here in Apex and
+    // sent to the Function as input, so when the job succeeded but returned no readable result the verdict is rebuilt from
+    // the job's own input. Without that input there is nothing to rebuild from, so the run is marked Failed.
+    private static copado__User_Story__c fallbackFromFindings(Id storyId, JobOutcome outcome) {
+        Map<String, Object> input = parseResult(outcome.dataJson);
+        Object raw = input == null ? null : input.get('findings');
+        if (!(raw instanceof List<Object>)) {
+            return failed(storyId, 'Result could not be read');
+        }
+        Boolean hasIssue = false;
+        List<String> lines = new List<String>();
+        for (Object o : (List<Object>) raw) {
+            if (o instanceof Map<String, Object>) {
+                Map<String, Object> f = (Map<String, Object>) o;
+                Boolean isIssue = 'issue' == String.valueOf(f.get('severity'));
+                hasIssue = hasIssue || isIssue;
+                lines.add((isIssue ? 'ISSUE: ' : 'INFO: ') + String.valueOf(f.get('message')));
+            }
+        }
+        lines.add('NOT RUN: git checks (unregistered commits, org/env branch merged into the feature branch) - phase B.');
+        return new copado__User_Story__c(
+            Id = storyId,
+            Verification_Status__c = hasIssue ? VerificationStatus.Issues.name() : VerificationStatus.Clean.name(),
+            Verification_Details__c = truncate(String.join(lines, '\n'))
         );
     }
 
