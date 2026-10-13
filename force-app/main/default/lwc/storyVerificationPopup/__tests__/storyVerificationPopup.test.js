@@ -443,11 +443,10 @@ describe('c-story-verification-popup', () => {
             expect(stepTitles(element)[6]).toBe('Copado job: running');
         });
 
-        it('reads "Copado job: done" for a finished successful job', async () => {
+        it('hides the Copado job row once a run has finished with a verdict (Clean or Issues)', async () => {
             const element = await mountFinished(CHECKS);
 
-            // Passed rows come first once finished, so the job row is found by its text, not by a fixed position.
-            expect(stepTitles(element)).toContain('Copado job: done');
+            expect(stepTitles(element).some((text) => text.startsWith('Copado job'))).toBe(false);
         });
     });
 
@@ -744,6 +743,17 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'failure').className).toContain('failure-text');
     });
 
+    it('keeps the Copado job row visible when the run Failed, to help explain what happened', async () => {
+        const element = await mountFinished([], {
+            status: 'Failed',
+            jobStatus: 'Failed',
+            jobError: 'Function exited with code 1',
+            details: ['Verification job failed: Function exited with code 1']
+        });
+
+        expect(stepTitles(element)).toContain('Copado job: failed');
+    });
+
     it('shows the failure text from the details when there is no job error', async () => {
         const element = await mountFinished([], {
             status: 'Failed',
@@ -797,7 +807,7 @@ describe('c-story-verification-popup', () => {
             const ranks = Array.from(element.shadowRoot.querySelectorAll('[data-id="step"]')).map(
                 (li) => rank[li.querySelector('lightning-icon').iconName]
             );
-            expect(ranks).toHaveLength(EXPECTED_ORDER_PREFIXES.length);
+            expect(ranks).toHaveLength(EXPECTED_ORDER_PREFIXES.length - 1); // the technical job row is hidden once finished
             expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
             expect(ranks[0]).toBe(0);
             expect(ranks[ranks.length - 1]).toBe(3);
@@ -982,8 +992,7 @@ describe('c-story-verification-popup', () => {
             });
 
             const titles = stepTitles(element);
-            expect(titles).toHaveLength(9); // six fixed rows, the job row, then the two ungrouped findings
-            expect(titles).toContain('Copado job: done');
+            expect(titles).toHaveLength(8); // six fixed rows, then the two ungrouped findings (no job row once finished)
             expect(titles).toContain('Registered commits: 1, metadata items: 1.');
             // The failed ungrouped finding sorts to the bottom with the other failures.
             expect(titles[8]).toBe('Story has no pipeline; git checks could not run.');

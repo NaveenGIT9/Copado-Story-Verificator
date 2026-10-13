@@ -298,9 +298,13 @@ export default class StoryVerificationPopup extends LightningElement {
             this.groupRow('pull-request', grouped['pull-request'] || []),
             this.groupRow('pending-tests', grouped['pending-tests'] || []),
             this.groupRow('parent-dependencies', grouped['parent-dependencies'] || []),
-            this.gitRow('org-branch-merge'),
-            this.jobStep()
+            this.gitRow('org-branch-merge')
         ];
+        // The job row is technical: shown while the job runs and when a run Failed, hidden once a finished run has a verdict
+        // (the verdict and the check rows already say the job completed).
+        if (!(this.isFinished && this.status !== 'Failed')) {
+            list.push(this.jobStep());
+        }
         ungrouped.forEach(({ finding, index }) => {
             const isIssue = finding.severity === 'issue';
             list.push({
