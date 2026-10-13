@@ -1245,6 +1245,19 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
+    static void commitWordingCountsOnlyCompleteCommitsAndMentionsTheOthers() {
+        System.assertEquals('Registered commits: 1, selected metadata items: 2.', StoryVerificationService.commitSummary(1, 0, 2));
+        System.assertEquals('Registered commits: 1 (plus 1 not Complete), selected metadata items: 2.', StoryVerificationService.commitSummary(1, 1, 2));
+        System.assertEquals('Registered commits: 0 (plus 3 not Complete), selected metadata items: 0.', StoryVerificationService.commitSummary(0, 3, 0));
+        System.assertEquals('Registered commits: 4, selected metadata items: 1.', StoryVerificationService.commitSummary(4, null, 1));
+        System.assertEquals('No commits are registered in Copado for this story.', StoryVerificationService.noCommitsMessage(0));
+        System.assertEquals('No commits are registered in Copado for this story.', StoryVerificationService.noCommitsMessage(null));
+        String other = StoryVerificationService.noCommitsMessage(2);
+        System.assert(other.startsWith('No Complete commits are registered'), other);
+        System.assert(other.contains('2 commit record(s) have another status'), other);
+    }
+
+    @IsTest
     static void completeIsIdempotent() {
         User admin = newAdmin();
         System.runAs(admin) {
