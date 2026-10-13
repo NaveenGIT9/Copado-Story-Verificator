@@ -18,6 +18,7 @@ const MAX_ANALYSE = 500;
 const CALL_TIMEOUT_MS = 240000; // no single git call may hang the whole run
 const LIST_TIMEOUT_MS = 60000; // listing branches takes seconds; a call that hangs is retried once
 const CLONE_TIMEOUT_MS = 120000;
+const STANDARD_CLONE_TIMEOUT_MS = 900000; // the standard clone checks out every file, which can take many minutes on a big repository
 const startedAt = Date.now();
 const AUTO_PREFIXES = [
     "Updated sourceApiVersion from",
@@ -240,17 +241,33 @@ function listRemoteBranches() {
     return { names: null, error: reason };
 }
 
-function fetchBranches(list, depth) {
+// Where the feature branch's fetched history starts (minus a day). The base and environment branches are fetched back to that
+// date instead of a fixed number of commits, so the branch point is inside their history however many commits a busy
+// base branch has gained since the feature branch was cut.
+function featureSinceIso() {
+    const out = tryRun("git", ["log", "--format=%ct", "HEAD"]);
+    if (out === null) return null;
+    const times = out.split("\n").map((l) => parseInt(l, 10)).filter((n) => n > 0);
+    if (times.length === 0) return null;
+    return new Date((Math.min.apply(null, times) - 86400) * 1000).toISOString();
+}
+
+function fetchBranches(list, depth, sinceIso) {
     const safe = list.filter(isSafe);
+    // By date first; if the server refuses (for example a stale branch with nothing in that period), by commit count.
+    const options = sinceIso ? ["--shallow-since=" + sinceIso, "--depth " + depth] : ["--depth " + depth];
     for (let i = 0; i < safe.length; i += 20) {
         const specs = safe
             .slice(i, i + 20)
             .map((b) => "+refs/heads/" + b + ":refs/remotes/origin/" + b)
             .join(" ");
-        try {
-            gitG("git fetch origin " + specs + " --depth " + depth);
-        } catch (e) {
-            console.log("fetch failed: " + errMsg(e));
+        for (let k = 0; k < options.length; k++) {
+            try {
+                gitG("git fetch origin " + specs + " " + options[k]);
+                break;
+            } catch (e) {
+                console.log("fetch with " + options[k].split("=")[0] + " failed: " + errMsg(e));
+            }
         }
     }
 }
@@ -269,7 +286,7 @@ function fetchBranchesForChecks(cfg) {
         if (remote.has(orig)) envOk.set(lower, orig);
         else missing.push(orig);
     });
-    fetchBranches(uniq([base].concat(Array.from(envOk.values()))), cfg.depth);
+    fetchBranches(uniq([base].concat(Array.from(envOk.values()))), cfg.depth, featureSinceIso());
     if (!hasRef("origin/" + base)) return { error: "Could not fetch the base branch " + base + "." };
     Array.from(envOk.entries()).forEach((entry) => {
         if (!hasRef("origin/" + entry[1])) {
@@ -523,7 +540,7 @@ function prepareRepository(cfg) {
             console.log("Light clone not possible, using the standard clone: " + errMsg(e));
         }
     }
-    console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature])));
+    console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature], STANDARD_CLONE_TIMEOUT_MS)));
     return "standard";
 }
 
