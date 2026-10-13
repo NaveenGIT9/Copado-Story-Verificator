@@ -2,3 +2,8 @@ node_modules/
 .sfdx/
 .sf/
 *.log
+
+# working files kept locally, not published
+reference/
+SPEC*.md
+verify.xml

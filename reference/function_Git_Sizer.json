@@ -1,7 +1,0 @@
-{
-  "Name": "Git Sizer",
-  "api": "Git_Sizer",
-  "image": "copado-multicloud-dx:v6",
-  "options": "[ ]",
-  "parameters": "[ {\n  \"name\" : \"git_json\",\n  \"defaultValue\" : \"{$Context.Repository.Credential}\"\n}, {\n  \"name\" : \"mainBranch\",\n  \"defaultValue\" : \"{$Context.JobExecution__r.DataJson.mainBranch}\"\n}, {\n  \"name\" : \"repositoryRecordId\",\n  \"defaultValue\" : \"{$Context.copado__Git_RepositoryId__c}\"\n} ]"
-}

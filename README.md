@@ -138,9 +138,8 @@ force-app/main/default/   metadata: classes, lwc, fields, validation rules, flow
 function/index.js         the Copado Function (Node.js) that runs the git checks
 scripts/                  setup script generator and the generated create-copado-records.apex
 manifest/package.xml      the package list
-reference/                example Copado records used while building
 jest-mocks/               local stubs so the popup's Jest tests run outside Salesforce
-SPEC*.md                  working specifications from the build
+docs/exchange-listing.md  short description of the utility for a marketplace listing
 ```
 
 Popup unit tests:
@@ -153,4 +152,4 @@ npx sfdx-lwc-jest force-app/main/default/lwc/storyVerificationPopup
 
 - It was built and tested in two orgs. Behaviour on very large repositories (tens of thousands of commits) was checked only with generated test repositories.
 - The three git checks depend on Copado's job start-up time, which this project cannot change.
-- The parent-dependency check follows Copado's pipeline and the story's base branch. Its rules are described in `SPEC-INTRO-AND-PARENTS.md`.
+- The parent-dependency check finds a story's parents through its base branch (`feature/<parent story>`) and through Copado dependencies. A parent counts as ahead when it sits in an environment later in the pipeline than the child's environment, or is Completed. Otherwise the parent must be promoted first.
