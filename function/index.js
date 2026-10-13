@@ -6,6 +6,9 @@
 // Git access only through "copado-git-get" and "git"; progress/result only through the "copado" CLI.
 
 const cp = require("child_process");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const env = process.env;
 const ELL = "…";
@@ -309,7 +312,7 @@ function checkUnregistered(ctx) {
     const unreg = extra.filter((c) => !isReg(c.sha));
     const analysed = unreg.slice(0, MAX_ANALYSE);
     const details = analysed.map((c) => {
-        const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "-z", c.sha]);
+        const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "--no-renames", "-z", c.sha]);
         const comps = uniq((out === null ? [] : out.split("\0").filter(Boolean)).map(parseApiName).filter(Boolean));
         const sl = c.sha.toLowerCase();
         const nc = cfg.nonComplete.find((n) => n.sha.length >= 7 && (sl.startsWith(n.sha) || n.sha.startsWith(sl)));
@@ -362,8 +365,8 @@ function checkUnregistered(ctx) {
 
 function checkMetadata(ctx) {
     const id = "metadata-coverage";
-    let raw = tryRun("git", ["diff", "--name-only", "-z", "origin/" + ctx.base + "...HEAD"]);
-    if (raw === null) raw = tryRun("git", ["diff", "--name-only", "-z", "origin/" + ctx.base + "..HEAD"]);
+    let raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
+    if (raw === null) raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
     const comps = uniq(raw.split("\0").filter(Boolean).map(parseApiName).filter(Boolean));
     const uncovered = comps.filter((c) => !ctx.isCovered(c));
@@ -423,6 +426,37 @@ function finish(cfg, status, notes, checks) {
     emit(json);
 }
 
+// Repository download. The checks read only commit history and changed file names, never file contents, so a "light" clone
+// (no working tree, no file contents) is tried first: about a second even for a repository with tens of thousands of files,
+// where a normal clone checks out every file and can take a minute or more. If the light clone is not possible, the standard
+// "copado-git-get --depth" clone is used exactly as before.
+function prepareRepository(cfg) {
+    const home = process.cwd();
+    let url = "";
+    try {
+        url = str(JSON.parse(env.git_json || "{}").url);
+    } catch (e) {
+        url = "";
+    }
+    // The url is placed inside a command string, so only plain URL characters are accepted.
+    if (url && /^[A-Za-z0-9._~:\/?#@%+=,&-]+$/.test(url)) {
+        try {
+            const dir = fs.mkdtempSync(path.join(os.tmpdir(), "svg-"));
+            const clone = "git clone --quiet --no-checkout --filter=blob:none --single-branch --depth " + cfg.depth +
+                " --branch " + cfg.feature + ' "' + url + '" "' + dir + '"';
+            gitG(clone);
+            process.chdir(dir);
+            console.log("Light clone ready (commit history only, no file contents).");
+            return "light";
+        } catch (e) {
+            process.chdir(home);
+            console.log("Light clone not possible, using the standard clone: " + errMsg(e));
+        }
+    }
+    console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature])));
+    return "standard";
+}
+
 function main() {
     collectSecrets();
     const cfg = readConfig();
@@ -431,7 +465,7 @@ function main() {
     }
     progress("Cloning repository" + ELL);
     try {
-        console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature])));
+        prepareRepository(cfg);
     } catch (e) {
         const reason = "Could not clone the repository or check out " + cfg.feature + ": " + errMsg(e);
         return finish(cfg, "Failed", [reason], skippedChecks("Not run: repository could not be cloned"));

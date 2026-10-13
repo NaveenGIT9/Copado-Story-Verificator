@@ -51,6 +51,9 @@ SCRIPT_LINES.addAll(
         '// Git access only through "copado-git-get" and "git"; progress/result only through the "copado" CLI.',
         '',
         'const cp = require("child_process");',
+        'const fs = require("fs");',
+        'const os = require("os");',
+        'const path = require("path");',
         '',
         'const env = process.env;',
         'const ELL = "\u2026";',
@@ -79,15 +82,15 @@ SCRIPT_LINES.addAll(
         'function clip(s, n) {',
         '    const max = n || 500;',
         '    const t = str(s);',
-        '    return t.length > max ? t.slice(0, max - 1) + ELL : t;',
-        '}',
-        '',
-        'function uniq(a) {'
+        '    return t.length > max ? t.slice(0, max - 1) + ELL : t;'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '}',
+        '',
+        'function uniq(a) {',
         '    return Array.from(new Set(a));',
         '}',
         '',
@@ -124,15 +127,15 @@ SCRIPT_LINES.addAll(
         '}',
         '',
         'function run(cmd, args) {',
-        '    return cp.execFileSync(cmd, args, {',
-        '        encoding: "utf8",',
-        '        maxBuffer: 256 * 1024 * 1024,',
-        '        stdio: ["ignore", "pipe", "pipe"]'
+        '    return cp.execFileSync(cmd, args, {'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '        encoding: "utf8",',
+        '        maxBuffer: 256 * 1024 * 1024,',
+        '        stdio: ["ignore", "pipe", "pipe"]',
         '    });',
         '}',
         '',
@@ -169,15 +172,15 @@ SCRIPT_LINES.addAll(
         '',
         'function emit(json) {',
         '    copadoCli(["--progress", "Verification finished", "--result-data", json]);',
-        '    console.log("RESULT:" + json);',
-        '}',
-        '',
-        '// JSON text (or an already parsed array) -> array; anything else -> [].'
+        '    console.log("RESULT:" + json);'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '}',
+        '',
+        '// JSON text (or an already parsed array) -> array; anything else -> [].',
         'function parseList(raw) {',
         '    let v = raw;',
         '    for (let i = 0; i < 2 && typeof v === "string"; i++) {',
@@ -214,15 +217,15 @@ SCRIPT_LINES.addAll(
         '        const cl = c.toLowerCase();',
         '        if (names.has(cl) || list.some((m) => m.startsWith(cl + "."))) return true;',
         '        return cl === "customlabels" && hasLabels;',
-        '    };',
-        '}',
-        '',
-        'function mk(id, status, summary, lines) {'
+        '    };'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '}',
+        '',
+        'function mk(id, status, summary, lines) {',
         '    return { id: id, title: TITLES[id], status: status, summary: summary, lines: lines };',
         '}',
         '',
@@ -259,15 +262,15 @@ SCRIPT_LINES.addAll(
         '        findings: findings',
         '    };',
         '}',
-        '',
-        '// ---- git preparation ----',
-        '',
-        'function hasRef(ref) {'
+        ''
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '// ---- git preparation ----',
+        '',
+        'function hasRef(ref) {',
         '    return tryRun("git", ["rev-parse", "--verify", "--quiet", ref + "^{commit}"]) !== null;',
         '}',
         '',
@@ -304,15 +307,15 @@ SCRIPT_LINES.addAll(
         '            console.log("deepen failed: " + errMsg(e));',
         '            break;',
         '        }',
-        '    }',
-        '    return false;',
-        '}',
-        ''
+        '    }'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '    return false;',
+        '}',
+        '',
         '// ---- the three checks ----',
         '',
         'function isAncestor(a, b) {',
@@ -349,15 +352,15 @@ SCRIPT_LINES.addAll(
         '        const m = re.exec(r.subject);',
         '        if (m && m[1].toLowerCase() === cfg.feature.toLowerCase()) continue;',
         '        const entries = Array.from(ctx.envOk.entries());',
-        '        for (let j = 0; j < entries.length; j++) {',
-        '            if (isAncestor(r.parents[1], "origin/" + entries[j][1]) && !isAncestor(r.parents[1], "origin/" + ctx.base)) {',
-        '                found.push({ sha: r.sha.slice(0, 10), branch: entries[j][1] });',
-        '                break;'
+        '        for (let j = 0; j < entries.length; j++) {'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '            if (isAncestor(r.parents[1], "origin/" + entries[j][1]) && !isAncestor(r.parents[1], "origin/" + ctx.base)) {',
+        '                found.push({ sha: r.sha.slice(0, 10), branch: entries[j][1] });',
+        '                break;',
         '            }',
         '        }',
         '    }',
@@ -389,20 +392,20 @@ SCRIPT_LINES.addAll(
         '    const unreg = extra.filter((c) => !isReg(c.sha));',
         '    const analysed = unreg.slice(0, MAX_ANALYSE);',
         '    const details = analysed.map((c) => {',
-        '        const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "-z", c.sha]);',
+        '        const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "--no-renames", "-z", c.sha]);',
         '        const comps = uniq((out === null ? [] : out.split("\\0").filter(Boolean)).map(parseApiName).filter(Boolean));',
         '        const sl = c.sha.toLowerCase();',
         '        const nc = cfg.nonComplete.find((n) => n.sha.length >= 7 && (sl.startsWith(n.sha) || n.sha.startsWith(sl)));',
         '        return {',
-        '            sha10: c.sha.slice(0, 10),',
-        '            author: c.name || c.email || "unknown",',
-        '            email: c.email,',
-        '            subject: c.subject,'
+        '            sha10: c.sha.slice(0, 10),'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '            author: c.name || c.email || "unknown",',
+        '            email: c.email,',
+        '            subject: c.subject,',
         '            auto: AUTO_PREFIXES.some((p) => c.subject.startsWith(p)),',
         '            status: nc ? nc.status : null,',
         '            uncovered: comps.filter((x) => !ctx.isCovered(x))',
@@ -439,21 +442,21 @@ SCRIPT_LINES.addAll(
         '    }',
         '    return mk(',
         '        id,',
-        '        "warn",',
-        '        effective.length + " commit(s) made outside Copado; every component is registered on the story and the author is the same",',
-        '        lines',
-        '    );'
+        '        "warn",'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '        effective.length + " commit(s) made outside Copado; every component is registered on the story and the author is the same",',
+        '        lines',
+        '    );',
         '}',
         '',
         'function checkMetadata(ctx) {',
         '    const id = "metadata-coverage";',
-        '    let raw = tryRun("git", ["diff", "--name-only", "-z", "origin/" + ctx.base + "...HEAD"]);',
-        '    if (raw === null) raw = tryRun("git", ["diff", "--name-only", "-z", "origin/" + ctx.base + "..HEAD"]);',
+        '    let raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);',
+        '    if (raw === null) raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);',
         '    if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");',
         '    const comps = uniq(raw.split("\\0").filter(Boolean).map(parseApiName).filter(Boolean));',
         '    const uncovered = comps.filter((c) => !ctx.isCovered(c));',
@@ -484,15 +487,15 @@ SCRIPT_LINES.addAll(
         '    }',
         '}',
         '',
-        '// ---- result ----',
-        '',
-        'function buildResult(cfg, status, notes, checks, cap) {',
-        '    const cut = checks.map((ch) => {'
+        '// ---- result ----'
     }
 );
 
 SCRIPT_LINES.addAll(
     new List<String>{
+        '',
+        'function buildResult(cfg, status, notes, checks, cap) {',
+        '    const cut = checks.map((ch) => {',
         '        const lines = ch.lines.slice(0, cap).map((l) => clip(l));',
         '        if (ch.lines.length > cap) lines.push("(+" + (ch.lines.length - cap) + " more lines omitted)");',
         '        return { id: ch.id, title: ch.title, status: ch.status, summary: clip(ch.summary), lines: lines };',
@@ -518,6 +521,42 @@ SCRIPT_LINES.addAll(
         '    emit(json);',
         '}',
         '',
+        '// Repository download. The checks read only commit history and changed file names, never file contents, so a "light" clone',
+        '// (no working tree, no file contents) is tried first: about a second even for a repository with tens of thousands of files,',
+        '// where a normal clone checks out every file and can take a minute or more. If the light clone is not possible, the standard',
+        '// "copado-git-get --depth" clone is used exactly as before.',
+        'function prepareRepository(cfg) {',
+        '    const home = process.cwd();',
+        '    let url = "";',
+        '    try {',
+        '        url = str(JSON.parse(env.git_json || "{}").url);',
+        '    } catch (e) {',
+        '        url = "";',
+        '    }'
+    }
+);
+
+SCRIPT_LINES.addAll(
+    new List<String>{
+        '    // The url is placed inside a command string, so only plain URL characters are accepted.',
+        '    if (url && /^[A-Za-z0-9._~:\\/?#@%+=,&-]+$/.test(url)) {',
+        '        try {',
+        '            const dir = fs.mkdtempSync(path.join(os.tmpdir(), "svg-"));',
+        '            const clone = "git clone --quiet --no-checkout --filter=blob:none --single-branch --depth " + cfg.depth +',
+        '                " --branch " + cfg.feature + \' "\' + url + \'" "\' + dir + \'"\';',
+        '            gitG(clone);',
+        '            process.chdir(dir);',
+        '            console.log("Light clone ready (commit history only, no file contents).");',
+        '            return "light";',
+        '        } catch (e) {',
+        '            process.chdir(home);',
+        '            console.log("Light clone not possible, using the standard clone: " + errMsg(e));',
+        '        }',
+        '    }',
+        '    console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature])));',
+        '    return "standard";',
+        '}',
+        '',
         'function main() {',
         '    collectSecrets();',
         '    const cfg = readConfig();',
@@ -526,24 +565,24 @@ SCRIPT_LINES.addAll(
         '    }',
         '    progress("Cloning repository" + ELL);',
         '    try {',
-        '        console.log(redact(run("copado-git-get", ["--depth", String(cfg.depth), cfg.feature])));',
+        '        prepareRepository(cfg);',
         '    } catch (e) {',
         '        const reason = "Could not clone the repository or check out " + cfg.feature + ": " + errMsg(e);',
         '        return finish(cfg, "Failed", [reason], skippedChecks("Not run: repository could not be cloned"));',
         '    }',
         '',
-        '    progress("Fetching base and environment branches" + ELL);'
-    }
-);
-
-SCRIPT_LINES.addAll(
-    new List<String>{
+        '    progress("Fetching base and environment branches" + ELL);',
         '    const base = resolveBase(cfg);',
         '    if (!base) {',
         '        const tried = uniq([cfg.base, "main", "master"].filter(Boolean)).join(", ");',
         '        return finish(cfg, "Failed", ["No base branch was found on the remote (tried: " + tried + ")."], skippedChecks("Not run: base branch not found"));',
         '    }',
-        '    const envOk = new Map();',
+        '    const envOk = new Map();'
+    }
+);
+
+SCRIPT_LINES.addAll(
+    new List<String>{
         '    const missing = [];',
         '    cfg.envBranches.forEach((orig, lower) => {',
         '        if (hasRef("origin/" + orig) || fetchBranch(orig, cfg.depth)) envOk.set(lower, orig);',
@@ -577,18 +616,18 @@ SCRIPT_LINES.addAll(
         '    const status = ctx.problems.length > 0 ? "Failed" : hasIssue ? "Issues" : "Clean";',
         '    return finish(cfg, status, ctx.problems, checks);',
         '}',
-        ''
-    }
-);
-
-SCRIPT_LINES.addAll(
-    new List<String>{
+        '',
         'try {',
         '    main();',
         '} catch (err) {',
         '    const msg = errMsg(err);',
         '    console.log("Fatal: " + msg);',
-        '    emit(',
+        '    emit('
+    }
+);
+
+SCRIPT_LINES.addAll(
+    new List<String>{
         '        JSON.stringify({',
         '            runId: str(env.runId),',
         '            status: "Failed",',
