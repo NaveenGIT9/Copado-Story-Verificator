@@ -671,7 +671,7 @@ function checkMetadata(ctx) {
         rows.push({ t: "group", label: "Registered but unchanged in git", count: allNames.length, groups: capGroups(groups, 500) });
     }
     if (uncovered.length > 0) {
-        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered", lines, rows);
+        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered under story metadata", lines, rows);
     }
     return mk(id, "pass", comps.length === 0 ? "No changed components found in git" : "All " + comps.length + " changed components registered", lines, rows);
 }
