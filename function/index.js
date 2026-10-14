@@ -581,11 +581,11 @@ function checkMetadata(ctx) {
     const lines = [];
     const rows = [];
     if (uncovered.length > 0) {
-        // In the popup the names are a collapsible group per metadata type (open by default); the warning sentence is a "danger" row.
+        // In the popup the names are a collapsible group per metadata type (closed until clicked); the warning sentence is a "danger" row.
         lines.push("Not registered: " + capList(uncovered, 100));
         lines.push(WONT_DEPLOY);
         const notRegistered = groupByType(uncoveredComps.map((c) => ({ name: c.api, label: c.type })));
-        rows.push({ t: "group", label: "Not registered", tone: "warn", defaultOpen: true, count: uncovered.length, groups: capGroups(notRegistered, 100) });
+        rows.push({ t: "group", label: "Not registered", tone: "warn", count: uncovered.length, groups: capGroups(notRegistered, 100) });
         rows.push({ t: "danger", text: WONT_DEPLOY });
     }
     const changed = new Set(comps.map((c) => c.api.toLowerCase()));
