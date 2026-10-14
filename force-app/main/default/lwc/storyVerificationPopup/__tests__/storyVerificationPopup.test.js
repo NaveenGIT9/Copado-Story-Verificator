@@ -370,7 +370,9 @@ describe('c-story-verification-popup', () => {
         expect(getProgress).toHaveBeenCalledTimes(2);
         const verdict = byId(element, 'state');
         expect(verdict.textContent).toBe('Verification finished: Clean');
-        expect(verdict.className).toContain('slds-text-color_success');
+        expect(byId(element, 'state-key').textContent).toBe('Verification finished: ');
+        expect(byId(element, 'state-value').textContent).toBe('Clean');
+        expect(byId(element, 'state-value').className).toContain('slds-text-color_success');
         expect(byId(element, 'banner')).toBeNull();
         expect(byId(element, 'why-section')).toBeNull();
         expect(byId(element, 'state-spinner')).toBeNull();
@@ -381,7 +383,7 @@ describe('c-story-verification-popup', () => {
         expect(getProgress).toHaveBeenCalledTimes(2);
     });
 
-    it('shows an amber Issues verdict in the heading and no banner or repeated Why block', async () => {
+    it('shows a red Issues verdict in the heading and no banner or repeated Why block', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(
             snapshot({
@@ -397,7 +399,8 @@ describe('c-story-verification-popup', () => {
 
         const verdict = byId(element, 'state');
         expect(verdict.textContent).toBe('Verification finished: Issues');
-        expect(verdict.className).toContain('state-issues');
+        expect(byId(element, 'state-value').textContent).toBe('Issues');
+        expect(byId(element, 'state-value').className).toContain('slds-text-color_error');
         expect(byId(element, 'banner')).toBeNull();
         expect(byId(element, 'why-section')).toBeNull();
         expect(byId(element, 'failure')).toBeNull();
@@ -420,7 +423,7 @@ describe('c-story-verification-popup', () => {
 
         const verdict = byId(element, 'state');
         expect(verdict.textContent).toBe('Verification finished: Failed');
-        expect(verdict.className).toContain('slds-text-color_error');
+        expect(byId(element, 'state-value').className).toContain('slds-text-color_error');
         expect(byId(element, 'failure').textContent).toContain('Function exited with code 1');
         expect(stepTitles(element)).toContain('Copado job: failed');
     });
@@ -868,7 +871,7 @@ describe('c-story-verification-popup', () => {
             details: ['Verification job failed: Could not clone the repository']
         });
 
-        expect(byId(element, 'state').className).toContain('slds-text-color_error');
+        expect(byId(element, 'state-value').className).toContain('slds-text-color_error');
         expect(byId(element, 'failure').textContent).toContain('Could not clone the repository');
         const row = stepRow(element, 'Unregistered commits');
         expect(row.querySelector('[data-id="step-text"]').textContent).toBe(

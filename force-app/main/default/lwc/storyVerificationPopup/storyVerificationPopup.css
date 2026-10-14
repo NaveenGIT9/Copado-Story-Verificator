@@ -86,9 +86,9 @@
     margin-left: 0.9rem;
 }
 
-/* The word before the colon on every check row ("Pending tests:") is shown in capitals and one colour, so keys and values read apart. */
+/* The words before the colon on every check row ("Pending tests:") are shown in dark capitals, so keys and values read apart. */
 .step-key {
-    color: #b45f06;
+    color: #181818;
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -100,8 +100,12 @@
     flex-shrink: 0;
 }
 
-.state-issues {
-    color: #b45309;
+/* "Verification finished:" key, same dark capitals as the check keys. */
+.state-key {
+    color: #181818;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 
 .failure-text {

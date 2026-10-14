@@ -611,18 +611,28 @@ export default class StoryVerificationPopup extends LightningElement {
         return { ...step, iconName: 'utility:clock', altText: 'Pending', text: step.text + ': pending' };
     }
 
-    // The heading carries the verdict: green for Clean, amber for Issues, red for Failed.
     get stateClass() {
-        const base = 'slds-text-heading_small';
-        if (!this.isFinished) {
-            return base;
+        return 'slds-text-heading_small';
+    }
+
+    // A finished run reads "VERIFICATION FINISHED: <verdict>": the key is dark and the verdict is coloured (green for Clean,
+    // red for Issues and Failed). Every other state is one plain piece of text.
+    get showsVerdict() {
+        return !this.errorText && !this.timedOut && !this.superseded && this.isFinished;
+    }
+
+    get stateKey() {
+        return this.showsVerdict ? 'Verification finished: ' : '';
+    }
+
+    get stateValue() {
+        return this.showsVerdict ? String(this.snapshot.status) : this.stateText;
+    }
+
+    get stateValueClass() {
+        if (!this.showsVerdict) {
+            return '';
         }
-        if (this.status === 'Clean') {
-            return base + ' slds-text-color_success';
-        }
-        if (this.status === 'Issues') {
-            return base + ' state-issues';
-        }
-        return base + ' slds-text-color_error';
+        return this.status === 'Clean' ? 'slds-text-color_success' : 'slds-text-color_error';
     }
 }

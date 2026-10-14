@@ -27,7 +27,7 @@
                         <lightning-spinner size="x-small" alternative-text="Verification in progress"></lightning-spinner>
                     </span>
                 </template>
-                <p class={stateClass} aria-live="polite" data-id="state">{stateText}</p>
+                <p class={stateClass} aria-live="polite" data-id="state"><span class="state-key" data-id="state-key">{stateKey}</span><span class={stateValueClass} data-id="state-value">{stateValue}</span></p>
             </div>
 
             <ul class="slds-m-bottom_small" data-id="steps">
