@@ -278,10 +278,18 @@ function readConfig() {
         const n = str(b).trim();
         if (n && !envBranches.has(n.toLowerCase())) envBranches.set(n.toLowerCase(), n);
     });
+    // A finding is info, a warning or an issue; "noCommits" marks the pull request finding of a story that has no commits or
+    // metadata, and "nothing" that it has no deployment steps either.
     const findings = parseList(env.findings).map((f) =>
         f !== null && typeof f === "object"
-            ? { severity: f.severity === "issue" ? "issue" : "info", message: str(f.message) }
-            : { severity: "info", message: str(f) }
+            ? {
+                  severity: f.severity === "issue" || f.severity === "warn" ? f.severity : "info",
+                  message: str(f.message),
+                  group: str(f.group),
+                  noCommits: f.noCommits === true,
+                  nothing: f.nothing === true
+              }
+            : { severity: "info", message: str(f), group: "", noCommits: false, nothing: false }
     );
     return {
         runId: str(env.runId),
@@ -298,7 +306,8 @@ function readConfig() {
         metadataNames: metadataNames, // lowercase -> exact spelling, for display
         metadataTypes: metadataTypes, // lowercase -> Copado metadata type, for display
         hasLabels: str(env.hasCustomLabelMetadata).toLowerCase() === "true",
-        findings: findings
+        findings: findings,
+        noWork: findings.some((f) => f.noCommits)
     };
 }
 
@@ -311,6 +320,8 @@ function hasRef(ref) {
 // Every copado-git-get call costs seconds (a failing one far more), so the remote branches are listed once and only the
 // existing ones are fetched, in one command. A failed listing is retried once and then the run stops with the real reason:
 // trying branch after branch would turn a connection hiccup into minutes of failing calls.
+let remoteListing = null; // the branch list read by checkFeatureBranch, reused when the checks fetch their branches
+
 function listRemoteBranches() {
     let reason = "the repository returned no branches";
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -329,6 +340,64 @@ function listRemoteBranches() {
         }
     }
     return { names: null, error: reason };
+}
+
+// Asks the remote whether the feature branch exists, before anything is cloned: an empty repository in a temporary folder is
+// enough for the credentialed "git ls-remote" of copado-git-get. true / false, or null when the remote could not be asked
+// (the normal clone then decides, as before).
+function checkFeatureBranch(cfg) {
+    const home = process.cwd();
+    try {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "svb-"));
+        process.chdir(dir);
+        run("git", ["init", "--quiet"]);
+        const listing = listRemoteBranches();
+        process.chdir(home);
+        if (!listing.names) return null;
+        remoteListing = listing;
+        return listing.names.has(cfg.feature);
+    } catch (e) {
+        try {
+            process.chdir(home);
+        } catch (ignored) {
+        }
+        console.log("Could not check the feature branch: " + errMsg(e));
+        return null;
+    }
+}
+
+// A story with no commits or metadata: its pull request finding becomes a warning when the feature branch exists, and
+// "Nothing to promote" (a warning) when there is nothing at all (no deployment steps and no branch); otherwise it stays "No commits".
+function adjustNoCommitsFinding(cfg, branchExists) {
+    cfg.findings.forEach((f) => {
+        if (!f.noCommits || branchExists === null) return;
+        if (branchExists) {
+            f.severity = "warn";
+            f.message = "No commits";
+        } else if (f.nothing) {
+            f.severity = "warn";
+            f.message = "Nothing to promote";
+        }
+    });
+}
+
+// What the three git checks say when the feature branch does not exist. A story with commits or metadata registered on it must
+// have a branch, so that fails (and the others cannot run); a story with only deployment steps simply has nothing in Git.
+function noBranchChecks(cfg) {
+    if (!cfg.noWork) {
+        const why = "Not run: no feature branch";
+        return [
+            mk("unregistered-commits", "fail", "No feature branch (" + cfg.feature + " not found in Git)", []),
+            mk("metadata-coverage", "skipped", why, []),
+            mk("org-branch-merge", "skipped", why, [])
+        ];
+    }
+    return ORDER.map((id) => mk(id, "pass", "No feature branch", []));
+}
+
+function verdictOf(cfg, checks, problems) {
+    const hasIssue = checks.some((c) => c.status === "fail") || cfg.findings.some((f) => f.severity === "issue");
+    return problems.length > 0 ? "Failed" : hasIssue ? "Issues" : "Clean";
 }
 
 // Where the feature branch's fetched history starts (minus a day). The base and environment branches are fetched back to that
@@ -364,7 +433,7 @@ function fetchBranches(list, depth, sinceIso) {
 
 // Returns { base, envOk, missing } or { error }.
 function fetchBranchesForChecks(cfg) {
-    const listing = listRemoteBranches();
+    const listing = remoteListing || listRemoteBranches();
     if (!listing.names) return { error: "Could not list the repository branches: " + listing.error };
     const remote = listing.names;
     const candidates = uniq([cfg.base, "main", "master"].filter(Boolean));
@@ -488,6 +557,7 @@ function checkUnregistered(ctx) {
         .filter((p) => p[0].trim().length >= 40)
         .map((p) => ({ sha: p[0].trim(), name: str(p[1]), email: str(p[2]).toLowerCase(), committer: str(p[3]).toLowerCase(), subject: str(p[4]) }));
     if (extra.length === 0) {
+        if (cfg.noWork) return mk(id, "warn", "No commits beyond " + ctx.base + " (the feature branch exists)", []);
         return mk(id, "fail", "No commits beyond " + ctx.base + " " + DASH + " nothing to promote", []);
     }
     const regSet = new Set(cfg.registered);
@@ -716,6 +786,13 @@ function main() {
     if (!cfg.feature || !isSafe(cfg.feature)) {
         return finish(cfg, "Failed", ["No usable feature branch name was provided."], skippedChecks("Not run: no feature branch"));
     }
+    progress("Checking the feature branch" + ELL);
+    const branchExists = checkFeatureBranch(cfg);
+    adjustNoCommitsFinding(cfg, branchExists);
+    if (branchExists === false) {
+        const noBranch = noBranchChecks(cfg);
+        return finish(cfg, verdictOf(cfg, noBranch, []), [], noBranch);
+    }
     progress("Cloning repository" + ELL);
     try {
         prepareRepository(cfg);
@@ -756,9 +833,7 @@ function main() {
         console.log(meta.title + ": " + meta.status + " - " + meta.summary);
         checks.push(meta);
     }
-    const hasIssue = checks.some((c) => c.status === "fail") || cfg.findings.some((f) => f.severity === "issue");
-    const status = ctx.problems.length > 0 ? "Failed" : hasIssue ? "Issues" : "Clean";
-    return finish(cfg, status, ctx.problems, checks);
+    return finish(cfg, verdictOf(cfg, checks, ctx.problems), ctx.problems, checks);
 }
 
 try {

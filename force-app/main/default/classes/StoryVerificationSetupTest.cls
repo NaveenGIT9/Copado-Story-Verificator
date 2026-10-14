@@ -34,7 +34,7 @@ private class StoryVerificationSetupTest {
             System.assertEquals('Custom', functions[0].copado__Type__c);
             System.assert(functions[0].copado__Script__c.startsWith('#!/usr/bin/env node'), 'The script must start with the node shebang');
             System.assertEquals(StoryVerificationSetup.functionScript(), functions[0].copado__Script__c);
-            for (String parameter : new List<String>{ 'git_json', 'repositoryId', 'findings', 'hasDeploymentSteps' }) {
+            for (String parameter : new List<String>{ 'git_json', 'repositoryId', 'findings' }) {
                 System.assert(functions[0].copado__Parameters__c.contains('"' + parameter + '"'), parameter + ' must be a Function parameter');
             }
 
