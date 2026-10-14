@@ -47,8 +47,8 @@ private class StoryVerificationMetadataControllerTest {
         return [SELECT Id, Name FROM copado__User_Story__c WHERE copado__User_Story_Title__c = :STORY_TITLE];
     }
 
-    private static Map<String, Object> item(String name, String action, String date, String path) {
-        return new Map<String, Object>{ 'name' => name, 'action' => action, 'date' => date, 'path' => path };
+    private static Map<String, Object> item(String name, String action, String commitTime, String path) {
+        return new Map<String, Object>{ 'name' => name, 'action' => action, 'date' => commitTime, 'path' => path };
     }
 
     // The stored result of a verification whose Metadata Coverage check lists these components as not registered.
