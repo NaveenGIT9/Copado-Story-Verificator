@@ -56,7 +56,8 @@ function compact(source) {
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
         .split("\n")
-        .map((l, i) => (i === 0 ? l : l.replace(/^\s+/, "")))
+        // Indentation and trailing "// comment" text (always preceded by a space and followed by one) are dropped.
+        .map((l, i) => (i === 0 ? l : l.replace(/^\s+/, "").replace(/\s+\/\/ .*$/, "")))
         .filter((l, i) => i === 0 || (l !== "" && !l.startsWith("//")));
 }
 
@@ -114,6 +115,7 @@ final List<String> DATA_KEYS = new List<String>{
     'registeredCommitsJson',
     'nonCompleteCommitsJson',
     'registeredMetadataJson',
+    'registeredMetadataTypesJson',
     'hasCustomLabelMetadata',
     'findings'
 };

@@ -207,6 +207,7 @@ private class StoryVerificationServiceTest {
                 'registeredCommitsJson',
                 'nonCompleteCommitsJson',
                 'registeredMetadataJson',
+                'registeredMetadataTypesJson',
                 'hasCustomLabelMetadata'
             }) {
                 System.assert(data.get(key) instanceof String, key + ' must be a string, not a nested value');
@@ -216,6 +217,8 @@ private class StoryVerificationServiceTest {
             List<Object> metadata = (List<Object>) JSON.deserializeUntyped((String) data.get('registeredMetadataJson'));
             System.assertEquals(1, metadata.size());
             System.assertEquals('Account', metadata[0], 'The exact spelling is kept');
+            Map<String, Object> types = (Map<String, Object>) JSON.deserializeUntyped((String) data.get('registeredMetadataTypesJson'));
+            System.assertEquals('CustomObject', types.get('account'), 'The metadata type travels with the name, keyed in lower case');
             // Copado may derive the commit status from the snapshot, so accept either bucket, but the SHA must be in exactly one.
             List<Object> registered = (List<Object>) JSON.deserializeUntyped((String) data.get('registeredCommitsJson'));
             List<Object> nonComplete = (List<Object>) JSON.deserializeUntyped((String) data.get('nonCompleteCommitsJson'));

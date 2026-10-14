@@ -96,6 +96,8 @@ public with sharing class StoryVerificationService {
         public List<String> registeredCommits = new List<String>();
         public List<Map<String, String>> nonCompleteCommits = new List<Map<String, String>>();
         public List<String> registeredMetadata = new List<String>();
+        // lower-case registered name -> its Copado metadata type (ApexClass, CustomField ...), so the popup can say what each is.
+        public Map<String, String> metadataTypes = new Map<String, String>();
         public Boolean hasCustomLabelMetadata = false;
         public Boolean truncated = false;
 
@@ -253,9 +255,22 @@ public with sharing class StoryVerificationService {
             'registeredCommitsJson' => JSON.serialize(inputs.registeredCommits),
             'nonCompleteCommitsJson' => JSON.serialize(inputs.nonCompleteCommits),
             'registeredMetadataJson' => JSON.serialize(inputs.registeredMetadata),
+            'registeredMetadataTypesJson' => JSON.serialize(typesOfSentMetadata(inputs)),
             'hasCustomLabelMetadata' => inputs.hasCustomLabelMetadata ? 'true' : 'false',
             'findings' => findings
         };
+    }
+
+    // The types of the registered items that are actually sent (the list may have been cut to fit).
+    private static Map<String, String> typesOfSentMetadata(GitInputs inputs) {
+        Map<String, String> sent = new Map<String, String>();
+        for (String name : inputs.registeredMetadata) {
+            String type = inputs.metadataTypes.get(name.toLowerCase());
+            if (type != null) {
+                sent.put(name.toLowerCase(), type);
+            }
+        }
+        return sent;
     }
 
     @TestVisible
@@ -312,6 +327,9 @@ public with sharing class StoryVerificationService {
                 : metadataRecord.copado__Metadata_API_Name__c.trim();
             if (name != null && seenNames.add(name.toLowerCase())) {
                 inputs.registeredMetadata.add(name);
+                if (String.isNotBlank(metadataRecord.copado__Type__c)) {
+                    inputs.metadataTypes.put(name.toLowerCase(), metadataRecord.copado__Type__c.trim());
+                }
             }
         }
         if (metadataRows >= METADATA_QUERY_LIMIT) {

@@ -152,6 +152,35 @@ function parseList(raw) {
 }
 
 // Copied from plugin-promoter runner.mjs (parseApiName): git file path -> Copado metadata API name.
+// A JSON object passed as environment text (possibly double encoded); anything else gives {}.
+function parseObject(raw) {
+    let v = raw;
+    for (let i = 0; i < 2 && typeof v === "string"; i++) {
+        if (v.trim() === "") return {};
+        try {
+            v = JSON.parse(v);
+        } catch (e) {
+            return {};
+        }
+    }
+    return v !== null && typeof v === "object" && !Array.isArray(v) ? v : {};
+}
+
+// Copado metadata type -> the file extension used to name a component (ChatterUtil.cls); other types are shown in brackets.
+const TYPE_EXT = {
+    ApexClass: "cls", ApexTrigger: "trigger", ApexPage: "page", ApexComponent: "component", CustomField: "field", CustomObject: "object",
+    ValidationRule: "validationRule", Flow: "flow", Layout: "layout", PermissionSet: "permissionset", Profile: "profile",
+    DuplicateRule: "duplicateRule", CustomLabels: "labels", CustomTab: "tab", QuickAction: "quickAction", RecordType: "recordType",
+    CustomPermission: "customPermission", StaticResource: "resource", FlexiPage: "flexipage"
+};
+
+function typedName(name, type) {
+    if (!type) return name;
+    if (type === "LightningComponentBundle") return name + " (LWC)";
+    if (type === "AuraDefinitionBundle") return name + " (Aura)";
+    return TYPE_EXT[type] ? name + "." + TYPE_EXT[type] : name + " (" + type + ")";
+}
+
 function parseApiName(filePath) {
     const parts = filePath.replace(/\\/g, "/").split("/");
     const defaultIdx = parts.indexOf("default");
@@ -213,6 +242,12 @@ function readConfig() {
         const name = str(s).trim();
         if (name && !metadataNames.has(name.toLowerCase())) metadataNames.set(name.toLowerCase(), name);
     });
+    const metadataTypes = new Map();
+    const rawTypes = parseObject(env.registeredMetadataTypesJson);
+    Object.keys(rawTypes).forEach((k) => {
+        const t = str(rawTypes[k]).trim();
+        if (t) metadataTypes.set(k.toLowerCase(), t);
+    });
     const depth = parseInt(env.gitDepth, 10);
     const envBranches = new Map();
     parseList(env.envBranchesJson).forEach((b) => {
@@ -237,6 +272,7 @@ function readConfig() {
             .filter((o) => o.sha),
         metadata: new Set(metadataNames.keys()), // lowercase, for matching
         metadataNames: metadataNames, // lowercase -> exact spelling, for display
+        metadataTypes: metadataTypes, // lowercase -> Copado metadata type, for display
         hasLabels: str(env.hasCustomLabelMetadata).toLowerCase() === "true",
         findings: findings
     };
@@ -533,7 +569,7 @@ function checkMetadata(ctx) {
         (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
     );
     if (unchanged.length > 0) {
-        const unchangedNames = unchanged.map((r) => ctx.cfg.metadataNames.get(r) || r);
+        const unchangedNames = unchanged.map((r) => typedName(ctx.cfg.metadataNames.get(r) || r, ctx.cfg.metadataTypes.get(r)));
         lines.push("Registered but unchanged in git (" + unchangedNames.length + "): " + capList(unchangedNames, 50));
         // A collapsible row in the popup: the count, and the full list one per line when opened.
         rows.push({ t: "group", label: "Registered but unchanged in git", count: unchangedNames.length, items: unchangedNames.slice(0, 500) });
