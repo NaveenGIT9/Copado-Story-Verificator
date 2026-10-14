@@ -8,6 +8,8 @@
         <members>StoryVerificationException</members>
         <members>StoryVerificationService</members>
         <members>StoryVerificationServiceTest</members>
+        <members>StoryVerificationSetup</members>
+        <members>StoryVerificationSetupTest</members>
         <name>ApexClass</name>
     </types>
     <types>

@@ -40,11 +40,11 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 ## What is in the package
 
-`manifest/package.xml` lists 30 components (API 63.0):
+`manifest/package.xml` lists 32 components (API 63.0):
 
 | Type | Components |
 |---|---|
-| Apex classes (7) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, and three test classes |
+| Apex classes (9) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), and four test classes |
 | Lightning component | `storyVerificationPopup` |
 | Fields (5, on `copado__User_Story__c`) | `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c` |
 | Custom permission | `Bypass_Verification_Gate` |
@@ -53,7 +53,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 | Quick action | `copado__User_Story__c.Verify_Story_Live` |
 | Validation rules (12) | `Ready_Promote_Gate_*` and `Promote_Deploy_Gate_*`, each with: `Never_Verified`, `Running`, `Issues`, `Stale`, `Pending_Tests`, `PR_Not_Approved` |
 
-**Not in the package** (they are Copado data records, not metadata): the Copado **Function**, **Job Template** and **Job Step**. They are created by `scripts/create-copado-records.apex` (see Install).
+**Not in the package** (they are Copado data records, not metadata): the Copado **Function**, **Job Template** and **Job Step**. They are created by `StoryVerificationSetup.run()` (see Install).
 
 ## Requirements
 
@@ -65,22 +65,22 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 1. **Deploy the metadata**
    ```
-   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --wait 30
+   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --wait 30
    ```
    Add `--dry-run` for a check-only run first.
-2. **Create the Copado records** (Function, Job Template, Job Step)
+2. **Create the Copado records** (Function, Job Template, Job Step). This runs the deployed class `StoryVerificationSetup`:
    ```
    sf apex run --file scripts/create-copado-records.apex --target-org <alias>
    ```
-   Look for `Story Verification records ready` in the output. The script updates existing records in place, so you can rerun it safely, and **must** rerun it after any change to the Function.
+   The file is one line, `StoryVerificationSetup.run();`, so you can also paste that line into Execute Anonymous in the Developer Console. Look for `Story Verification records ready` in the debug log. It updates existing records in place, so you can rerun it safely, and **must** rerun it after any change to the Function (that is, after deploying a new version of the package).
 3. **Add the Verify action to the page layout.** Add the quick action **Verify** to the User Story page layout. Optionally add `Verification Status`, `Verification Date` and `Verification Details` to the Lightning record page.
 4. **Assign permission sets** (see the next section).
 5. **Check the repository.** The pipeline's Git repository must show as authenticated in Copado.
 
-The Function source is `function/index.js`. The setup script is generated from it:
+The Function source is `function/index.js`. The setup class `StoryVerificationSetup` (which carries a copy of it) is generated from it, so after editing the Function run:
 ```
-node scripts/build-create-records.js          # regenerate scripts/create-copado-records.apex
-node scripts/build-create-records.js --check  # verify it is up to date
+node scripts/build-create-records.js          # regenerate StoryVerificationSetup.cls and the one-line script
+node scripts/build-create-records.js --check  # verify they are up to date
 ```
 
 ## Who gets which permission set
@@ -136,7 +136,7 @@ If you try to tick a box without a Clean, current verification, the rule's messa
 ```
 force-app/main/default/   metadata: classes, lwc, fields, validation rules, flow, permission sets, quick action
 function/index.js         the Copado Function (Node.js) that runs the git checks
-scripts/                  setup script generator and the generated create-copado-records.apex
+scripts/                  generator for StoryVerificationSetup.cls, and the one-line create-copado-records.apex
 manifest/package.xml      the package list
 jest-mocks/               local stubs so the popup's Jest tests run outside Salesforce
 docs/exchange-listing.md  short description of the utility for a marketplace listing

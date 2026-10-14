@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 "use strict";
 
-// Regenerates scripts/create-copado-records.apex from function/index.js.
+// Regenerates the setup code that puts the Function into a Copado org from function/index.js:
 //
-//   node scripts/build-create-records.js           write the Apex file
-//   node scripts/build-create-records.js --check   do not write; exit 1 if the file on disk is out of date
+//   force-app/main/default/classes/StoryVerificationSetup.cls (+ -meta.xml)   deployed with the package; run() creates or
+//                                                                          updates the Function, Job Template and Job Step
+//   scripts/create-copado-records.apex                                     one line that calls StoryVerificationSetup.run()
 //
-// No dependencies, Node 18+. The function source is escaped into Apex string literals (backslashes, single
-// quotes, tabs and non-ASCII characters), one literal per line, in chunks of CHUNK_LINES lines.
+//   node scripts/build-create-records.js           write the files
+//   node scripts/build-create-records.js --check   do not write; exit 1 if a file on disk is out of date
+//
+// No dependencies, Node 18+. The function source is escaped into Apex string literals (backslashes, single quotes, tabs and
+// non-ASCII characters). It lives in a deployed class and not in an anonymous script because anonymous Apex is limited to about
+// 32,000 characters and the Function no longer fits.
 
 const fs = require("fs");
 const path = require("path");
@@ -15,9 +20,12 @@ const vm = require("vm");
 
 const ROOT = path.resolve(__dirname, "..");
 const SOURCE = path.join(ROOT, "function", "index.js");
-const TARGET = path.join(ROOT, "scripts", "create-copado-records.apex");
-const MAX_APEX_CHARS = 100000;
-const CHUNK_LINES = 40;
+const CLASS_FILE = path.join(ROOT, "force-app", "main", "default", "classes", "StoryVerificationSetup.cls");
+const META_FILE = CLASS_FILE + "-meta.xml";
+const SCRIPT_FILE = path.join(ROOT, "scripts", "create-copado-records.apex");
+const MAX_CLASS_CHARS = 900000; // Apex classes may be up to 1,000,000 characters
+const LITERALS_PER_METHOD = 12; // each literal is at most MAX_LITERAL characters; one method per group keeps every method small
+const MAX_LITERAL = 800;
 
 function fail(message) {
     console.error("build-create-records: " + message);
@@ -49,22 +57,20 @@ function apexLiteral(line) {
     return out;
 }
 
-// Anonymous Apex has a size limit, so the embedded copy of the Function is compacted: blank lines, comment-only lines and
-// indentation are dropped (function/index.js has no template literals, so indentation never matters). The shebang stays.
+// The embedded copy of the Function drops blank lines, comment-only lines, indentation and trailing "// comment" text
+// (function/index.js has no template literals, so indentation never matters). The shebang stays.
 function compact(source) {
     return source
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
         .split("\n")
-        // Indentation and trailing "// comment" text (always preceded by a space and followed by one) are dropped.
         .map((l, i) => (i === 0 ? l : l.replace(/^\s+/, "").replace(/\s+\/\/ .*$/, "")))
         .filter((l, i) => i === 0 || (l !== "" && !l.startsWith("//")));
 }
 
-function scriptBlock(source) {
+// Source lines packed into literals of at most MAX_LITERAL characters (joined with a newline), then into methods.
+function sourceMethods(source) {
     const lines = compact(source);
-    // Pack consecutive lines into literals of at most MAX_LITERAL characters (joined with a newline) to cut the per-line overhead.
-    const MAX_LITERAL = 800;
     const groups = [];
     let current = [];
     let size = 0;
@@ -80,116 +86,149 @@ function scriptBlock(source) {
     if (current.length > 0) {
         groups.push(current);
     }
-    const chunks = [];
-    for (let i = 0; i < groups.length; i += CHUNK_LINES) {
+    const methods = [];
+    const calls = [];
+    for (let i = 0, n = 1; i < groups.length; i += LITERALS_PER_METHOD, n++) {
         const body = groups
-            .slice(i, i + CHUNK_LINES)
-            .map((g) => "        '" + g.map(apexLiteral).join("\\n") + "'")
+            .slice(i, i + LITERALS_PER_METHOD)
+            .map((g) => "            '" + g.map(apexLiteral).join("\\n") + "'")
             .join(",\n");
-        chunks.push("SCRIPT_LINES.addAll(\n    new List<String>{\n" + body + "\n    }\n);\n");
+        methods.push("    private static void part" + n + "(List<String> out) {\n        out.addAll(\n            new List<String>{\n" + body + "\n            }\n        );\n    }\n");
+        calls.push("        part" + n + "(parts);");
     }
-    return (
-        "final List<String> SCRIPT_LINES = new List<String>();\n" +
-        chunks.join("\n") +
-        "final String SCRIPT = String.join(SCRIPT_LINES, '\\n');\n"
-    );
+    return { methods: methods.join("\n"), calls: calls.join("\n") };
 }
 
-const HEAD = String.raw`// Generated from function/index.js by scripts/build-create-records.js. Creates or updates the Copado Function, Job Template and Job Step; safe to rerun.
-// Run: sf apex run --file scripts/create-copado-records.apex --target-org <alias>. Anonymous Apex is limited to about 32,000 characters, so keep this short.
+const CLASS_HEAD = `// GENERATED by scripts/build-create-records.js from function/index.js: edit the JS file and rerun the generator.
+/**
+ * Creates or updates the Copado Function, Job Template and Job Step of the Story Verification Gate. Safe to rerun; run it once
+ * after the package is deployed and again after every change to the Function:  StoryVerificationSetup.run();
+ * The text of the Function is kept in this class (and not in an anonymous script) so it is not limited by the anonymous Apex size.
+ */
+public with sharing class StoryVerificationSetup {
+    private static final String FUNCTION_API_NAME = 'Story_Verification';
+    private static final String TEMPLATE_NAME = 'Story_Verification';
+    private static final String TEMPLATE_API_NAME = 'Story_Verification_1';
+    // Copado normalises the step API name to this on insert
+    private static final String STEP_API_NAME = 'Story_Verification_1_Story_Verification_1';
+    // Values read from the Job Execution DataJson; each becomes a (not required) Function parameter
+    private static final List<String> DATA_KEYS = new List<String>{
+        'storyId',
+        'storyName',
+        'runId',
+        'baseBranch',
+        'featureBranch',
+        'envBranchesJson',
+        'registeredCommitsJson',
+        'nonCompleteCommitsJson',
+        'registeredMetadataJson',
+        'registeredMetadataTypesJson',
+        'hasCustomLabelMetadata',
+        'hasDeploymentSteps',
+        'findings'
+    };
+    // Parameters that are not read from the DataJson (same shape as the standard functions)
+    private static final List<String> OTHER_NAMES = new List<String>{ 'git_json', 'repositoryId', 'gitDepth', 'gitName', 'gitEmail' };
+    private static final List<String> OTHER_VALUES = new List<String>{
+        '{$Context.Repository.Credential}',
+        '{$Pipeline.Git_Repository__r.Id}',
+        '200',
+        '{$User.Name}',
+        '{$User.Email}'
+    };
 
-final String FUNCTION_API_NAME = 'Story_Verification';
-final String TEMPLATE_NAME = 'Story_Verification';
-final String TEMPLATE_API_NAME = 'Story_Verification_1';
-final String STEP_API_NAME = 'Story_Verification_1_Story_Verification_1'; // Copado normalises the step API name to this on insert
-final List<String> DATA_KEYS = new List<String>{
-    'storyId',
-    'storyName',
-    'runId',
-    'baseBranch',
-    'featureBranch',
-    'envBranchesJson',
-    'registeredCommitsJson',
-    'nonCompleteCommitsJson',
-    'registeredMetadataJson',
-    'registeredMetadataTypesJson',
-    'hasCustomLabelMetadata',
-    'findings'
-};
-// Parameters that are not read from the DataJson (same shape as the standard functions).
-final List<String> OTHER_NAMES = new List<String>{ 'git_json', 'repositoryId', 'gitDepth', 'gitName', 'gitEmail' };
-final List<String> OTHER_VALUES = new List<String>{ '{$Context.Repository.Credential}', '{$Pipeline.Git_Repository__r.Id}', '200', '{$User.Name}', '{$User.Email}' };
+    public static void run() {
+        // Function parameters: one per DataJson key plus the git ones (required, like the standard functions).
+        // The step repeats them as {name, value, required}.
+        List<Map<String, Object>> functionParams = new List<Map<String, Object>>();
+        List<Map<String, Object>> stepParams = new List<Map<String, Object>>();
+        for (String key : DATA_KEYS) {
+            String expression = '{$Context.JobExecution__r.DataJson.' + key + '}';
+            functionParams.add(new Map<String, Object>{ 'required' => false, 'name' => key, 'defaultValue' => expression });
+            stepParams.add(new Map<String, Object>{ 'name' => key, 'value' => expression, 'required' => false });
+        }
+        for (Integer i = 0; i < OTHER_NAMES.size(); i++) {
+            functionParams.add(new Map<String, Object>{ 'required' => true, 'name' => OTHER_NAMES[i], 'defaultValue' => OTHER_VALUES[i] });
+            stepParams.add(new Map<String, Object>{ 'name' => OTHER_NAMES[i], 'value' => OTHER_VALUES[i], 'required' => false });
+        }
 
-// Must stay identical to function/index.js (this block is written by the generator).
+        // 1. Function
+        List<copado__Function__c> existingFunctions = [
+            SELECT Id
+            FROM copado__Function__c
+            WHERE copado__API_Name__c = :FUNCTION_API_NAME
+            LIMIT 1
+        ];
+        copado__Function__c fn = existingFunctions.isEmpty() ? new copado__Function__c() : existingFunctions[0];
+        fn.Name = 'Story Verification';
+        fn.copado__API_Name__c = FUNCTION_API_NAME;
+        fn.copado__Type__c = 'Custom';
+        fn.copado__Script__c = functionScript();
+        fn.copado__Parameters__c = JSON.serializePretty(functionParams);
+        fn.copado__Options__c = '[ ]';
+        fn.copado__Image_Name__c = 'copado-multicloud-dx:v6';
+        fn.copado__Worker_Size__c = 'S';
+        fn.copado__Timeout__c = 600;
+        fn.copado__Version__c = '1';
+        upsert fn;
+
+        // 2. Job Template (the Name must equal 'Story_Verification': the completion logic matches on it)
+        List<copado__JobTemplate__c> existingTemplates = [
+            SELECT Id
+            FROM copado__JobTemplate__c
+            WHERE copado__ApiName__c = :TEMPLATE_API_NAME OR Name = :TEMPLATE_NAME
+            LIMIT 1
+        ];
+        copado__JobTemplate__c template = existingTemplates.isEmpty() ? new copado__JobTemplate__c() : existingTemplates[0];
+        template.Name = TEMPLATE_NAME;
+        template.copado__ApiName__c = TEMPLATE_API_NAME;
+        upsert template;
+
+        // 3. Job Step (one Function step)
+        List<copado__JobStep__c> existingSteps = [
+            SELECT Id
+            FROM copado__JobStep__c
+            WHERE copado__JobTemplate__c = :template.Id AND copado__ApiName__c = :STEP_API_NAME
+            LIMIT 1
+        ];
+        copado__JobStep__c step = existingSteps.isEmpty() ? new copado__JobStep__c() : existingSteps[0];
+        step.Name = 'Story_Verification';
+        step.copado__ApiName__c = STEP_API_NAME;
+        step.copado__JobTemplate__c = template.Id;
+        step.copado__Type__c = 'Function';
+        step.copado__CustomType__c = 'Function';
+        step.copado__Order__c = 1;
+        step.copado__ConfigJson__c = JSON.serialize(
+            new Map<String, Object>{ 'functionName' => FUNCTION_API_NAME, 'parameters' => stepParams }
+        );
+        upsert step;
+
+        System.debug('Story Verification records ready. Function=' + fn.Id + ' Template=' + template.Id + ' Step=' + step.Id);
+    }
+
+    /** The text of the Copado Function (function/index.js). */
+    @TestVisible
+    private static String functionScript() {
+        List<String> parts = new List<String>();
 `;
 
-const TAIL = String.raw`
-// Function parameters: one per DataJson key (not required: a value may legitimately be blank) plus the git ones
-// (required, like the standard functions). The step repeats them as {name, value, required} like example-job-steps.json.
-List<Map<String, Object>> functionParams = new List<Map<String, Object>>();
-List<Map<String, Object>> stepParams = new List<Map<String, Object>>();
-for (String key : DATA_KEYS) {
-    String expression = '{$Context.JobExecution__r.DataJson.' + key + '}';
-    functionParams.add(new Map<String, Object>{ 'required' => false, 'name' => key, 'defaultValue' => expression });
-    stepParams.add(new Map<String, Object>{ 'name' => key, 'value' => expression, 'required' => false });
-}
-for (Integer i = 0; i < OTHER_NAMES.size(); i++) {
-    functionParams.add(new Map<String, Object>{ 'required' => true, 'name' => OTHER_NAMES[i], 'defaultValue' => OTHER_VALUES[i] });
-    stepParams.add(new Map<String, Object>{ 'name' => OTHER_NAMES[i], 'value' => OTHER_VALUES[i], 'required' => false });
+function buildClass(source) {
+    const sm = sourceMethods(source);
+    return CLASS_HEAD + sm.calls + "\n        return String.join(parts, '\\n');\n    }\n\n" + sm.methods + "}\n";
 }
 
-// 1. Function
-List<copado__Function__c> existingFunctions = [
-    SELECT Id
-    FROM copado__Function__c
-    WHERE copado__API_Name__c = :FUNCTION_API_NAME
-    LIMIT 1
-];
-copado__Function__c fn = existingFunctions.isEmpty() ? new copado__Function__c() : existingFunctions[0];
-fn.Name = 'Story Verification';
-fn.copado__API_Name__c = FUNCTION_API_NAME;
-fn.copado__Type__c = 'Custom';
-fn.copado__Script__c = SCRIPT;
-fn.copado__Parameters__c = JSON.serializePretty(functionParams);
-fn.copado__Options__c = '[ ]';
-fn.copado__Image_Name__c = 'copado-multicloud-dx:v6';
-fn.copado__Worker_Size__c = 'S';
-fn.copado__Timeout__c = 600;
-fn.copado__Version__c = '1';
-upsert fn;
+const META_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <status>Active</status>
+</ApexClass>
+`;
 
-// 2. Job Template (Name must equal 'Story_Verification' - the completion logic matches on it)
-List<copado__JobTemplate__c> existingTemplates = [
-    SELECT Id
-    FROM copado__JobTemplate__c
-    WHERE copado__ApiName__c = :TEMPLATE_API_NAME OR Name = :TEMPLATE_NAME
-    LIMIT 1
-];
-copado__JobTemplate__c template = existingTemplates.isEmpty() ? new copado__JobTemplate__c() : existingTemplates[0];
-template.Name = TEMPLATE_NAME;
-template.copado__ApiName__c = TEMPLATE_API_NAME;
-upsert template;
-
-// 3. Job Step (one Function step)
-List<copado__JobStep__c> existingSteps = [
-    SELECT Id
-    FROM copado__JobStep__c
-    WHERE copado__JobTemplate__c = :template.Id AND copado__ApiName__c = :STEP_API_NAME
-    LIMIT 1
-];
-copado__JobStep__c step = existingSteps.isEmpty() ? new copado__JobStep__c() : existingSteps[0];
-step.Name = 'Story_Verification';
-step.copado__ApiName__c = STEP_API_NAME;
-step.copado__JobTemplate__c = template.Id;
-step.copado__Type__c = 'Function';
-step.copado__CustomType__c = 'Function';
-step.copado__Order__c = 1;
-step.copado__ConfigJson__c = JSON.serialize(
-    new Map<String, Object>{ 'functionName' => FUNCTION_API_NAME, 'parameters' => stepParams }
-);
-upsert step;
-
-System.debug('Story Verification records ready. Function=' + fn.Id + ' Template=' + template.Id + ' Step=' + step.Id);
+const SCRIPT_TEXT = `// Creates or updates the Copado Function, Job Template and Job Step of the Story Verification Gate. Safe to rerun.
+// Deploy the package first (it contains StoryVerificationSetup), then run:
+//   sf apex run --file scripts/create-copado-records.apex --target-org <alias>
+// or paste the next line into Execute Anonymous in the Developer Console.
+StoryVerificationSetup.run();
 `;
 
 function main() {
@@ -208,25 +247,27 @@ function main() {
         fail("function/index.js has a syntax error: " + e.message);
     }
 
-    const apex = HEAD + scriptBlock(source) + TAIL;
-    if (apex.length > MAX_APEX_CHARS) {
-        fail(
-            "generated Apex is " + apex.length + " characters, over the " + MAX_APEX_CHARS +
-                " limit; shorten function/index.js (its source is " + source.length + " characters)."
-        );
+    const apexClass = buildClass(source);
+    if (apexClass.length > MAX_CLASS_CHARS) {
+        fail("generated class is " + apexClass.length + " characters, over the " + MAX_CLASS_CHARS + " limit; shorten function/index.js.");
     }
+    const outputs = [
+        [CLASS_FILE, apexClass],
+        [META_FILE, META_XML],
+        [SCRIPT_FILE, SCRIPT_TEXT]
+    ];
 
     if (checkOnly) {
-        const current = fs.existsSync(TARGET) ? fs.readFileSync(TARGET, "utf8") : "";
-        if (current !== apex) {
-            fail("scripts/create-copado-records.apex is out of date; run: node scripts/build-create-records.js");
+        const stale = outputs.filter(([file, text]) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n") : "") !== text);
+        if (stale.length > 0) {
+            fail(stale.map(([file]) => path.relative(ROOT, file)).join(", ") + " out of date; run: node scripts/build-create-records.js");
         }
-        console.log("create-copado-records.apex is up to date (" + apex.length + " characters).");
+        console.log("Setup class and script are up to date (class " + apexClass.length + " characters).");
         return;
     }
-    fs.writeFileSync(TARGET, apex, "utf8");
+    outputs.forEach(([file, text]) => fs.writeFileSync(file, text, "utf8"));
     console.log(
-        "Wrote " + path.relative(ROOT, TARGET) + " (" + apex.length + " characters; script source " + source.length + " characters)."
+        "Wrote " + outputs.map(([file]) => path.relative(ROOT, file)).join(", ") + " (class " + apexClass.length + " characters; Function source " + source.length + " characters)."
     );
 }
 

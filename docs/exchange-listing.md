@@ -37,7 +37,7 @@ Emergency users can be given a bypass permission set. A verification becomes sta
 
 ## Install in brief
 1. Deploy `manifest/package.xml`.
-2. Run `scripts/create-copado-records.apex` once.
+2. Run `StoryVerificationSetup.run()` once (`scripts/create-copado-records.apex`).
 3. Add the Verify quick action to the User Story page layout.
 4. Assign the permission sets (User for everyone who verifies; Bypass plus User for emergency users).
 
