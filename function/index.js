@@ -318,9 +318,12 @@ function componentsOf(paths) {
 
 function makeIsCovered(names, hasLabels) {
     const list = Array.from(names);
-    return (c) => {
+    return (c, kind) => {
         const cl = c.toLowerCase();
-        if (names.has(cl) || list.some((m) => m.startsWith(cl + "."))) return true;
+        if (names.has(cl)) return true;
+        // An object file in a commit needs the object itself on the story: registered fields of it do not stand in for it
+        // (otherwise deleting the object's metadata record from the story goes unnoticed while its fields remain).
+        if (kind !== "objects" && list.some((m) => m.startsWith(cl + "."))) return true;
         return cl === "customlabels" && hasLabels;
     };
 }
@@ -659,7 +662,7 @@ function checkUnregistered(ctx) {
             subject: c.subject,
             auto: AUTO_PREFIXES.some((p) => c.subject.startsWith(p)),
             status: nc ? nc.status : null,
-            uncovered: comps.filter((x) => !ctx.isCovered(x.api)).map((x) => x.api)
+            uncovered: comps.filter((x) => !ctx.isCovered(x.api, x.kind)).map((x) => x.api)
         };
     });
     const lines = details.slice(0, 50).map((d) => {
@@ -720,7 +723,7 @@ function checkMetadata(ctx) {
     if (raw === null) raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
     const comps = componentsFromChanges(parseNameStatus(raw));
-    const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api));
+    const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api, c.kind));
     const uncovered = uncoveredComps.map((c) => c.api);
     const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";
     const lines = [];
