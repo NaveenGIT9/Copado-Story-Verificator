@@ -193,7 +193,7 @@ private class StoryVerificationMetadataControllerTest {
                 } catch (AuraHandledException e) {
                     message = e.getMessage();
                 }
-                System.assertEquals('Verify the story first, then register the missing metadata.', message, String.valueOf(status));
+                System.assertEquals('Verify the story first, then register the missing metadata.', message, 'status: ' + status);
             }
         }
     }
