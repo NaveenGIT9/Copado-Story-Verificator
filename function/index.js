@@ -210,10 +210,17 @@ const KIND_TYPES = {
     "objects/compactLayouts": "CompactLayout", "objects/businessProcesses": "BusinessProcess"
 };
 
+// Other types Copado records for the same folder (a report folder file is a ReportFolder, not a Report): also the same component.
+const KIND_ALIASES = {
+    matchingRules: ["MatchingRules"], dashboards: ["DashboardFolder"], reports: ["ReportFolder"], email: ["EmailFolder"], flows: ["FlowDefinition"]
+};
+
 // Is this registered item the changed component? The exact same name (ignoring case) and, when both sides have a type, the same type.
 function sameComponent(item, api, kind) {
     const type = KIND_TYPES[kind];
-    return item.name.toLowerCase() === api.toLowerCase() && (!type || !item.type || item.type.toLowerCase() === type.toLowerCase());
+    if (item.name.toLowerCase() !== api.toLowerCase()) return false;
+    if (!type || !item.type) return true;
+    return [type].concat(KIND_ALIASES[kind] || []).some((t) => t.toLowerCase() === item.type.toLowerCase());
 }
 
 const FOLDER_TYPES = {
