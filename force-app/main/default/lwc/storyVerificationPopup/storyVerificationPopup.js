@@ -393,7 +393,8 @@ export default class StoryVerificationPopup extends LightningElement {
                 actionClass: line.action === 'Delete' ? 'action-badge action-delete' : 'action-badge action-add',
                 path: line.path || '(no file path)',
                 exists: !!line.exists,
-                cssClass: line.exists ? 'preview-line preview-exists' : 'preview-line'
+                conflict: line.conflict || '',
+                cssClass: line.exists ? 'preview-line preview-exists' : line.conflict ? 'preview-line preview-conflict' : 'preview-line'
             });
         });
         return sections;
@@ -407,6 +408,9 @@ export default class StoryVerificationPopup extends LightningElement {
         let text = data.newCount + (data.newCount === 1 ? ' record' : ' records') + ' will be created.';
         if (data.existingCount) {
             text += ' ' + data.existingCount + ' already registered and skipped.';
+        }
+        if (data.conflictCount) {
+            text += ' ' + data.conflictCount + ' cannot be created: a record with the same unique ID but another type already exists.';
         }
         if (data.unsupported && data.unsupported.length) {
             text += ' Not offered (type not supported yet): ' + data.unsupported.join(', ') + '.';

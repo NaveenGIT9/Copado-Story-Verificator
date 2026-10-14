@@ -201,6 +201,17 @@
     text-decoration: line-through;
 }
 
+.preview-conflict .component-name {
+    text-decoration: line-through;
+}
+
+.preview-conflict-note {
+    color: #ba0517;
+    display: block;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
 .preview-note {
     color: #706e6b;
     font-style: italic;

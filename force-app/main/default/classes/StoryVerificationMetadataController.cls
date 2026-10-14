@@ -67,6 +67,10 @@ public with sharing class StoryVerificationMetadataController {
         public String path;
         @AuraEnabled
         public Boolean exists = false;
+        // Set when another record already owns this line's unique ID but is not the same type and name (for example its Type was
+        // edited): the line cannot be inserted next to it.
+        @AuraEnabled
+        public String conflict;
         public String uniqueId;
         public Datetime committedAt;
     }
@@ -82,6 +86,8 @@ public with sharing class StoryVerificationMetadataController {
         public Integer newCount = 0;
         @AuraEnabled
         public Integer existingCount = 0;
+        @AuraEnabled
+        public Integer conflictCount = 0;
         @AuraEnabled
         public List<String> unsupported = new List<String>();
     }
@@ -136,6 +142,8 @@ public with sharing class StoryVerificationMetadataController {
             for (Line line : preview.lines) {
                 if (line.exists) {
                     result.skipped++;
+                } else if (line.conflict != null) {
+                    result.errors.add(line.name + ': ' + line.conflict);
                 } else {
                     records.add(toRecord(storyId, preview.storyName, line));
                     toCreate.add(line);
@@ -195,26 +203,54 @@ public with sharing class StoryVerificationMetadataController {
             }
         }
 
-        Set<String> existing = new Set<String>();
+        // Already on the story = a record with the same TYPE and the same name (whatever its path). A record that only shares the
+        // unique ID (its type or name was edited) is not the same component: it is a conflict, and it blocks the insert.
+        Set<String> names = new Set<String>();
+        for (Line line : result.lines) {
+            names.add(line.name);
+        }
+        Id storyRecordId = story.id;
+        Set<String> registered = new Set<String>();
+        Map<String, copado__User_Story_Metadata__c> byUniqueId = new Map<String, copado__User_Story_Metadata__c>();
         if (!uniqueIds.isEmpty()) {
             for (copado__User_Story_Metadata__c record : [
-                SELECT copado__Unique_ID__c
+                SELECT copado__Unique_ID__c, copado__Type__c, copado__Metadata_API_Name__c, copado__User_Story__c
                 FROM copado__User_Story_Metadata__c
-                WHERE copado__Unique_ID__c IN :uniqueIds
+                WHERE
+                    (copado__User_Story__c = :storyRecordId AND copado__Metadata_API_Name__c IN :names)
+                    OR copado__Unique_ID__c IN :uniqueIds
                 WITH USER_MODE
             ]) {
-                existing.add(record.copado__Unique_ID__c);
+                if (record.copado__User_Story__c == storyRecordId) {
+                    registered.add(typeAndName(record.copado__Type__c, record.copado__Metadata_API_Name__c));
+                }
+                if (record.copado__Unique_ID__c != null) {
+                    byUniqueId.put(record.copado__Unique_ID__c, record);
+                }
             }
         }
         for (Line line : result.lines) {
-            line.exists = existing.contains(line.uniqueId);
+            line.exists = registered.contains(typeAndName(line.type, line.name));
             if (line.exists) {
                 result.existingCount++;
+            } else if (byUniqueId.containsKey(line.uniqueId)) {
+                copado__User_Story_Metadata__c other = byUniqueId.get(line.uniqueId);
+                line.conflict =
+                    'A record with this unique ID already exists as type ' +
+                    other.copado__Type__c +
+                    ' (' +
+                    other.copado__Metadata_API_Name__c +
+                    '). Correct or delete it first.';
+                result.conflictCount++;
             } else {
                 result.newCount++;
             }
         }
         return result;
+    }
+
+    private static String typeAndName(String type, String name) {
+        return ((String.isBlank(type) ? '' : type.trim()) + '|' + (String.isBlank(name) ? '' : name.trim())).toLowerCase();
     }
 
     private static Story loadStory(Id storyId) {

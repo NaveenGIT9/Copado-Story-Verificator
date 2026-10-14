@@ -1086,6 +1086,38 @@ describe('c-story-verification-popup', () => {
             expect(byId(element, 'steps')).not.toBeNull();
         });
 
+        it('shows a clash with a record of another type and does not offer to insert it', async () => {
+            previewMetadata.mockResolvedValue({
+                ...PREVIEW,
+                newCount: 0,
+                existingCount: 0,
+                conflictCount: 1,
+                lines: [
+                    {
+                        typeLabel: 'Custom Object',
+                        type: 'CustomObject',
+                        name: 'AssociatedLocation',
+                        action: 'Add',
+                        path: 'force-app/main/default/objects/AssociatedLocation/AssociatedLocation.object-meta.xml',
+                        exists: false,
+                        conflict: 'A record with this unique ID already exists as type ApexTrigger (AssociatedLocation). Correct or delete it first.'
+                    }
+                ]
+            });
+            const element = await mountSelect();
+            groupBox(element, 'classes').click();
+            await tick();
+            byId(element, 'create-selected').click();
+            await flush();
+
+            expect(byId(element, 'preview-conflict').textContent).toContain('already exists as type ApexTrigger');
+            expect(element.shadowRoot.querySelector('[data-id="preview-exists"]')).toBeNull();
+            expect(byId(element, 'preview-summary').textContent).toBe(
+                '0 records will be created. 1 cannot be created: a record with the same unique ID but another type already exists.'
+            );
+            expect(byId(element, 'insert').disabled).toBe(true);
+        });
+
         it('cannot insert when every ticked component already exists', async () => {
             previewMetadata.mockResolvedValue({
                 ...PREVIEW,
