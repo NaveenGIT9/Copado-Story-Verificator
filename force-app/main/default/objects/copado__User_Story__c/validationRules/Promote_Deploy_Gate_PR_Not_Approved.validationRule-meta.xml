@@ -6,6 +6,7 @@
     <errorConditionFormula>AND(
   NOT($Permission.Bypass_Verification_Gate),
   AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
+  NOT(Verification_No_Commits__c),
   NOT(copado__Pull_Requests_Approved__c)
 )</errorConditionFormula>
     <errorMessage>The pull request is not approved yet. Pull Requests Approved must be checked before ticking Promote and Deploy.</errorMessage>

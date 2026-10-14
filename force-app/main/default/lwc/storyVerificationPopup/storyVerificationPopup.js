@@ -355,12 +355,13 @@ export default class StoryVerificationPopup extends LightningElement {
         }
         ungrouped.forEach(({ finding, index }) => {
             const isIssue = finding.severity === 'issue';
+            const isWarn = finding.severity === 'warn';
             list.push({
                 key: 'finding-' + index,
                 isSpinner: false,
-                iconName: isIssue ? 'utility:close' : 'utility:check',
-                iconVariant: isIssue ? 'error' : 'success',
-                altText: isIssue ? 'Issue' : 'OK',
+                iconName: isIssue ? 'utility:close' : isWarn ? 'utility:warning' : 'utility:check',
+                iconVariant: isIssue ? 'error' : isWarn ? 'warning' : 'success',
+                altText: isIssue ? 'Issue' : isWarn ? 'Warning' : 'OK',
                 text: finding.message,
                 textClass: isIssue ? 'slds-text-color_error' : ''
             });
@@ -418,7 +419,8 @@ export default class StoryVerificationPopup extends LightningElement {
             return { ...row, iconName: 'utility:clock', iconVariant: undefined, altText: 'Pending', text: title + ': pending' };
         }
         const issueCount = findings.filter((f) => f.severity === 'issue').length;
-        const visual = issueCount > 0 ? CHECK_VISUALS.fail : CHECK_VISUALS.pass;
+        const warnCount = findings.filter((f) => f.severity === 'warn').length;
+        const visual = issueCount > 0 ? CHECK_VISUALS.fail : warnCount > 0 ? CHECK_VISUALS.warn : CHECK_VISUALS.pass;
         let text;
         if (findings.length === 1) {
             const message = String(findings[0].message || '');

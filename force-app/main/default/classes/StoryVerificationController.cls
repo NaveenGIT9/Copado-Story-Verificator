@@ -109,6 +109,8 @@ public with sharing class StoryVerificationController {
     private without sharing class JobReader {
         // Set by readChecks from the same stored JSON (no extra query).
         public Integer scriptSeconds;
+        // The findings as the Function finished them (it may turn the "No commits" finding into a warning); empty when none.
+        public List<Finding> finalFindings = new List<Finding>();
 
         /**
          * The commit base address of the Git repository of the story's pipeline, so the popup can link each commit.
@@ -233,6 +235,8 @@ public with sharing class StoryVerificationController {
                 return new List<CheckResult>();
             }
             scriptSeconds = parseScriptSeconds(rows[0].Verification_Checks__c);
+            Map<String, Object> stored = parseMap(rows[0].Verification_Checks__c);
+            finalFindings = stored == null ? new List<Finding>() : parseFindings(stored.get('salesforceFindings'));
             return parseChecks(rows[0].Verification_Checks__c);
         }
 
@@ -306,7 +310,7 @@ public with sharing class StoryVerificationController {
             snapshot.commitBaseUrl = reader.readCommitBaseUrl(story.Id);
         }
         JobInfo info = reader.read(story.Id, snapshot.runId);
-        snapshot.findings = info.findings;
+        snapshot.findings = snapshot.isFinished && !reader.finalFindings.isEmpty() ? reader.finalFindings : info.findings;
         snapshot.jobStatus = info.status;
         snapshot.jobError = info.error;
         snapshot.progressText = info.progressText;
@@ -345,6 +349,7 @@ public with sharing class StoryVerificationController {
         return lines;
     }
 
+    @TestVisible
     private static List<Finding> parseFindings(Object raw) {
         List<Finding> findings = new List<Finding>();
         if (!(raw instanceof List<Object>)) {
@@ -356,7 +361,8 @@ public with sharing class StoryVerificationController {
             }
             Map<String, Object> map1 = (Map<String, Object>) item;
             Finding finding = new Finding();
-            finding.severity = 'issue' == String.valueOf(map1.get('severity')) ? 'issue' : 'info';
+            String severityText = String.valueOf(map1.get('severity'));
+            finding.severity = 'issue' == severityText || 'warn' == severityText ? severityText : 'info';
             finding.message = map1.get('message') == null ? '' : String.valueOf(map1.get('message'));
             String groupText = map1.get('group') == null ? '' : String.valueOf(map1.get('group')).trim();
             finding.groupKey = String.isBlank(groupText) ? null : groupText;
@@ -365,7 +371,6 @@ public with sharing class StoryVerificationController {
         return findings;
     }
 
-    // How long the Function script ran (seconds), from the stored result; null when absent or unreadable.
     // The address a commit id is appended to: Copado's own Commit Base URL when it is an https address, otherwise built from a
     // GitHub repository address. Anything else gives null (no links).
     @TestVisible
@@ -387,6 +392,7 @@ public with sharing class StoryVerificationController {
         return (repo.endsWith('/') ? repo : repo + '/') + 'commit/';
     }
 
+    // How long the Function script ran (seconds), from the stored result; null when absent or unreadable.
     @TestVisible
     private static Integer parseScriptSeconds(String raw) {
         Map<String, Object> parsed = parseMap(raw);

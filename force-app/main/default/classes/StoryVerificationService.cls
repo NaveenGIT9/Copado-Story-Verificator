@@ -45,6 +45,11 @@ public with sharing class StoryVerificationService {
     private static final String FEATURE_PREFIX = 'feature/';
     private static final String SEVERITY_ISSUE = 'issue';
     private static final String SEVERITY_INFO = 'info';
+    private static final String SEVERITY_WARN = 'warn';
+    @TestVisible
+    private static final String NO_COMMITS_FINDING = 'No commits';
+    @TestVisible
+    private static final String NOTHING_TO_PROMOTE = 'Nothing to promote';
     private static final Integer MAX_CHECKS_LENGTH = 100000;
     // Size guards for the DataJson sent to the Function: each list is cut to the first cap that makes the whole
     // DataJson fit (the lists travel as JSON text inside strings, which doubles the quotes).
@@ -99,6 +104,8 @@ public with sharing class StoryVerificationService {
         // lower-case registered name -> its Copado metadata type (ApexClass, CustomField ...), so the popup can say what each is.
         public Map<String, String> metadataTypes = new Map<String, String>();
         public Boolean hasCustomLabelMetadata = false;
+        // True when the story has no commit records and no metadata records (only deployment steps, or nothing at all).
+        public Boolean noWork = false;
         public Boolean truncated = false;
 
         /** Cuts every list to at most cap entries and remembers that something was dropped. */
@@ -191,7 +198,8 @@ public with sharing class StoryVerificationService {
             Verification_Date__c = startedAt,
             Verification_Run_Id__c = runId,
             Verification_Details__c = null,
-            Verification_Checks__c = null
+            Verification_Checks__c = null,
+            Verification_No_Commits__c = inputs.noWork
         );
 
         Map<String, Object> data = buildData(story, runId, inputs, findings);
@@ -335,6 +343,7 @@ public with sharing class StoryVerificationService {
         if (metadataRows >= METADATA_QUERY_LIMIT) {
             inputs.truncated = true;
         }
+        inputs.noWork = commitRows == 0 && metadataRows == 0;
 
         if (pipelineId != null) {
             Set<String> seenBranches = new Set<String>();
@@ -406,15 +415,19 @@ public with sharing class StoryVerificationService {
             WHERE copado__User_Story__c = :story.Id
         ];
 
-        if (commitCount == 0) {
-            findings.add(finding(SEVERITY_ISSUE, noCommitsMessage()));
-        }
-        if (metadataCount == 0) {
-            findings.add(finding(SEVERITY_ISSUE, 'No metadata selected on this story.'));
+        // A story with no commits and no metadata (only deployment steps, or nothing) has nothing to check commit by commit: it
+        // gets one "No commits" pull request finding instead of the two issues.
+        if (!inputs.noWork) {
+            if (commitCount == 0) {
+                findings.add(finding(SEVERITY_ISSUE, noCommitsMessage()));
+            }
+            if (metadataCount == 0) {
+                findings.add(finding(SEVERITY_ISSUE, 'No metadata selected on this story.'));
+            }
         }
         addParentFindings(story, inputs, findings);
         addPendingTestsFinding(story, findings);
-        addPullRequestFinding(story, findings);
+        addPullRequestFinding(story, inputs.noWork, findings);
         findings.add(
             finding(SEVERITY_INFO, commitSummary(commitCount, metadataCount))
         );
@@ -460,7 +473,25 @@ public with sharing class StoryVerificationService {
         findings.add(finding(SEVERITY_INFO, 'None pending.', GROUP_PENDING_TESTS));
     }
 
-    private static void addPullRequestFinding(copado__User_Story__c story, List<Map<String, String>> findings) {
+    // No commits and no metadata: no pull request is expected. With deployment steps the finding says "No commits"; with nothing
+    // at all it warns "Nothing to promote". The Function knows whether the feature branch exists and adjusts the finding (a warning
+    // when the branch exists, a pass when it does not); the markers noCommits and nothing tell it which finding to adjust.
+    private static void addPullRequestFinding(copado__User_Story__c story, Boolean noWork, List<Map<String, String>> findings) {
+        if (noWork) {
+            Integer deploymentSteps = [SELECT COUNT() FROM copado__Deployment_Task__c WHERE copado__User_Story__c = :story.Id];
+            Boolean nothing = deploymentSteps == 0;
+            Map<String, String> noCommits = finding(
+                nothing ? SEVERITY_WARN : SEVERITY_INFO,
+                nothing ? NOTHING_TO_PROMOTE : NO_COMMITS_FINDING,
+                GROUP_PULL_REQUEST
+            );
+            noCommits.put('noCommits', 'true');
+            if (nothing) {
+                noCommits.put('nothing', 'true');
+            }
+            findings.add(noCommits);
+            return;
+        }
         if (isPullRequestApproved(story.copado__Pull_Requests_Approved__c)) {
             findings.add(finding(SEVERITY_INFO, 'Approved.', GROUP_PULL_REQUEST));
             return;
@@ -905,9 +936,10 @@ public with sharing class StoryVerificationService {
         for (Object o : (List<Object>) raw) {
             if (o instanceof Map<String, Object>) {
                 Map<String, Object> f = (Map<String, Object>) o;
-                Boolean isIssue = 'issue' == String.valueOf(f.get('severity'));
+                String severity = String.valueOf(f.get('severity'));
+                Boolean isIssue = 'issue' == severity;
                 hasIssue = hasIssue || isIssue;
-                lines.add((isIssue ? 'ISSUE: ' : 'INFO: ') + String.valueOf(f.get('message')));
+                lines.add((isIssue ? 'ISSUE: ' : 'warn' == severity ? 'WARN: ' : 'INFO: ') + String.valueOf(f.get('message')));
             }
         }
         if (!hasIssue) {

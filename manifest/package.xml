@@ -20,6 +20,7 @@
         <members>copado__User_Story__c.Verification_Checks__c</members>
         <members>copado__User_Story__c.Verification_Date__c</members>
         <members>copado__User_Story__c.Verification_Details__c</members>
+        <members>copado__User_Story__c.Verification_No_Commits__c</members>
         <members>copado__User_Story__c.Verification_Run_Id__c</members>
         <members>copado__User_Story__c.Verification_Status__c</members>
         <name>CustomField</name>

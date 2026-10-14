@@ -112,6 +112,38 @@ private class StoryVerificationServiceTest {
         );
     }
 
+    private static void addCommitOnly(Id storyId) {
+        copado__Org__c credential = new copado__Org__c(Name = 'SV credential 2');
+        insert credential;
+        copado__Git_Org_Commit__c snapshot = new copado__Git_Org_Commit__c(
+            copado__Org__c = credential.Id,
+            copado__Status__c = 'Complete',
+            copado__Commit_Id__c = COMMIT_SHA
+        );
+        insert snapshot;
+        insert new copado__User_Story_Commit__c(Name = 'SV commit 2', copado__User_Story__c = storyId, copado__Snapshot_Commit__c = snapshot.Id);
+    }
+
+    private static void addMetadataOnly(Id storyId) {
+        insert new copado__User_Story_Metadata__c(
+            Name = 'SV metadata 2',
+            copado__User_Story__c = storyId,
+            copado__Metadata_API_Name__c = 'Account',
+            copado__Type__c = 'CustomObject'
+        );
+    }
+
+    private static Map<String, Object> pullRequestFinding(copado.CreateExecution.Request req) {
+        Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(req.dataJson);
+        for (Object o : (List<Object>) data.get('findings')) {
+            Map<String, Object> f = (Map<String, Object>) o;
+            if ('pull-request' == f.get('group')) {
+                return f;
+            }
+        }
+        return null;
+    }
+
     private static List<String> findingLines(copado.CreateExecution.Request req) {
         Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(req.dataJson);
         List<String> lines = new List<String>();
@@ -373,24 +405,85 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
-    static void startReportsMissingCommitsAndMetadata() {
-        StoryVerificationService.pullRequestApprovedOverride = true; // Copado recomputes the real field, so the test sets the hook
+    static void startForAStoryWithNothingOnItWarnsNothingToPromote() {
         User admin = newAdmin();
         System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
             CapturingStarter stub = new CapturingStarter();
             StoryVerificationService.starter = stub;
 
-            StoryVerificationService.startVerification(storyByTitle(STORY_TITLE).Id);
+            StoryVerificationService.startVerification(story.Id);
 
             List<String> lines = findingLines(stub.requests[0]);
-            System.assertEquals(7, lines.size(), String.valueOf(lines));
-            System.assertEquals('issue|No registered commits.', lines[0]);
-            System.assertEquals('issue|No metadata selected on this story.', lines[1]);
-            System.assertEquals(NO_PARENTS_FINDING, lines[2]);
-            System.assertEquals('info|None pending.', lines[3]);
-            System.assertEquals('info|Approved.', lines[4]);
-            System.assertEquals('info|Registered commits: 0, metadata items: 0.', lines[5]);
-            System.assertEquals(NO_PIPELINE_FINDING, lines[6]);
+            System.assertEquals(5, lines.size(), String.valueOf(lines));
+            System.assertEquals(NO_PARENTS_FINDING, lines[0]);
+            System.assertEquals('info|None pending.', lines[1]);
+            System.assertEquals('warn|Nothing to promote', lines[2]);
+            System.assertEquals('info|Registered commits: 0, metadata items: 0.', lines[3]);
+            System.assertEquals(NO_PIPELINE_FINDING, lines[4]);
+            Map<String, Object> pr = pullRequestFinding(stub.requests[0]);
+            System.assertEquals('true', pr.get('noCommits'), 'The Function needs the marker to adjust this finding');
+            System.assertEquals('true', pr.get('nothing'));
+            System.assertEquals(true, [SELECT Verification_No_Commits__c FROM copado__User_Story__c WHERE Id = :story.Id].Verification_No_Commits__c);
+        }
+    }
+
+    @IsTest
+    static void startForAStoryWithOnlyDeploymentStepsSaysNoCommits() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            insert new copado__Deployment_Task__c(copado__User_Story__c = story.Id, copado__Type__c = 'Manual Task');
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(lines.contains('info|No commits'), String.valueOf(lines));
+            System.assert(!lines.contains('issue|No registered commits.'), 'No commit issue for a deployment-only story');
+            System.assert(!lines.contains('issue|No metadata selected on this story.'), 'No metadata issue for a deployment-only story');
+            Map<String, Object> pr = pullRequestFinding(stub.requests[0]);
+            System.assertEquals('true', pr.get('noCommits'));
+            System.assertEquals(null, pr.get('nothing'), 'A story with deployment steps is not "nothing"');
+            System.assertEquals(true, [SELECT Verification_No_Commits__c FROM copado__User_Story__c WHERE Id = :story.Id].Verification_No_Commits__c);
+        }
+    }
+
+    @IsTest
+    static void startKeepsTheIssuesAndThePullRequestCheckWhenThereIsAnyWork() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            setReadiness(story.Id, 0, false);
+            addMetadataOnly(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(lines.contains('issue|No registered commits.'), String.valueOf(lines));
+            System.assert(lines.contains('issue|Not approved yet.'), 'Metadata on the story means a pull request is expected');
+            System.assertEquals(null, pullRequestFinding(stub.requests[0]).get('noCommits'));
+            System.assertEquals(false, [SELECT Verification_No_Commits__c FROM copado__User_Story__c WHERE Id = :story.Id].Verification_No_Commits__c);
+        }
+    }
+
+    @IsTest
+    static void startKeepsTheMetadataIssueForACommitWithoutMetadata() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            addCommitOnly(story.Id);
+            CapturingStarter stub = new CapturingStarter();
+            StoryVerificationService.starter = stub;
+
+            StoryVerificationService.startVerification(story.Id);
+
+            List<String> lines = findingLines(stub.requests[0]);
+            System.assert(lines.contains('issue|No metadata selected on this story.'), String.valueOf(lines));
+            System.assertEquals(false, [SELECT Verification_No_Commits__c FROM copado__User_Story__c WHERE Id = :story.Id].Verification_No_Commits__c);
         }
     }
 

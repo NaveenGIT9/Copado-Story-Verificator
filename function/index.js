@@ -286,8 +286,8 @@ function readConfig() {
                   severity: f.severity === "issue" || f.severity === "warn" ? f.severity : "info",
                   message: str(f.message),
                   group: str(f.group),
-                  noCommits: f.noCommits === true,
-                  nothing: f.nothing === true
+                  noCommits: f.noCommits === true || f.noCommits === "true",
+                  nothing: f.nothing === true || f.nothing === "true"
               }
             : { severity: "info", message: str(f), group: "", noCommits: false, nothing: false }
     );
@@ -695,7 +695,7 @@ function buildResult(cfg, status, notes, checks, cap) {
         const rows = (ch.rows || []).slice(0, cap).map((r) => (r.t === "group" ? Object.assign({}, r, { groups: capGroups(r.groups, cap * 5) }) : r));
         return { id: ch.id, title: ch.title, status: ch.status, summary: clip(ch.summary), lines: lines, rows: rows };
     });
-    const findingLines = cfg.findings.map((f) => (f.severity === "issue" ? "ISSUE: " : "INFO: ") + clip(f.message));
+    const findingLines = cfg.findings.map((f) => (f.severity === "issue" ? "ISSUE: " : f.severity === "warn" ? "WARN: " : "INFO: ") + clip(f.message));
     const noteLines = notes.map((n) => "NOTE: " + clip(n));
     const text = status === "Failed" ? noteLines.concat(findingLines) : findingLines.concat(noteLines);
     cut.forEach((ch) => {

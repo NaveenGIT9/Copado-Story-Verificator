@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Verification_No_Commits__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Set by the latest story verification: true when the story had no commits and no metadata (only deployment steps, or nothing), so no pull request is expected. The pull request gate rules skip such stories.</description>
+    <externalId>false</externalId>
+    <label>Verification No Commits</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

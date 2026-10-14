@@ -287,6 +287,45 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void parseFindingsKeepsWarningsAndGroups() {
+        List<StoryVerificationController.Finding> findings = StoryVerificationController.parseFindings(
+            new List<Object>{
+                new Map<String, Object>{ 'severity' => 'warn', 'message' => 'No commits', 'group' => 'pull-request', 'noCommits' => 'true' },
+                new Map<String, Object>{ 'severity' => 'issue', 'message' => 'x' },
+                new Map<String, Object>{ 'severity' => 'weird', 'message' => 'y' }
+            }
+        );
+        System.assertEquals('warn', findings[0].severity);
+        System.assertEquals('pull-request', findings[0].groupKey);
+        System.assertEquals('issue', findings[1].severity);
+        System.assertEquals('info', findings[2].severity, 'An unknown severity reads as info');
+    }
+
+    @IsTest
+    static void aFinishedRunShowsTheFindingsTheFunctionFinishedWith() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Clean', 'run-w', 'WARN: No commits');
+            update new copado__User_Story__c(
+                Id = storyId,
+                Verification_Checks__c = '{"checks":[{"id":"metadata-coverage","status":"pass","summary":"ok"}],' +
+                    '"salesforceFindings":[{"severity":"warn","message":"No commits","group":"pull-request","noCommits":true}]}'
+            );
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.getProgress(storyId, 'run-w');
+
+            System.assertEquals(1, snapshot.findings.size(), 'The stored findings replace the ones sent at the start');
+            System.assertEquals('warn', snapshot.findings[0].severity);
+            System.assertEquals('No commits', snapshot.findings[0].message);
+            System.assertEquals('pull-request', snapshot.findings[0].groupKey);
+
+            setState(storyId, 'Running', 'run-w2', null);
+            System.assertEquals(0, StoryVerificationController.getProgress(storyId, 'run-w2').findings.size(), 'Only a finished run uses them');
+        }
+    }
+
+    @IsTest
     static void getProgressParsesTheStoredChecks() {
         User user = newUser('System Administrator', true);
         System.runAs(user) {

@@ -11,7 +11,7 @@ A user clicks **Verify** on the story. A popup runs six checks live, shows each 
 | **Unregistered commits** | Every commit on the feature branch (compared with the base branch) is registered in Copado. A commit made outside Copado by the same person, on components that are registered, is only a **warning**. A commit by someone else, or on components that are not registered, **fails**. | Copado Function (git) |
 | **Metadata coverage** | Every component changed in git is registered on the story, so it will actually be deployed. | Copado Function (git) |
 | **Org / environment branch merge** | No pipeline environment branch (for example `dev1`, `uat`) was merged into the feature branch. | Copado Function (git) |
-| **Pull request approval** | The story's *Pull Requests Approved* box is ticked. | Apex |
+| **Pull request approval** | The story's *Pull Requests Approved* box is ticked. Stories with no commits and no metadata are not asked for one (see below). | Apex |
 | **Pending tests** | *Pending Tests* is 0. | Apex |
 | **Parent story dependencies** | Parent stories (through the base branch or a dependency) are promoted ahead of this story. | Apex |
 
@@ -27,6 +27,20 @@ Verdicts:
 
 A **Clean** verification becomes stale when a newer commit appears. The gate then asks for a new Verify.
 
+### Stories with no commits
+
+A story that has **no commit records and no metadata records** (only deployment steps, or nothing at all) has no code to review, so no pull request is expected. The Function asks Git whether the feature branch (`feature/<story>`) exists and the rows follow this table:
+
+| Commits or metadata on the story | Feature branch in Git | Result |
+|---|---|---|
+| none, but there are deployment steps | missing | **Pull Request Approval : No commits** (green). The three git rows show "No feature branch" (green). The story can be promoted. |
+| none, no deployment steps either | missing | **Pull Request Approval : Nothing to promote** (amber warning). It does not block. |
+| none | exists | **Pull Request Approval : No commits** (amber warning, even when the box is ticked, because a branch should not exist without commits). It does not block. |
+| yes | **missing** | **Blocks.** Unregistered Commits shows `No feature branch (feature/US-x not found in Git)`. The other git rows are "Not run". The verdict is Issues. |
+| yes | exists | The normal checks. |
+
+The two *PR Not Approved* validation rules follow the same idea. Each verification stores whether the story had no commits in the field `Verification_No_Commits__c`, and the rules do not ask for an approved pull request when it is true. Stories verified before this field existed keep the old behaviour until they are verified again.
+
 ## How it works
 
 1. **Verify** (quick action on the User Story) opens the popup, which shows what will be checked. Clicking **Verify** in it starts the run.
@@ -40,13 +54,13 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 ## What is in the package
 
-`manifest/package.xml` lists 32 components (API 63.0):
+`manifest/package.xml` lists 33 components (API 63.0):
 
 | Type | Components |
 |---|---|
 | Apex classes (9) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), and four test classes |
 | Lightning component | `storyVerificationPopup` |
-| Fields (5, on `copado__User_Story__c`) | `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c` |
+| Fields (6, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c` |
 | Custom permission | `Bypass_Verification_Gate` |
 | Flow | `Story_Verification_Completion` |
 | Permission sets (2) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass` |

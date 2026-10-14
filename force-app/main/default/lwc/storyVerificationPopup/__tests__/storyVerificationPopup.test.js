@@ -862,6 +862,28 @@ describe('c-story-verification-popup', () => {
         expect(keys).toContain('Org/Environment Branch Merge');
     });
 
+    it('shows a warning icon, not a failure, for a "No commits" pull request finding', async () => {
+        const element = await mountFinished(CHECKS, {
+            findings: [{ severity: 'warn', message: 'No commits', groupKey: 'pull-request' }]
+        });
+
+        const row = stepRow(element, 'Pull Request Approval');
+        expect(row.querySelector('[data-id="step-text"]').textContent).toBe('Pull Request Approval: No commits');
+        expect(row.querySelector('lightning-icon').iconName).toBe('utility:warning');
+        expect(row.querySelector('lightning-icon').variant).toBe('warning');
+        expect(row.querySelector('[data-id="step-text"]').className).not.toContain('slds-text-color_error');
+    });
+
+    it('shows a green tick for a "No commits" pull request finding that is only information', async () => {
+        const element = await mountFinished(CHECKS, {
+            findings: [{ severity: 'info', message: 'No commits', groupKey: 'pull-request' }]
+        });
+
+        const row = stepRow(element, 'Pull Request Approval');
+        expect(row.querySelector('[data-id="step-text"]').textContent).toBe('Pull Request Approval: No commits');
+        expect(row.querySelector('lightning-icon').iconName).toBe('utility:check');
+    });
+
     it('puts the not-registered component names on their own line under the headline, in their own style', async () => {
         const checks = [
             {
