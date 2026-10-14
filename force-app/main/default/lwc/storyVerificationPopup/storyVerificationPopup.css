@@ -73,16 +73,16 @@
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 
-/* Metadata type heading (purple) with its components (dark blue) underneath. */
+/* Metadata type heading (brownish orange) with its components (teal) underneath. */
 .group-items li.type-heading {
-    color: #5a1ba9;
+    color: #b45f06;
     font-family: inherit;
     font-weight: 700;
     margin-top: 0.4rem;
 }
 
 .group-items li.component-name {
-    color: #0b5cab;
+    color: #0a7d78;
     margin-left: 0.9rem;
 }
 
