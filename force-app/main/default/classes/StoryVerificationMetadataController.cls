@@ -259,8 +259,8 @@ public with sharing class StoryVerificationMetadataController {
         return result;
     }
 
-    private static String suffixed(String uniqueId, Integer number) {
-        return number == 0 ? uniqueId : uniqueId + '-' + number;
+    private static String suffixed(String uniqueId, Integer suffixNumber) {
+        return suffixNumber == 0 ? uniqueId : uniqueId + '-' + suffixNumber;
     }
 
     // The unique ID itself, or the first of -1, -2 ... that no record (or earlier line) uses; null when all are taken.
