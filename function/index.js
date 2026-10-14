@@ -557,7 +557,7 @@ function checkUnregistered(ctx) {
         .filter((p) => p[0].trim().length >= 40)
         .map((p) => ({ sha: p[0].trim(), name: str(p[1]), email: str(p[2]).toLowerCase(), committer: str(p[3]).toLowerCase(), subject: str(p[4]) }));
     if (extra.length === 0) {
-        if (cfg.noWork) return mk(id, "warn", "No commits beyond " + ctx.base + " (the feature branch exists)", []);
+        if (cfg.noWork) return mk(id, "warn", "No commits on the story, but the feature branch exists in Git", []);
         return mk(id, "fail", "No commits beyond " + ctx.base + " " + DASH + " nothing to promote", []);
     }
     const regSet = new Set(cfg.registered);
