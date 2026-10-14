@@ -752,6 +752,43 @@ describe('c-story-verification-popup', () => {
         expect(entries.map((li) => li.className)).toEqual(['type-heading', 'component-name', 'component-name', 'type-heading', 'component-name']);
     });
 
+    it('opens the not-registered group by default, in an amber label, and lets the user close it', async () => {
+        const checks = [
+            {
+                id: 'metadata-coverage',
+                title: 'Metadata coverage',
+                status: 'fail',
+                summary: '2 of 3 changed components not registered',
+                lines: [],
+                rowsJson: JSON.stringify([
+                    {
+                        t: 'group',
+                        label: 'Not registered',
+                        tone: 'warn',
+                        defaultOpen: true,
+                        count: 2,
+                        groups: [
+                            { type: 'Apex Class', items: ['ChatterUtil'] },
+                            { type: 'Duplicate Rule', items: ['Contact.Contact_Duplicates_Lead'] }
+                        ]
+                    }
+                ])
+            }
+        ];
+        const element = await mountFinished(checks);
+        const row = () => stepRow(element, 'Metadata Coverage');
+
+        expect(row().querySelector('[data-id="group-label"]').textContent).toBe('Not registered: 2');
+        expect(row().querySelector('[data-id="group-label"]').classList.contains('tone-warn')).toBe(true);
+        expect(row().querySelector('[data-id="group-toggle"]').getAttribute('aria-expanded')).toBe('true');
+        const listed = Array.from(row().querySelectorAll('[data-id="group-items"] li')).map((li) => li.textContent);
+        expect(listed).toEqual(['Apex Class', 'ChatterUtil', 'Duplicate Rule', 'Contact.Contact_Duplicates_Lead']);
+
+        row().querySelector('[data-id="group-toggle"]').click();
+        await tick();
+        expect(row().querySelector('[data-id="group-items"]')).toBeNull();
+    });
+
     it('falls back to the plain lines when the structured rows are missing or unreadable', async () => {
         const checks = [
             { id: 'metadata-coverage', title: 'Metadata Coverage', status: 'fail', summary: 's', lines: ['line one', 'line two'], rowsJson: 'not json' }

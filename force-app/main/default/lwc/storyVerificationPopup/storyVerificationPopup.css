@@ -94,6 +94,12 @@
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 
+/* The "Not registered" label: amber, because those components will not deploy. */
+.tone-warn {
+    color: #d48806;
+    font-weight: 600;
+}
+
 /* Metadata type heading (brownish orange) with its components (teal) underneath. */
 .group-items li.type-heading {
     color: #b45f06;

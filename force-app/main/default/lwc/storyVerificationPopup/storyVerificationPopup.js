@@ -238,7 +238,9 @@ export default class StoryVerificationPopup extends LightningElement {
 
     handleGroupToggle(event) {
         const key = event.currentTarget.dataset.groupKey;
-        this.openGroups = { ...this.openGroups, [key]: !this.openGroups[key] };
+        // The button says whether the list is open now (a group can start open), so flip that.
+        const open = event.currentTarget.getAttribute('aria-expanded') === 'true';
+        this.openGroups = { ...this.openGroups, [key]: !open };
     }
 
     // ---- view state ----
@@ -494,7 +496,8 @@ export default class StoryVerificationPopup extends LightningElement {
             return { key, isDanger: true, cssClass: 'danger-line', text: String(row.text || '') };
         }
         if (row.t === 'group') {
-            const open = !!this.openGroups[key];
+            // Open or closed: what the user last chose, else the row's own default (the "Not registered" list starts open).
+            const open = this.openGroups[key] !== undefined ? this.openGroups[key] : !!row.defaultOpen;
             // The list is a flat sequence of entries: a heading per metadata type, then that type's components one per line.
             // Results stored without types (a flat "items" list) show just the components.
             const entries = [];
@@ -514,7 +517,8 @@ export default class StoryVerificationPopup extends LightningElement {
             return {
                 key,
                 isGroup: true,
-                cssClass: 'group-line',
+                cssClass: row.tone === 'warn' ? '' : 'group-line',
+                labelClass: row.tone === 'warn' ? 'tone-warn' : '',
                 groupKey: key,
                 label: (row.label || 'Components') + ': ' + (row.count === undefined ? count : row.count),
                 open,

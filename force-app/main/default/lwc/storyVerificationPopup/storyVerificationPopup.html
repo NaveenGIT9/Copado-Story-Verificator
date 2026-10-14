@@ -102,7 +102,7 @@
                                                     alternative-text={checkLine.toggleTitle}
                                                     class="slds-m-right_xx-small"
                                                 ></lightning-icon>
-                                                <span data-id="group-label">{checkLine.label}</span>
+                                                <span class={checkLine.labelClass} data-id="group-label">{checkLine.label}</span>
                                             </button>
                                             <template lwc:if={checkLine.open}>
                                                 <ul class="group-items" data-id="group-items">

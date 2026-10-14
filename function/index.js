@@ -172,6 +172,18 @@ function typeLabel(type) {
     return t ? t.replace(/([a-z])([A-Z])/g, "$1 $2") : "Other";
 }
 
+// [{ name, label }] -> groups by metadata type, sorted by type (untyped "Other" last) and by name.
+function groupByType(items) {
+    const byType = new Map();
+    items.forEach((it) => {
+        if (!byType.has(it.label)) byType.set(it.label, []);
+        byType.get(it.label).push(it.name);
+    });
+    return Array.from(byType.entries())
+        .sort((x, y) => (x[0] === "Other" ? 1 : y[0] === "Other" ? -1 : x[0].localeCompare(y[0])))
+        .map((e) => ({ type: e[0], items: e[1].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())) }));
+}
+
 // Keeps at most "limit" names over all groups (in order) and drops groups that end up empty.
 function capGroups(groups, limit) {
     let left = limit;
@@ -198,19 +210,28 @@ function parseApiName(filePath) {
     return parts[parts.length - 1].replace(/-meta\.xml$/, "").replace(/\.[^.]+$/, "") || null;
 }
 
-// The same component as parseApiName, plus a display name that keeps the file extension (ChatterUtil.cls, Account.Foo__c.field).
+// The folder a file lives in tells its metadata type; anything not listed is shown by its folder name ("quickActions" -> "Quick Actions").
+const FOLDER_TYPES = {
+    classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
+    flows: "Flow", permissionsets: "Permission Set", duplicateRules: "Duplicate Rule", fields: "Custom Field", validationRules: "Validation Rule"
+};
+
+function folderType(folder) {
+    const t = str(folder).replace(/([a-z])([A-Z])/g, "$1 $2");
+    return FOLDER_TYPES[folder] || t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// The same component as parseApiName, plus its metadata type: { api, type }.
 function parseComponent(filePath) {
     const api = parseApiName(filePath);
     if (!api) return null;
     const parts = filePath.replace(/\\/g, "/").split("/");
-    const typeFolder = parts[parts.indexOf("default") + 1];
-    if (typeFolder === "lwc") return { api: api, display: api + " (LWC)" };
-    if (typeFolder === "aura") return { api: api, display: api + " (Aura)" };
-    const ext = /\.([^.]+)$/.exec(parts[parts.length - 1].replace(/-meta\.xml$/, ""));
-    return { api: api, display: ext ? api + "." + ext[1] : api };
+    const at = parts.indexOf("default");
+    if (parts[at + 1] === "objects") return { api: api, type: parts.length >= at + 5 ? folderType(parts[at + 3]) : "Custom Object" };
+    return { api: api, type: folderType(parts[at + 1]) };
 }
 
-// Unique components of a list of git file paths: { api, display }.
+// Unique components of a list of git file paths: { api, type }.
 function componentsOf(paths) {
     const seen = new Map();
     paths.forEach((p) => {
@@ -492,7 +513,7 @@ function checkUnregistered(ctx) {
             subject: c.subject,
             auto: AUTO_PREFIXES.some((p) => c.subject.startsWith(p)),
             status: nc ? nc.status : null,
-            uncovered: comps.filter((x) => !ctx.isCovered(x.api)).map((x) => x.display)
+            uncovered: comps.filter((x) => !ctx.isCovered(x.api)).map((x) => x.api)
         };
     });
     const lines = details.slice(0, 50).map((d) => {
@@ -508,8 +529,6 @@ function checkUnregistered(ctx) {
         sha: d.sha10,
         author: d.author,
         subject: d.subject,
-        comps: d.uncovered.slice(0, 30),
-        moreComps: Math.max(0, d.uncovered.length - 30),
         note: d.auto ? "Copado auto-commit, exempt" : d.status ? "Copado status: " + d.status : ""
     }));
     if (details.length > 50) {
@@ -554,16 +573,17 @@ function checkMetadata(ctx) {
     if (raw === null) raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
     const comps = componentsOf(raw.split("\0").filter(Boolean));
-    const uncoveredNames = comps.filter((c) => !ctx.isCovered(c.api)).map((c) => c.display);
-    const uncovered = uncoveredNames;
+    const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api));
+    const uncovered = uncoveredComps.map((c) => c.api);
     const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";
     const lines = [];
     const rows = [];
     if (uncovered.length > 0) {
-        // The names get their own detail line under the headline; the warning sentence is a separate "danger" row in the popup.
+        // In the popup the names are a collapsible group per metadata type (open by default); the warning sentence is a "danger" row.
         lines.push("Not registered: " + capList(uncovered, 100));
         lines.push(WONT_DEPLOY);
-        rows.push({ t: "names", label: "Not registered", items: uncovered.slice(0, 100), more: Math.max(0, uncovered.length - 100) });
+        const notRegistered = groupByType(uncoveredComps.map((c) => ({ name: c.api, label: c.type })));
+        rows.push({ t: "group", label: "Not registered", tone: "warn", defaultOpen: true, count: uncovered.length, groups: capGroups(notRegistered, 100) });
         rows.push({ t: "danger", text: WONT_DEPLOY });
     }
     const changed = new Set(comps.map((c) => c.api.toLowerCase()));
@@ -572,16 +592,7 @@ function checkMetadata(ctx) {
         (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
     );
     if (unchanged.length > 0) {
-        const byType = new Map();
-        unchanged.forEach((r) => {
-            const name = ctx.cfg.metadataNames.get(r) || r;
-            const label = typeLabel(ctx.cfg.metadataTypes.get(r));
-            if (!byType.has(label)) byType.set(label, []);
-            byType.get(label).push(name);
-        });
-        const groups = Array.from(byType.entries())
-            .sort((x, y) => (x[0] === "Other" ? 1 : y[0] === "Other" ? -1 : x[0].localeCompare(y[0])))
-            .map((e) => ({ type: e[0], items: e[1].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())) }));
+        const groups = groupByType(unchanged.map((r) => ({ name: ctx.cfg.metadataNames.get(r) || r, label: typeLabel(ctx.cfg.metadataTypes.get(r)) })));
         const allNames = [].concat.apply([], groups.map((g) => g.items));
         lines.push("Registered but unchanged in git (" + allNames.length + "): " + capList(allNames, 50));
         // A collapsible row in the popup: the count, then the components under their metadata type, one per line, when opened.
