@@ -394,6 +394,7 @@ export default class StoryVerificationPopup extends LightningElement {
                 path: line.path || '(no file path)',
                 exists: !!line.exists,
                 conflict: line.conflict || '',
+                note: line.note || '',
                 cssClass: line.exists ? 'preview-line preview-exists' : line.conflict ? 'preview-line preview-conflict' : 'preview-line'
             });
         });

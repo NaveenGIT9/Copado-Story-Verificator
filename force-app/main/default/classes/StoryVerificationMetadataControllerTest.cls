@@ -168,16 +168,19 @@ private class StoryVerificationMetadataControllerTest {
             StoryVerificationMetadataController.PreviewResult preview = StoryVerificationMetadataController.preview(story.Id, keys);
 
             System.assertEquals(false, preview.lines[0].exists, 'A trigger called ChatterUtil is not the class ChatterUtil');
-            System.assert(preview.lines[0].conflict.contains('ApexTrigger'), String.valueOf(preview.lines[0].conflict));
-            System.assertEquals(1, preview.conflictCount);
-            System.assertEquals(0, preview.newCount);
-            System.assertEquals(0, preview.existingCount);
+            System.assertEquals(null, preview.lines[0].conflict, 'The unique ID is adjusted, not blocked');
+            System.assert(preview.lines[0].uniqueId.endsWith(';ApexClass;ChatterUtil-1'), preview.lines[0].uniqueId);
+            System.assert(preview.lines[0].note.contains('-1'), preview.lines[0].note);
+            System.assertEquals(1, preview.newCount);
+            System.assertEquals(0, preview.conflictCount);
 
             StoryVerificationMetadataController.CreateResult result = StoryVerificationMetadataController.create(story.Id, keys);
-            System.assertEquals(0, result.created, 'A conflicting line is not inserted');
-            System.assertEquals(1, result.errors.size());
-            System.assert(result.errors[0].startsWith('ChatterUtil: '), result.errors[0]);
-            System.assertEquals(1, [SELECT COUNT() FROM copado__User_Story_Metadata__c], 'Nothing was added next to the conflicting record');
+            System.assertEquals(1, result.created, String.valueOf(result.errors));
+            System.assertEquals(2, [SELECT COUNT() FROM copado__User_Story_Metadata__c]);
+            System.assertEquals(
+                1,
+                [SELECT COUNT() FROM copado__User_Story_Metadata__c WHERE copado__Type__c = 'ApexClass' AND copado__Unique_ID__c LIKE '%;ApexClass;ChatterUtil-1']
+            );
         }
     }
 
@@ -206,6 +209,17 @@ private class StoryVerificationMetadataControllerTest {
             System.assertEquals(1, preview.existingCount);
             System.assertEquals(0, preview.newCount);
         }
+    }
+
+    @IsTest
+    static void theUniqueIdTakesTheNextFreeNumberAndGivesUpAfterTheLast() {
+        System.assertEquals('x', StoryVerificationMetadataController.freeUniqueId('x', new Set<String>()));
+        System.assertEquals('x-1', StoryVerificationMetadataController.freeUniqueId('x', new Set<String>{ 'x' }));
+        System.assertEquals('x-2', StoryVerificationMetadataController.freeUniqueId('x', new Set<String>{ 'x', 'x-1' }));
+        System.assertEquals(
+            null,
+            StoryVerificationMetadataController.freeUniqueId('x', new Set<String>{ 'x', 'x-1', 'x-2', 'x-3', 'x-4', 'x-5' })
+        );
     }
 
     @IsTest

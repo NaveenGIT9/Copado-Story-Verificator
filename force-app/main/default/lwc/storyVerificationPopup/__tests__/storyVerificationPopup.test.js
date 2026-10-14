@@ -1086,7 +1086,23 @@ describe('c-story-verification-popup', () => {
             expect(byId(element, 'steps')).not.toBeNull();
         });
 
-        it('shows a clash with a record of another type and does not offer to insert it', async () => {
+        it('shows a note when the unique ID was adjusted and still offers to insert', async () => {
+            previewMetadata.mockResolvedValue({
+                ...PREVIEW,
+                newCount: 1,
+                lines: [{ ...PREVIEW.lines[0], note: 'unique ID adjusted (-1) because another record uses it' }]
+            });
+            const element = await mountSelect();
+            itemBox(element, 'ChatterUtil').click();
+            await tick();
+            byId(element, 'create-selected').click();
+            await flush();
+
+            expect(byId(element, 'preview-adjusted').textContent).toBe('unique ID adjusted (-1) because another record uses it');
+            expect(byId(element, 'insert').disabled).toBe(false);
+        });
+
+        it('shows a clash when no free unique ID exists and does not offer to insert it', async () => {
             previewMetadata.mockResolvedValue({
                 ...PREVIEW,
                 newCount: 0,

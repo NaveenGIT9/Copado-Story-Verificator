@@ -11,6 +11,7 @@ public with sharing class StoryVerificationMetadataController {
     private static final String COVERAGE_CHECK_ID = 'metadata-coverage';
     private static final String CATEGORY = 'SFDX';
     private static final Integer NAME_LENGTH = 80;
+    private static final Integer MAX_ID_SUFFIX = 5;
     private static final Set<String> VERIFIED_STATUSES = new Set<String>{ 'Clean', 'Issues' };
 
     // The folder a component lives in (as the Function reports it) -> the metadata type Copado records for it. A kind that is not
@@ -67,10 +68,12 @@ public with sharing class StoryVerificationMetadataController {
         public String path;
         @AuraEnabled
         public Boolean exists = false;
-        // Set when another record already owns this line's unique ID but is not the same type and name (for example its Type was
-        // edited): the line cannot be inserted next to it.
+        // Set only when no free unique ID could be found for this line (see freeUniqueId): it cannot be inserted.
         @AuraEnabled
         public String conflict;
+        // Set when the unique ID had to be adjusted (-1, -2 ...) because another record already uses it; the line is still inserted.
+        @AuraEnabled
+        public String note;
         public String uniqueId;
         public Datetime committedAt;
     }
@@ -204,28 +207,33 @@ public with sharing class StoryVerificationMetadataController {
         }
 
         // Already on the story = a record with the same TYPE and the same name (whatever its path). A record that only shares the
-        // unique ID (its type or name was edited) is not the same component: it is a conflict, and it blocks the insert.
+        // unique ID (for example its type was edited) is a different component: the new record then takes the next free unique ID
+        // (-1, -2 ...), so the insert goes ahead instead of failing on the unique ID.
         Set<String> names = new Set<String>();
+        List<String> candidates = new List<String>();
         for (Line line : result.lines) {
             names.add(line.name);
+            for (Integer i = 0; i <= MAX_ID_SUFFIX; i++) {
+                candidates.add(suffixed(line.uniqueId, i));
+            }
         }
         Id storyRecordId = story.id;
         Set<String> registered = new Set<String>();
-        Map<String, copado__User_Story_Metadata__c> byUniqueId = new Map<String, copado__User_Story_Metadata__c>();
+        Set<String> taken = new Set<String>();
         if (!uniqueIds.isEmpty()) {
             for (copado__User_Story_Metadata__c record : [
                 SELECT copado__Unique_ID__c, copado__Type__c, copado__Metadata_API_Name__c, copado__User_Story__c
                 FROM copado__User_Story_Metadata__c
                 WHERE
                     (copado__User_Story__c = :storyRecordId AND copado__Metadata_API_Name__c IN :names)
-                    OR copado__Unique_ID__c IN :uniqueIds
+                    OR copado__Unique_ID__c IN :candidates
                 WITH USER_MODE
             ]) {
                 if (record.copado__User_Story__c == storyRecordId) {
                     registered.add(typeAndName(record.copado__Type__c, record.copado__Metadata_API_Name__c));
                 }
                 if (record.copado__Unique_ID__c != null) {
-                    byUniqueId.put(record.copado__Unique_ID__c, record);
+                    taken.add(record.copado__Unique_ID__c);
                 }
             }
         }
@@ -233,20 +241,38 @@ public with sharing class StoryVerificationMetadataController {
             line.exists = registered.contains(typeAndName(line.type, line.name));
             if (line.exists) {
                 result.existingCount++;
-            } else if (byUniqueId.containsKey(line.uniqueId)) {
-                copado__User_Story_Metadata__c other = byUniqueId.get(line.uniqueId);
-                line.conflict =
-                    'A record with this unique ID already exists as type ' +
-                    other.copado__Type__c +
-                    ' (' +
-                    other.copado__Metadata_API_Name__c +
-                    '). Correct or delete it first.';
-                result.conflictCount++;
-            } else {
-                result.newCount++;
+                continue;
             }
+            String free = freeUniqueId(line.uniqueId, taken);
+            if (free == null) {
+                line.conflict = 'No free unique ID was found for this component. Correct or delete the record that uses it first.';
+                result.conflictCount++;
+                continue;
+            }
+            if (free != line.uniqueId) {
+                line.note = 'unique ID adjusted (' + free.substring(line.uniqueId.length()) + ') because another record uses it';
+                line.uniqueId = free;
+            }
+            taken.add(free);
+            result.newCount++;
         }
         return result;
+    }
+
+    private static String suffixed(String uniqueId, Integer number) {
+        return number == 0 ? uniqueId : uniqueId + '-' + number;
+    }
+
+    // The unique ID itself, or the first of -1, -2 ... that no record (or earlier line) uses; null when all are taken.
+    @TestVisible
+    private static String freeUniqueId(String uniqueId, Set<String> taken) {
+        for (Integer i = 0; i <= MAX_ID_SUFFIX; i++) {
+            String candidate = suffixed(uniqueId, i);
+            if (!taken.contains(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private static String typeAndName(String type, String name) {

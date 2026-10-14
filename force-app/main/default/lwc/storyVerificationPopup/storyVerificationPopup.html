@@ -247,6 +247,9 @@
                                     <template lwc:if={line.exists}>
                                         <span class="preview-note" data-id="preview-exists">already registered, skipped</span>
                                     </template>
+                                    <template lwc:if={line.note}>
+                                        <span class="preview-note" data-id="preview-adjusted">{line.note}</span>
+                                    </template>
                                     <template lwc:if={line.conflict}>
                                         <span class="preview-conflict-note" data-id="preview-conflict">{line.conflict}</span>
                                     </template>
