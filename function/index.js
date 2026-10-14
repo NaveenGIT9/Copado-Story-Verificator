@@ -508,6 +508,7 @@ function checkUnregistered(ctx) {
         const nc = cfg.nonComplete.find((n) => n.sha.length >= 7 && (sl.startsWith(n.sha) || n.sha.startsWith(sl)));
         return {
             sha10: c.sha.slice(0, 10),
+            fullSha: c.sha,
             author: c.name || c.email || "unknown",
             email: c.email,
             subject: c.subject,
@@ -527,6 +528,7 @@ function checkUnregistered(ctx) {
     const rows = details.slice(0, 50).map((d) => ({
         t: "commit",
         sha: d.sha10,
+        full: d.fullSha,
         author: d.author,
         subject: d.subject,
         note: d.auto ? "Copado auto-commit, exempt" : d.status ? "Copado status: " + d.status : ""

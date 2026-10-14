@@ -473,14 +473,28 @@ export default class StoryVerificationPopup extends LightningElement {
         return rows.map((row, index) => this.detailItem('check-' + id + '-' + index, row || {}));
     }
 
+    // The commit's page in the Git host: the repository's commit address plus the full id. Only https addresses and plain
+    // hexadecimal ids are used; without both there is no link.
+    commitHref(fullSha) {
+        const base = this.snapshot && this.snapshot.commitBaseUrl;
+        if (!base || !/^https:\/\//.test(base) || !/^[0-9a-f]{7,64}$/i.test(String(fullSha || ''))) {
+            return '';
+        }
+        return base + (base.endsWith('/') ? '' : '/') + fullSha;
+    }
+
     detailItem(key, row) {
         const more = (n) => (n > 0 ? ' (+' + n + ' more)' : '');
         if (row.t === 'commit') {
             // Only the id, the person and the message: the uncovered components are listed under Metadata Coverage.
+            const href = this.commitHref(row.full);
             return {
                 key,
                 isCommit: true,
                 cssClass: 'commit-line',
+                href,
+                hasLink: !!href,
+                linkTitle: 'Open this commit in your Git host (opens in a new tab)',
                 sha: String(row.sha || ''),
                 author: String(row.author || ''),
                 subject: String(row.subject || ''),

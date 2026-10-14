@@ -88,6 +88,9 @@ public with sharing class StoryVerificationController {
         // How long the Function script itself ran (seconds); the rest of the wait was Copado starting the job.
         @AuraEnabled
         public Integer scriptSeconds;
+        // The repository's commit address up to the commit id (https://github.com/org/repo/commit/); blank when unknown.
+        @AuraEnabled
+        public String commitBaseUrl;
     }
 
     /** Reduced view of the Copado job for one run. */
@@ -106,6 +109,50 @@ public with sharing class StoryVerificationController {
     private without sharing class JobReader {
         // Set by readChecks from the same stored JSON (no extra query).
         public Integer scriptSeconds;
+
+        /**
+         * The commit base address of the Git repository of the story's pipeline, so the popup can link each commit.
+         * Field names of the managed package are read at run time, so a org that names them differently (or has no value)
+         * simply gets no links instead of an error.
+         */
+        public String readCommitBaseUrl(Id storyId) {
+            try {
+                List<SObject> stories = Database.query(
+                    'SELECT copado__Project__r.copado__Deployment_Flow__r.copado__Git_Repository__c FROM copado__User_Story__c WHERE Id = :storyId LIMIT 1'
+                );
+                SObject project = stories.isEmpty() ? null : stories[0].getSObject('copado__Project__r');
+                SObject pipeline = project == null ? null : project.getSObject('copado__Deployment_Flow__r');
+                Object repoValue = pipeline == null ? null : pipeline.get('copado__Git_Repository__c');
+                if (repoValue == null) {
+                    return null;
+                }
+                Map<String, Schema.SObjectField> fields = Schema.describeSObjects(new List<String>{ 'copado__Git_Repository__c' })[0]
+                    .fields.getMap();
+                Boolean hasBase = fields.containsKey('copado__commit_base_url__c');
+                Boolean hasUri = fields.containsKey('copado__uri__c');
+                List<String> wanted = new List<String>();
+                if (hasBase) {
+                    wanted.add('copado__Commit_Base_URL__c');
+                }
+                if (hasUri) {
+                    wanted.add('copado__URI__c');
+                }
+                if (wanted.isEmpty()) {
+                    return null;
+                }
+                Id repoId = (Id) repoValue;
+                List<SObject> repos = Database.query('SELECT ' + String.join(wanted, ', ') + ' FROM copado__Git_Repository__c WHERE Id = :repoId LIMIT 1');
+                if (repos.isEmpty()) {
+                    return null;
+                }
+                return commitBaseFrom(
+                    hasBase ? (String) repos[0].get('copado__Commit_Base_URL__c') : null,
+                    hasUri ? (String) repos[0].get('copado__URI__c') : null
+                );
+            } catch (Exception e) {
+                return null;
+            }
+        }
 
         public JobInfo read(Id storyId, String runId) {
             JobInfo info = new JobInfo();
@@ -255,6 +302,9 @@ public with sharing class StoryVerificationController {
         snapshot.facts = reader.readFacts(story.Id);
         snapshot.checks = reader.readChecks(story.Id);
         snapshot.scriptSeconds = reader.scriptSeconds;
+        if (snapshot.isFinished) {
+            snapshot.commitBaseUrl = reader.readCommitBaseUrl(story.Id);
+        }
         JobInfo info = reader.read(story.Id, snapshot.runId);
         snapshot.findings = info.findings;
         snapshot.jobStatus = info.status;
@@ -316,6 +366,27 @@ public with sharing class StoryVerificationController {
     }
 
     // How long the Function script ran (seconds), from the stored result; null when absent or unreadable.
+    // The address a commit id is appended to: Copado's own Commit Base URL when it is an https address, otherwise built from a
+    // GitHub repository address. Anything else gives null (no links).
+    @TestVisible
+    private static String commitBaseFrom(String commitBaseUrl, String uri) {
+        if (String.isNotBlank(commitBaseUrl)) {
+            String base = commitBaseUrl.trim();
+            return base.startsWith('https://') ? (base.endsWith('/') ? base : base + '/') : null;
+        }
+        if (String.isBlank(uri)) {
+            return null;
+        }
+        String repo = uri.trim();
+        if (repo.endsWith('.git')) {
+            repo = repo.substring(0, repo.length() - 4);
+        }
+        if (!repo.startsWith('https://github.com/')) {
+            return null;
+        }
+        return (repo.endsWith('/') ? repo : repo + '/') + 'commit/';
+    }
+
     @TestVisible
     private static Integer parseScriptSeconds(String raw) {
         Map<String, Object> parsed = parseMap(raw);

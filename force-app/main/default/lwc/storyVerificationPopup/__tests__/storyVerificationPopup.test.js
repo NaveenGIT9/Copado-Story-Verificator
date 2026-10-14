@@ -663,6 +663,52 @@ describe('c-story-verification-popup', () => {
         expect(li.textContent).not.toContain('plain version');
     });
 
+    describe('commit links', () => {
+        const FULL = 'be25d73457aa0f11223344556677889900aabbcc';
+        const commitChecks = [
+            {
+                id: 'unregistered-commits',
+                title: 'Unregistered commits',
+                status: 'fail',
+                summary: '1 commit(s) outside Copado',
+                lines: [],
+                rowsJson: JSON.stringify([{ t: 'commit', sha: 'be25d73457', full: FULL, author: 'Dev', subject: 'Update X' }])
+            }
+        ];
+        const firstCommit = (element) => stepRow(element, 'Unregistered Commits').querySelector('[data-id="check-lines"] li');
+
+        it('turns the commit id into a clearly clickable link to the commit in the Git host', async () => {
+            const element = await mountFinished(commitChecks, { commitBaseUrl: 'https://github.com/o/r/commit/' });
+
+            const link = firstCommit(element).querySelector('[data-id="c-link"]');
+            expect(link.getAttribute('href')).toBe('https://github.com/o/r/commit/' + FULL);
+            expect(link.getAttribute('target')).toBe('_blank');
+            expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+            expect(link.getAttribute('title')).toContain('Open this commit');
+            expect(link.querySelector('[data-id="c-sha"]').textContent).toBe('be25d73457');
+            expect(link.querySelector('lightning-icon').iconName).toBe('utility:new_window');
+        });
+
+        it('adds the missing slash between the commit address and the id', async () => {
+            const element = await mountFinished(commitChecks, { commitBaseUrl: 'https://host/o/r/commit' });
+
+            expect(firstCommit(element).querySelector('[data-id="c-link"]').getAttribute('href')).toBe('https://host/o/r/commit/' + FULL);
+        });
+
+        it('shows the id as plain text when the repository address is unknown, not https, or the full id is missing', async () => {
+            for (const overrides of [{}, { commitBaseUrl: 'http://insecure/commit/' }, { commitBaseUrl: 'javascript:alert(1)' }]) {
+                // eslint-disable-next-line no-await-in-loop
+                const element = await mountFinished(commitChecks, overrides);
+                expect(firstCommit(element).querySelector('[data-id="c-link"]')).toBeNull();
+                expect(firstCommit(element).querySelector('[data-id="c-sha"]').textContent).toBe('be25d73457');
+            }
+
+            const noFull = [{ ...commitChecks[0], rowsJson: JSON.stringify([{ t: 'commit', sha: 'be25d73457', author: 'Dev', subject: 'Update X' }]) }];
+            const element = await mountFinished(noFull, { commitBaseUrl: 'https://github.com/o/r/commit/' });
+            expect(firstCommit(element).querySelector('[data-id="c-link"]')).toBeNull();
+        });
+    });
+
     it('shows the "won\'t deploy" sentence with a warning icon', async () => {
         const checks = [
             {

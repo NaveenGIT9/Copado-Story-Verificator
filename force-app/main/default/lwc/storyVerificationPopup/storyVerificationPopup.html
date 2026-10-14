@@ -69,7 +69,27 @@
                                     <li key={checkLine.key} class={checkLine.cssClass}>
                                         <template lwc:if={checkLine.isCommit}>
                                             <span class="c-bullet" data-id="c-bullet" aria-hidden="true"></span>
-                                            <span class="c-sha" data-id="c-sha">{checkLine.sha}</span>
+                                            <template lwc:if={checkLine.hasLink}>
+                                                <a
+                                                    class="c-link"
+                                                    href={checkLine.href}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title={checkLine.linkTitle}
+                                                    data-id="c-link"
+                                                >
+                                                    <span class="c-sha" data-id="c-sha">{checkLine.sha}</span>
+                                                    <lightning-icon
+                                                        icon-name="utility:new_window"
+                                                        size="xx-small"
+                                                        alternative-text="Opens in a new tab"
+                                                        class="slds-m-left_xx-small"
+                                                    ></lightning-icon>
+                                                </a>
+                                            </template>
+                                            <template lwc:else>
+                                                <span class="c-sha" data-id="c-sha">{checkLine.sha}</span>
+                                            </template>
                                             <span class="c-author" data-id="c-author">{checkLine.author}</span>
                                             <span class="c-subject" data-id="c-subject">{checkLine.subject}</span>
                                             <template lwc:if={checkLine.hasNote}>

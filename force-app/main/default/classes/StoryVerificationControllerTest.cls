@@ -333,6 +333,21 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void commitBaseUrlPrefersCopadosAddressAndFallsBackToGitHub() {
+        System.assertEquals(
+            'https://github.com/o/r/commit/',
+            StoryVerificationController.commitBaseFrom('https://github.com/o/r/commit/', 'https://gitlab.com/x/y.git')
+        );
+        System.assertEquals('https://host/o/r/commit/', StoryVerificationController.commitBaseFrom(' https://host/o/r/commit ', null));
+        System.assertEquals(null, StoryVerificationController.commitBaseFrom('http://insecure/o/r/commit/', 'https://github.com/o/r.git'));
+        System.assertEquals('https://github.com/o/r/commit/', StoryVerificationController.commitBaseFrom(null, 'https://github.com/o/r.git'));
+        System.assertEquals('https://github.com/o/r/commit/', StoryVerificationController.commitBaseFrom('', 'https://github.com/o/r/'));
+        System.assertEquals(null, StoryVerificationController.commitBaseFrom(null, 'https://gitlab.com/o/r.git'));
+        System.assertEquals(null, StoryVerificationController.commitBaseFrom(null, null));
+        System.assertEquals(null, StoryVerificationController.commitBaseFrom(' ', ' '));
+    }
+
+    @IsTest
     static void parseChecksPassesStructuredRowsThroughAsJson() {
         List<StoryVerificationController.CheckResult> checks = StoryVerificationController.parseChecks(
             '{"checks":[{"id":"metadata-coverage","status":"fail","lines":["a"],"rows":[{"t":"names","items":["Foo.cls"]}]},' +
