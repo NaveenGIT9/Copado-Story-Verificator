@@ -191,7 +191,7 @@ function capGroups(groups, limit) {
     groups.forEach((g) => {
         const items = g.items.slice(0, Math.max(0, left));
         left -= items.length;
-        if (items.length > 0) out.push({ type: g.type, items: items });
+        if (items.length > 0) out.push(Object.assign({}, g, { items: items }));
     });
     return out;
 }
@@ -227,8 +227,83 @@ function parseComponent(filePath) {
     if (!api) return null;
     const parts = filePath.replace(/\\/g, "/").split("/");
     const at = parts.indexOf("default");
-    if (parts[at + 1] === "objects") return { api: api, type: parts.length >= at + 5 ? folderType(parts[at + 3]) : "Custom Object" };
-    return { api: api, type: folderType(parts[at + 1]) };
+    if (parts[at + 1] === "objects") {
+        const member = parts.length >= at + 5;
+        return { api: api, kind: member ? "objects/" + parts[at + 3] : "objects", type: member ? folderType(parts[at + 3]) : "Custom Object" };
+    }
+    return { api: api, kind: parts[at + 1], type: folderType(parts[at + 1]) };
+}
+
+// "git diff --name-status -z" -> [{ status: "A" | "M" | "D" ..., path }]
+function parseNameStatus(raw) {
+    const tokens = raw.split("\0").filter(Boolean);
+    const out = [];
+    for (let i = 0; i + 1 < tokens.length; i += 2) out.push({ status: tokens[i].charAt(0), path: tokens[i + 1] });
+    return out;
+}
+
+// The changed components with their files: { api, kind, type, files: [{ status, path }] }
+function componentsFromChanges(changes) {
+    const seen = new Map();
+    changes.forEach((ch) => {
+        const c = parseComponent(ch.path);
+        if (!c) return;
+        if (!seen.has(c.api)) seen.set(c.api, { api: c.api, kind: c.kind, type: c.type, files: [] });
+        seen.get(c.api).files.push({ status: ch.status, path: ch.path });
+    });
+    return Array.from(seen.values());
+}
+
+// Is anything of a component whose changed files were all deleted still in the final version of the branch? Its other file
+// (a class and its -meta.xml), or for a bundle anything left in its folder.
+function stillThere(c) {
+    return c.files.some((f) => {
+        const parts = f.path.split("/");
+        if (c.kind === "lwc" || c.kind === "aura") {
+            const out = tryRun("git", ["ls-tree", "--name-only", "HEAD", parts.slice(0, parts.indexOf("default") + 3).join("/") + "/"]);
+            return out !== null && out.trim() !== "";
+        }
+        const other = /-meta\.xml$/.test(f.path) ? f.path.replace(/-meta\.xml$/, "") : f.path + "-meta.xml";
+        return tryRun("git", ["cat-file", "-e", "HEAD:" + other]) !== null;
+    });
+}
+
+// A component that is gone from the final version of the branch (every one of its files deleted, nothing left) is a Delete;
+// anything else, even with some files removed, is an Add.
+function actionOf(c) {
+    if (c.files.length === 0 || !c.files.every((f) => f.status === "D")) return "Add";
+    return stillThere(c) ? "Add" : "Delete";
+}
+
+// The file that stands for the component: its main file, not the -meta.xml; for a bundle the file named like it.
+function primaryPath(c) {
+    const paths = c.files.map((f) => f.path);
+    const main = c.kind === "lwc" ? c.api + ".js" : c.kind === "aura" ? c.api + ".cmp" : null;
+    return paths.find((p) => main && p.endsWith("/" + main)) || paths.find((p) => !/-meta\.xml$/.test(p)) || paths[0];
+}
+
+// path -> time of the latest commit on the feature branch that touched it (ISO text), one git call for everything.
+function commitTimes(base) {
+    const out = tryRun("git", ["log", "--no-renames", "--name-only", "--format=%x01%cI", "origin/" + base + "..HEAD"]);
+    const times = new Map();
+    if (out === null) return times;
+    out.split("\u0001").forEach((chunk) => {
+        const lines = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (lines.length === 0) return;
+        lines.slice(1).forEach((p) => {
+            if (!times.has(p)) times.set(p, lines[0]);
+        });
+    });
+    return times;
+}
+
+function latestTime(c, times) {
+    let best = "";
+    c.files.forEach((f) => {
+        const t = times.get(f.path);
+        if (t && (best === "" || Date.parse(t) > Date.parse(best))) best = t;
+    });
+    return best;
 }
 
 // Unique components of a list of git file paths: { api, type }.
@@ -641,10 +716,10 @@ function checkUnregistered(ctx) {
 
 function checkMetadata(ctx) {
     const id = "metadata-coverage";
-    let raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
-    if (raw === null) raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
+    let raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
+    if (raw === null) raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
-    const comps = componentsOf(raw.split("\0").filter(Boolean));
+    const comps = componentsFromChanges(parseNameStatus(raw));
     const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api));
     const uncovered = uncoveredComps.map((c) => c.api);
     const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";
@@ -654,8 +729,18 @@ function checkMetadata(ctx) {
         // In the popup the names are a collapsible group per metadata type (closed until clicked); the warning sentence is a "danger" row.
         lines.push("Not registered: " + capList(uncovered, 100));
         lines.push(WONT_DEPLOY);
-        const notRegistered = groupByType(uncoveredComps.map((c) => ({ name: c.api, label: c.type })));
-        rows.push({ t: "group", label: "Not registered", tone: "warn", count: uncovered.length, groups: capGroups(notRegistered, 100) });
+        // A selectable row: each component with the action it needs in Copado (Add, or Delete when it is gone from the branch),
+        // its main file and the time of its latest commit, so the popup can offer to register the ones the user picks.
+        const times = commitTimes(ctx.base);
+        const byKind = new Map();
+        uncoveredComps.forEach((c) => {
+            if (!byKind.has(c.kind)) byKind.set(c.kind, { kind: c.kind, type: c.type, items: [] });
+            byKind.get(c.kind).items.push({ name: c.api, action: actionOf(c), date: latestTime(c, times), path: primaryPath(c) });
+        });
+        const selectGroups = Array.from(byKind.values())
+            .sort((x, y) => (x.type === "Other" ? 1 : y.type === "Other" ? -1 : x.type.localeCompare(y.type)))
+            .map((g) => Object.assign({}, g, { items: g.items.sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase())) }));
+        rows.push({ t: "select", label: "Not registered", count: uncovered.length, groups: capGroups(selectGroups, 100) });
         rows.push({ t: "danger", text: WONT_DEPLOY });
     }
     const changed = new Set(comps.map((c) => c.api.toLowerCase()));
@@ -692,7 +777,7 @@ function buildResult(cfg, status, notes, checks, cap) {
     const cut = checks.map((ch) => {
         const lines = ch.lines.slice(0, cap).map((l) => clip(l));
         if (ch.lines.length > cap) lines.push("(+" + (ch.lines.length - cap) + " more lines omitted)");
-        const rows = (ch.rows || []).slice(0, cap).map((r) => (r.t === "group" ? Object.assign({}, r, { groups: capGroups(r.groups, cap * 5) }) : r));
+        const rows = (ch.rows || []).slice(0, cap).map((r) => (r.t === "group" || r.t === "select" ? Object.assign({}, r, { groups: capGroups(r.groups, cap * 5) }) : r));
         return { id: ch.id, title: ch.title, status: ch.status, summary: clip(ch.summary), lines: lines, rows: rows };
     });
     const findingLines = cfg.findings.map((f) => (f.severity === "issue" ? "ISSUE: " : f.severity === "warn" ? "WARN: " : "INFO: ") + clip(f.message));
