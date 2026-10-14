@@ -9,7 +9,7 @@ A user clicks **Verify** on the story. A popup runs six checks live, shows each 
 | Check | Passes when | Where it runs |
 |---|---|---|
 | **Unregistered commits** | Every commit on the feature branch (compared with the base branch) is registered in Copado. A commit made outside Copado by the same person, on components that are registered, is only a **warning**. A commit by someone else, or on components that are not registered, **fails**. | Copado Function (git) |
-| **Metadata coverage** | Every component changed in git is registered on the story, so it will actually be deployed. An object file needs the object itself registered: registered fields of it do not count for it. | Copado Function (git) |
+| **Metadata coverage** | Every component changed in git is registered on the story, so it will actually be deployed. A changed component is registered only by an item of the **same type with exactly its name**. Nothing registered under a related name stands in for it (an object's fields do not cover the object, a class does not cover a trigger of the same name). | Copado Function (git) |
 | **Org / environment branch merge** | No pipeline environment branch (for example `dev1`, `uat`) was merged into the feature branch. | Copado Function (git) |
 | **Pull request approval** | The story's *Pull Requests Approved* box is ticked. Stories with no commits and no metadata are not asked for one (see below). | Apex |
 | **Pending tests** | *Pending Tests* is 0. | Apex |

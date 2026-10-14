@@ -152,20 +152,6 @@ function parseList(raw) {
 }
 
 // Copied from plugin-promoter runner.mjs (parseApiName): git file path -> Copado metadata API name.
-// A JSON object passed as environment text (possibly double encoded); anything else gives {}.
-function parseObject(raw) {
-    let v = raw;
-    for (let i = 0; i < 2 && typeof v === "string"; i++) {
-        if (v.trim() === "") return {};
-        try {
-            v = JSON.parse(v);
-        } catch (e) {
-            return {};
-        }
-    }
-    return v !== null && typeof v === "object" && !Array.isArray(v) ? v : {};
-}
-
 // "CustomField" -> "Custom Field"; an item without a recorded type goes under "Other".
 function typeLabel(type) {
     const t = str(type).trim();
@@ -211,6 +197,25 @@ function parseApiName(filePath) {
 }
 
 // The folder a file lives in tells its metadata type; anything not listed is shown by its folder name ("quickActions" -> "Quick Actions").
+// The Copado metadata type of each folder (a "kind"), the same table Apex uses to create the records. A kind that is not listed has
+// no type here, and a changed component of that kind is matched by its name alone.
+const KIND_TYPES = {
+    classes: "ApexClass", triggers: "ApexTrigger", pages: "ApexPage", components: "ApexComponent", lwc: "LightningComponentBundle",
+    aura: "AuraDefinitionBundle", flows: "Flow", layouts: "Layout", permissionsets: "PermissionSet", permissionsetgroups: "PermissionSetGroup",
+    profiles: "Profile", flexipages: "FlexiPage", customMetadata: "CustomMetadata", customPermissions: "CustomPermission", email: "EmailTemplate",
+    approvalProcesses: "ApprovalProcess", quickActions: "QuickAction", tabs: "CustomTab", applications: "CustomApplication", reports: "Report",
+    reportTypes: "ReportType", dashboards: "Dashboard", staticresources: "StaticResource", duplicateRules: "DuplicateRule", matchingRules: "MatchingRule",
+    globalValueSets: "GlobalValueSet", objects: "CustomObject", "objects/fields": "CustomField", "objects/validationRules": "ValidationRule",
+    "objects/recordTypes": "RecordType", "objects/listViews": "ListView", "objects/fieldSets": "FieldSet", "objects/webLinks": "WebLink",
+    "objects/compactLayouts": "CompactLayout", "objects/businessProcesses": "BusinessProcess"
+};
+
+// Is this registered item the changed component? The exact same name (ignoring case) and, when both sides have a type, the same type.
+function sameComponent(item, api, kind) {
+    const type = KIND_TYPES[kind];
+    return item.name.toLowerCase() === api.toLowerCase() && (!type || !item.type || item.type.toLowerCase() === type.toLowerCase());
+}
+
 const FOLDER_TYPES = {
     classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
     flows: "Flow", permissionsets: "Permission Set", duplicateRules: "Duplicate Rule", fields: "Custom Field", validationRules: "Validation Rule"
@@ -316,16 +321,10 @@ function componentsOf(paths) {
     return Array.from(seen.values());
 }
 
-function makeIsCovered(names, hasLabels) {
-    const list = Array.from(names);
-    return (c, kind) => {
-        const cl = c.toLowerCase();
-        if (names.has(cl)) return true;
-        // An object file in a commit needs the object itself on the story: registered fields of it do not stand in for it
-        // (otherwise deleting the object's metadata record from the story goes unnoticed while its fields remain).
-        if (kind !== "objects" && list.some((m) => m.startsWith(cl + "."))) return true;
-        return cl === "customlabels" && hasLabels;
-    };
+// A changed component is registered only by an item of the same type with exactly its name. Nothing registered under a related
+// name stands in for it: not an object's fields for the object, not a class for a trigger of the same name.
+function makeIsCovered(items, hasLabels) {
+    return (c, kind) => items.some((it) => sameComponent(it, c, kind)) || (c.toLowerCase() === "customlabels" && hasLabels);
 }
 
 // rows (optional): structured detail rows for the popup (coloured parts, collapsible lists); lines stay as the plain-text version.
@@ -339,16 +338,19 @@ function skippedChecks(reason) {
 
 function readConfig() {
     const storyName = str(env.storyName);
-    const metadataNames = new Map();
-    parseList(env.registeredMetadataJson).forEach((s) => {
-        const name = str(s).trim();
-        if (name && !metadataNames.has(name.toLowerCase())) metadataNames.set(name.toLowerCase(), name);
-    });
-    const metadataTypes = new Map();
-    const rawTypes = parseObject(env.registeredMetadataTypesJson);
-    Object.keys(rawTypes).forEach((k) => {
-        const t = str(rawTypes[k]).trim();
-        if (t) metadataTypes.set(k.toLowerCase(), t);
+    // Registered metadata arrives as "Type|Name" ("Name" alone when the type is unknown): unique per type and name, exact spelling kept.
+    const metadata = [];
+    const seenMetadata = new Set();
+    parseList(env.registeredMetadataJson).forEach((entry) => {
+        const text = str(entry).trim();
+        const bar = text.indexOf("|");
+        const type = bar > 0 ? text.slice(0, bar).trim() : "";
+        const name = (bar > 0 ? text.slice(bar + 1) : text).trim();
+        const key = type.toLowerCase() + "|" + name.toLowerCase();
+        if (name && !seenMetadata.has(key)) {
+            seenMetadata.add(key);
+            metadata.push({ name: name, type: type });
+        }
     });
     const depth = parseInt(env.gitDepth, 10);
     const envBranches = new Map();
@@ -380,9 +382,7 @@ function readConfig() {
         nonComplete: parseList(env.nonCompleteCommitsJson)
             .map((o) => ({ sha: str(o && o.sha).trim().toLowerCase(), status: str(o && o.status) || "Unknown" }))
             .filter((o) => o.sha),
-        metadata: new Set(metadataNames.keys()), // lowercase, for matching
-        metadataNames: metadataNames, // lowercase -> exact spelling, for display
-        metadataTypes: metadataTypes, // lowercase -> Copado metadata type, for display
+        metadata: metadata, // [{ name, type }]
         hasLabels: str(env.hasCustomLabelMetadata).toLowerCase() === "true",
         findings: findings,
         noWork: findings.some((f) => f.noCommits)
@@ -746,13 +746,10 @@ function checkMetadata(ctx) {
         rows.push({ t: "select", label: "Not registered", count: uncovered.length, groups: capGroups(selectGroups, 100) });
         rows.push({ t: "danger", text: WONT_DEPLOY });
     }
-    const changed = new Set(comps.map((c) => c.api.toLowerCase()));
-    const changedList = Array.from(changed);
-    const unchanged = Array.from(ctx.cfg.metadata).filter(
-        (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
-    );
+    // Registered items that are not one of the changed components (same type and exact name): related components are not hidden.
+    const unchanged = ctx.cfg.metadata.filter((it) => !comps.some((c) => sameComponent(it, c.api, c.kind)));
     if (unchanged.length > 0) {
-        const groups = groupByType(unchanged.map((r) => ({ name: ctx.cfg.metadataNames.get(r) || r, label: typeLabel(ctx.cfg.metadataTypes.get(r)) })));
+        const groups = groupByType(unchanged.map((it) => ({ name: it.name, label: typeLabel(it.type) })));
         const allNames = [].concat.apply([], groups.map((g) => g.items));
         lines.push("Registered but unchanged in git (" + allNames.length + "): " + capList(allNames, 50));
         // A collapsible row in the popup: the count, then the components under their metadata type, one per line, when opened.

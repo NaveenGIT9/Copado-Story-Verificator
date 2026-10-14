@@ -122,8 +122,7 @@ public with sharing class StoryVerificationSetup {
         'registeredCommitsJson',
         'nonCompleteCommitsJson',
         'registeredMetadataJson',
-        'registeredMetadataTypesJson',
-        'hasCustomLabelMetadata',
+            'hasCustomLabelMetadata',
         'findings'
     };
     // Parameters that are not read from the DataJson (same shape as the standard functions)
