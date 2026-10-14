@@ -91,6 +91,11 @@ public with sharing class StoryVerificationController {
         // The repository's commit address up to the commit id (https://github.com/org/repo/commit/); blank when unknown.
         @AuraEnabled
         public String commitBaseUrl;
+        // Whether this user is offered Create Selected Metadata, and the folders that can be registered (finished runs only).
+        @AuraEnabled
+        public Boolean canCreateMetadata = false;
+        @AuraEnabled
+        public List<String> supportedKinds = new List<String>();
     }
 
     /** Reduced view of the Copado job for one run. */
@@ -308,6 +313,8 @@ public with sharing class StoryVerificationController {
         snapshot.scriptSeconds = reader.scriptSeconds;
         if (snapshot.isFinished) {
             snapshot.commitBaseUrl = reader.readCommitBaseUrl(story.Id);
+            snapshot.canCreateMetadata = StoryVerificationMetadataController.isAllowed();
+            snapshot.supportedKinds = StoryVerificationMetadataController.supportedKinds();
         }
         JobInfo info = reader.read(story.Id, snapshot.runId);
         snapshot.findings = snapshot.isFinished && !reader.finalFindings.isEmpty() ? reader.finalFindings : info.findings;

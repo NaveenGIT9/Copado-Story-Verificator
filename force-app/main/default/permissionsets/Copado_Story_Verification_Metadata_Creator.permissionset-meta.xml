@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>StoryVerificationMetadataController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Create_Story_Metadata</name>
+    </customPermissions>
+    <description>Shows the Create Selected Metadata button in the Verify popup, so the user can register missing components on the story. Give it together with Copado Story Verification User, and only to people who may add metadata to stories.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Copado Story Verification Metadata Creator</label>
+</PermissionSet>

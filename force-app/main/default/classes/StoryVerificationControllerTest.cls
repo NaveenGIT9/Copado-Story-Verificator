@@ -287,6 +287,21 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void aFinishedRunTellsThePopupWhetherMetadataCanBeCreated() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Issues', 'run-m', 'ISSUE: x');
+            StoryVerificationController.ProgressSnapshot finished = StoryVerificationController.getProgress(storyId, 'run-m');
+            System.assertEquals(false, finished.canCreateMetadata, 'Without the Metadata Creator permission set the button is off');
+            System.assert(finished.supportedKinds.contains('classes'), String.valueOf(finished.supportedKinds));
+
+            setState(storyId, 'Running', 'run-m2', null);
+            System.assertEquals(0, StoryVerificationController.getProgress(storyId, 'run-m2').supportedKinds.size(), 'Only a finished run offers it');
+        }
+    }
+
+    @IsTest
     static void parseFindingsKeepsWarningsAndGroups() {
         List<StoryVerificationController.Finding> findings = StoryVerificationController.parseFindings(
             new List<Object>{

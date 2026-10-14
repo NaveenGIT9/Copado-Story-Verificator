@@ -6,6 +6,8 @@
         <members>StoryVerificationController</members>
         <members>StoryVerificationControllerTest</members>
         <members>StoryVerificationException</members>
+        <members>StoryVerificationMetadataController</members>
+        <members>StoryVerificationMetadataControllerTest</members>
         <members>StoryVerificationService</members>
         <members>StoryVerificationServiceTest</members>
         <members>StoryVerificationSetup</members>
@@ -27,6 +29,7 @@
     </types>
     <types>
         <members>Bypass_Verification_Gate</members>
+        <members>Create_Story_Metadata</members>
         <name>CustomPermission</name>
     </types>
     <types>
@@ -35,6 +38,7 @@
     </types>
     <types>
         <members>Copado_Story_Verification_Bypass</members>
+        <members>Copado_Story_Verification_Metadata_Creator</members>
         <members>Copado_Story_Verification_User</members>
         <name>PermissionSet</name>
     </types>
