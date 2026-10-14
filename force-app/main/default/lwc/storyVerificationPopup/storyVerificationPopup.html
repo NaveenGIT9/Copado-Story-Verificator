@@ -68,13 +68,10 @@
                                 <template for:each={step.lines} for:item="checkLine">
                                     <li key={checkLine.key} class={checkLine.cssClass}>
                                         <template lwc:if={checkLine.isCommit}>
+                                            <span class="c-bullet" data-id="c-bullet" aria-hidden="true"></span>
                                             <span class="c-sha" data-id="c-sha">{checkLine.sha}</span>
                                             <span class="c-author" data-id="c-author">{checkLine.author}</span>
                                             <span class="c-subject" data-id="c-subject">{checkLine.subject}</span>
-                                            <template lwc:if={checkLine.hasComps}>
-                                                <span class="c-label">— uncovered:</span>
-                                                <span class="c-comps" data-id="c-comps">{checkLine.compsText}</span>
-                                            </template>
                                             <template lwc:if={checkLine.hasNote}>
                                                 <span class="c-note" data-id="c-note">{checkLine.note}</span>
                                             </template>

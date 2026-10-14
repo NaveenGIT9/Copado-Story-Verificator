@@ -474,15 +474,14 @@ export default class StoryVerificationPopup extends LightningElement {
     detailItem(key, row) {
         const more = (n) => (n > 0 ? ' (+' + n + ' more)' : '');
         if (row.t === 'commit') {
-            const comps = Array.isArray(row.comps) ? row.comps : [];
+            // Only the id, the person and the message: the uncovered components are listed under Metadata Coverage.
             return {
                 key,
                 isCommit: true,
+                cssClass: 'commit-line',
                 sha: String(row.sha || ''),
                 author: String(row.author || ''),
-                subject: '"' + String(row.subject || '') + '"',
-                hasComps: comps.length > 0,
-                compsText: comps.join(', ') + more(row.moreComps),
+                subject: String(row.subject || ''),
                 hasNote: !!row.note,
                 note: row.note ? '(' + row.note + ')' : ''
             };
@@ -515,6 +514,7 @@ export default class StoryVerificationPopup extends LightningElement {
             return {
                 key,
                 isGroup: true,
+                cssClass: 'group-line',
                 groupKey: key,
                 label: (row.label || 'Components') + ': ' + (row.count === undefined ? count : row.count),
                 open,

@@ -35,6 +35,21 @@
     color: #181818;
 }
 
+/* A small amber dot before each commit, and a blank line between commits. */
+.c-bullet {
+    background: #e08a00;
+    border-radius: 50%;
+    display: inline-block;
+    height: 0.5rem;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    width: 0.5rem;
+}
+
+.check-lines li.commit-line {
+    margin-bottom: 1rem;
+}
+
 .c-label {
     color: #706e6b;
     margin-left: 0.25rem;
@@ -57,6 +72,12 @@
 .check-lines li.danger-line {
     color: #ba0517;
     font-weight: 600;
+    margin-top: 1.25rem;
+}
+
+/* Two lines of space above the "Registered but unchanged in git" section. */
+.check-lines li.group-line {
+    margin-top: 2.5rem;
 }
 
 /* "Registered but unchanged in git: N" with its list underneath, one component per line. */

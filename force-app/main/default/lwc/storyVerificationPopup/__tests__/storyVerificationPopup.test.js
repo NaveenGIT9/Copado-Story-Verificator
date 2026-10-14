@@ -636,7 +636,7 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'state').textContent).toContain('Issues');
     });
 
-    it('shows an unregistered commit as separate parts: id, author, message and uncovered components', async () => {
+    it('shows an unregistered commit as a bullet plus id, author and message, without the uncovered components', async () => {
         const checks = [
             {
                 id: 'unregistered-commits',
@@ -654,8 +654,11 @@ describe('c-story-verification-popup', () => {
         const li = stepRow(element, 'Unregistered Commits').querySelector('[data-id="check-lines"] li');
         expect(li.querySelector('[data-id="c-sha"]').textContent).toBe('be25d73457');
         expect(li.querySelector('[data-id="c-author"]').textContent).toBe('NaveenBonthu9');
-        expect(li.querySelector('[data-id="c-subject"]').textContent).toBe('"Update ChatterUtil.cls"');
-        expect(li.querySelector('[data-id="c-comps"]').textContent).toBe('ChatterUtil.cls, Contact.Dup.duplicateRule');
+        expect(li.querySelector('[data-id="c-subject"]').textContent).toBe('Update ChatterUtil.cls');
+        expect(li.querySelector('[data-id="c-bullet"]')).not.toBeNull();
+        expect(li.classList.contains('commit-line')).toBe(true);
+        expect(li.querySelector('[data-id="c-comps"]')).toBeNull();
+        expect(li.textContent).not.toContain('Contact.Dup.duplicateRule');
         expect(li.querySelector('[data-id="c-note"]')).toBeNull();
         expect(li.textContent).not.toContain('plain version');
     });
