@@ -79,6 +79,8 @@ export default class StoryVerificationPopup extends LightningElement {
     superseded = false;
     // check id -> true/false once the user has toggled that row; untouched rows use the default (open for fail/warn).
     expandedByUser = {};
+    // group row key -> true when its list (for example the unchanged registered components) is opened.
+    openGroups = {};
 
     _timer;
     _runId;
@@ -107,6 +109,7 @@ export default class StoryVerificationPopup extends LightningElement {
         this.timedOut = false;
         this.superseded = false;
         this.expandedByUser = {};
+        this.openGroups = {};
         this._runId = undefined;
         this.starting = true;
         this._startedAt = Date.now();
@@ -215,6 +218,11 @@ export default class StoryVerificationPopup extends LightningElement {
             return;
         }
         this.expandedByUser = { ...this.expandedByUser, [checkId]: !row.expanded };
+    }
+
+    handleGroupToggle(event) {
+        const key = event.currentTarget.dataset.groupKey;
+        this.openGroups = { ...this.openGroups, [key]: !this.openGroups[key] };
     }
 
     // ---- view state ----
@@ -411,7 +419,7 @@ export default class StoryVerificationPopup extends LightningElement {
             ...visual,
             text,
             hasLines,
-            lines: findings.map((f, index) => ({ key: checkId + '-' + index, text: f.message })),
+            lines: findings.map((f, index) => ({ key: checkId + '-' + index, text: f.message, isText: true })),
             expanded,
             ariaExpanded: String(expanded),
             toggleLabel: expanded ? 'Hide details' : 'Show details'
@@ -423,6 +431,68 @@ export default class StoryVerificationPopup extends LightningElement {
             return this.expandedByUser[checkId];
         }
         return status === 'fail' || status === 'warn';
+    }
+
+    // The detail rows of one finished check. The Function sends structured rows (rowsJson) so that parts can be coloured and
+    // lists collapsed; without them the plain text lines are shown, as before.
+    detailItems(id, result) {
+        let rows = [];
+        try {
+            const parsed = result.rowsJson ? JSON.parse(result.rowsJson) : [];
+            rows = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            rows = [];
+        }
+        if (rows.length === 0) {
+            return (result.lines || []).map((text, index) => ({
+                key: 'check-' + id + '-' + index,
+                text,
+                isText: true,
+                cssClass: /^Not registered:/.test(text) ? 'component-names' : ''
+            }));
+        }
+        return rows.map((row, index) => this.detailItem('check-' + id + '-' + index, row || {}));
+    }
+
+    detailItem(key, row) {
+        const more = (n) => (n > 0 ? ' (+' + n + ' more)' : '');
+        if (row.t === 'commit') {
+            const comps = Array.isArray(row.comps) ? row.comps : [];
+            return {
+                key,
+                isCommit: true,
+                sha: String(row.sha || ''),
+                author: String(row.author || ''),
+                subject: '"' + String(row.subject || '') + '"',
+                hasComps: comps.length > 0,
+                compsText: comps.join(', ') + more(row.moreComps),
+                hasNote: !!row.note,
+                note: row.note ? '(' + row.note + ')' : ''
+            };
+        }
+        if (row.t === 'names') {
+            const items = Array.isArray(row.items) ? row.items : [];
+            return { key, isText: true, cssClass: 'component-names', text: (row.label || 'Components') + ': ' + items.join(', ') + more(row.more) };
+        }
+        if (row.t === 'danger') {
+            return { key, isDanger: true, cssClass: 'danger-line', text: String(row.text || '') };
+        }
+        if (row.t === 'group') {
+            const open = !!this.openGroups[key];
+            const items = Array.isArray(row.items) ? row.items : [];
+            return {
+                key,
+                isGroup: true,
+                groupKey: key,
+                label: (row.label || 'Components') + ': ' + (row.count === undefined ? items.length : row.count),
+                open,
+                ariaExpanded: String(open),
+                chevron: open ? 'utility:chevrondown' : 'utility:chevronright',
+                toggleTitle: open ? 'Hide the list' : 'Show the list',
+                items: items.map((name, i) => ({ key: key + '-i' + i, name: String(name) }))
+            };
+        }
+        return { key, isText: true, text: String(row.text === undefined || row.text === null ? '' : row.text) };
     }
 
     checkRow({ id, title, result }) {
@@ -439,12 +509,7 @@ export default class StoryVerificationPopup extends LightningElement {
         };
         if (this.isFinished && result) {
             const visual = CHECK_VISUALS[result.status] || CHECK_VISUALS.skipped;
-            // The "Not registered: <components>" line is shown in its own colour so the names stand out under the headline.
-            const lines = (result.lines || []).map((text, index) => ({
-                key: 'check-' + id + '-' + index,
-                text,
-                cssClass: /^Not registered:/.test(text) ? 'component-names' : ''
-            }));
+            const lines = this.detailItems(id, result);
             const expanded = lines.length > 0 && this.isExpanded(id, result.status);
             return {
                 ...row,

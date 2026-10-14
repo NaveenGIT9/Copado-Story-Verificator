@@ -44,6 +44,10 @@ public with sharing class StoryVerificationController {
         public String summary;
         @AuraEnabled
         public List<String> lines = new List<String>();
+        // Structured detail rows (coloured commit parts, component names, collapsible lists) as JSON text for the popup to parse;
+        // blank when the Function sent none, in which case the popup shows the plain lines.
+        @AuraEnabled
+        public String rowsJson;
     }
 
     /** One live "promotion readiness" line, e.g. Pending tests: 3 (state issue). */
@@ -351,6 +355,9 @@ public with sharing class StoryVerificationController {
                         check.lines.add(String.valueOf(line));
                     }
                 }
+            }
+            if (map1.get('rows') instanceof List<Object> && !((List<Object>) map1.get('rows')).isEmpty()) {
+                check.rowsJson = JSON.serialize(map1.get('rows'));
             }
             checks.add(check);
         }

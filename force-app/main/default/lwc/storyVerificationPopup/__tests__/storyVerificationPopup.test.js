@@ -632,6 +632,96 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'state').textContent).toContain('Issues');
     });
 
+    it('shows an unregistered commit as separate parts: id, author, message and uncovered components', async () => {
+        const checks = [
+            {
+                id: 'unregistered-commits',
+                title: 'Unregistered commits',
+                status: 'fail',
+                summary: '1 commit(s) outside Copado change unregistered components',
+                lines: ['plain version'],
+                rowsJson: JSON.stringify([
+                    { t: 'commit', sha: 'be25d73457', author: 'NaveenBonthu9', subject: 'Update ChatterUtil.cls', comps: ['ChatterUtil.cls', 'Contact.Dup.duplicateRule'], moreComps: 0, note: '' }
+                ])
+            }
+        ];
+        const element = await mountFinished(checks);
+
+        const li = stepRow(element, 'Unregistered commits').querySelector('[data-id="check-lines"] li');
+        expect(li.querySelector('[data-id="c-sha"]').textContent).toBe('be25d73457');
+        expect(li.querySelector('[data-id="c-author"]').textContent).toBe('NaveenBonthu9');
+        expect(li.querySelector('[data-id="c-subject"]').textContent).toBe('"Update ChatterUtil.cls"');
+        expect(li.querySelector('[data-id="c-comps"]').textContent).toBe('ChatterUtil.cls, Contact.Dup.duplicateRule');
+        expect(li.querySelector('[data-id="c-note"]')).toBeNull();
+        expect(li.textContent).not.toContain('plain version');
+    });
+
+    it('shows the "won\'t deploy" sentence with a warning icon', async () => {
+        const checks = [
+            {
+                id: 'metadata-coverage',
+                title: 'Metadata coverage',
+                status: 'fail',
+                summary: '1 of 2 changed components not registered',
+                lines: [],
+                rowsJson: JSON.stringify([
+                    { t: 'names', label: 'Not registered', items: ['Foo.cls'], more: 0 },
+                    { t: 'danger', text: "Their changes won't deploy to target - add them to the story in Copado." }
+                ])
+            }
+        ];
+        const element = await mountFinished(checks);
+
+        const items = Array.from(stepRow(element, 'Metadata coverage').querySelectorAll('[data-id="check-lines"] > li'));
+        expect(items[0].textContent).toBe('Not registered: Foo.cls');
+        expect(items[0].classList.contains('component-names')).toBe(true);
+        expect(items[1].classList.contains('danger-line')).toBe(true);
+        expect(items[1].querySelector('lightning-icon').iconName).toBe('utility:warning');
+        expect(items[1].querySelector('lightning-icon').variant).toBe('error');
+        expect(items[1].querySelector('[data-id="danger-text"]').textContent).toContain("won't deploy");
+    });
+
+    it('collapses the unchanged registered components into a count and lists them one per line when opened', async () => {
+        const checks = [
+            {
+                id: 'metadata-coverage',
+                title: 'Metadata coverage',
+                status: 'fail',
+                summary: '1 of 2 changed components not registered',
+                lines: [],
+                rowsJson: JSON.stringify([
+                    { t: 'group', label: 'Registered but unchanged in git', count: 3, items: ['Attachment.Body', 'AssetRelationship', 'Account.Name'] }
+                ])
+            }
+        ];
+        const element = await mountFinished(checks);
+        const row = () => stepRow(element, 'Metadata coverage');
+
+        expect(row().querySelector('[data-id="group-label"]').textContent).toBe('Registered but unchanged in git: 3');
+        expect(row().querySelector('[data-id="group-items"]')).toBeNull();
+        expect(row().querySelector('[data-id="group-toggle"]').getAttribute('aria-expanded')).toBe('false');
+
+        row().querySelector('[data-id="group-toggle"]').click();
+        await tick();
+        const listed = Array.from(row().querySelectorAll('[data-id="group-items"] li')).map((li) => li.textContent);
+        expect(listed).toEqual(['Attachment.Body', 'AssetRelationship', 'Account.Name']);
+        expect(row().querySelector('[data-id="group-toggle"]').getAttribute('aria-expanded')).toBe('true');
+
+        row().querySelector('[data-id="group-toggle"]').click();
+        await tick();
+        expect(row().querySelector('[data-id="group-items"]')).toBeNull();
+    });
+
+    it('falls back to the plain lines when the structured rows are missing or unreadable', async () => {
+        const checks = [
+            { id: 'metadata-coverage', title: 'Metadata coverage', status: 'fail', summary: 's', lines: ['line one', 'line two'], rowsJson: 'not json' }
+        ];
+        const element = await mountFinished(checks);
+
+        const items = Array.from(stepRow(element, 'Metadata coverage').querySelectorAll('[data-id="check-lines"] > li')).map((li) => li.textContent);
+        expect(items).toEqual(['line one', 'line two']);
+    });
+
     it('puts the not-registered component names on their own line under the headline, in their own style', async () => {
         const checks = [
             {

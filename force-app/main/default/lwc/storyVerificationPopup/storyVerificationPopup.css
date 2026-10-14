@@ -18,6 +18,60 @@
     font-weight: 600;
 }
 
+/* Unregistered-commit rows: each part has its own colour so the id, the person, the message and the components read apart. */
+.c-sha {
+    color: #706e6b;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    margin-right: 0.35rem;
+}
+
+.c-author {
+    color: #0b827c;
+    font-weight: 600;
+    margin-right: 0.35rem;
+}
+
+.c-subject {
+    color: #181818;
+}
+
+.c-label {
+    color: #706e6b;
+    margin-left: 0.25rem;
+}
+
+.c-comps {
+    color: #0b5cab;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-weight: 600;
+}
+
+.c-note {
+    color: #706e6b;
+    font-style: italic;
+    margin-left: 0.35rem;
+}
+
+/* The "their changes won't deploy" warning. */
+.check-lines li.danger-line {
+    color: #ba0517;
+    font-weight: 600;
+}
+
+/* "Registered but unchanged in git: N" with its list underneath, one component per line. */
+.group-toggle {
+    padding: 0;
+    color: inherit;
+}
+
+.group-items {
+    margin: 0.25rem 0 0.25rem 1.1rem;
+}
+
+.group-items li {
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
 .step-icon {
     display: inline-flex;
     width: 1.5rem;

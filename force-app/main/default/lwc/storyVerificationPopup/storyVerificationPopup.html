@@ -66,7 +66,57 @@
                         <template lwc:if={step.expanded}>
                             <ul class="check-lines slds-text-body_small slds-m-left_xx-large" data-id="check-lines">
                                 <template for:each={step.lines} for:item="checkLine">
-                                    <li key={checkLine.key} class={checkLine.cssClass}>{checkLine.text}</li>
+                                    <li key={checkLine.key} class={checkLine.cssClass}>
+                                        <template lwc:if={checkLine.isCommit}>
+                                            <span class="c-sha" data-id="c-sha">{checkLine.sha}</span>
+                                            <span class="c-author" data-id="c-author">{checkLine.author}</span>
+                                            <span class="c-subject" data-id="c-subject">{checkLine.subject}</span>
+                                            <template lwc:if={checkLine.hasComps}>
+                                                <span class="c-label">— uncovered:</span>
+                                                <span class="c-comps" data-id="c-comps">{checkLine.compsText}</span>
+                                            </template>
+                                            <template lwc:if={checkLine.hasNote}>
+                                                <span class="c-note" data-id="c-note">{checkLine.note}</span>
+                                            </template>
+                                        </template>
+                                        <template lwc:elseif={checkLine.isDanger}>
+                                            <lightning-icon
+                                                icon-name="utility:warning"
+                                                variant="error"
+                                                size="x-small"
+                                                alternative-text="Warning"
+                                                class="slds-m-right_x-small"
+                                            ></lightning-icon>
+                                            <span data-id="danger-text">{checkLine.text}</span>
+                                        </template>
+                                        <template lwc:elseif={checkLine.isGroup}>
+                                            <button
+                                                type="button"
+                                                class="group-toggle slds-button"
+                                                aria-expanded={checkLine.ariaExpanded}
+                                                title={checkLine.toggleTitle}
+                                                data-id="group-toggle"
+                                                data-group-key={checkLine.groupKey}
+                                                onclick={handleGroupToggle}
+                                            >
+                                                <lightning-icon
+                                                    icon-name={checkLine.chevron}
+                                                    size="xx-small"
+                                                    alternative-text={checkLine.toggleTitle}
+                                                    class="slds-m-right_xx-small"
+                                                ></lightning-icon>
+                                                <span data-id="group-label">{checkLine.label}</span>
+                                            </button>
+                                            <template lwc:if={checkLine.open}>
+                                                <ul class="group-items" data-id="group-items">
+                                                    <template for:each={checkLine.items} for:item="groupItem">
+                                                        <li key={groupItem.key}>{groupItem.name}</li>
+                                                    </template>
+                                                </ul>
+                                            </template>
+                                        </template>
+                                        <template lwc:else>{checkLine.text}</template>
+                                    </li>
                                 </template>
                             </ul>
                         </template>

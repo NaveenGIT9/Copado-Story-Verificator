@@ -166,6 +166,28 @@ function parseApiName(filePath) {
     return parts[parts.length - 1].replace(/-meta\.xml$/, "").replace(/\.[^.]+$/, "") || null;
 }
 
+// The same component as parseApiName, plus a display name that keeps the file extension (ChatterUtil.cls, Account.Foo__c.field).
+function parseComponent(filePath) {
+    const api = parseApiName(filePath);
+    if (!api) return null;
+    const parts = filePath.replace(/\\/g, "/").split("/");
+    const typeFolder = parts[parts.indexOf("default") + 1];
+    if (typeFolder === "lwc") return { api: api, display: api + " (LWC)" };
+    if (typeFolder === "aura") return { api: api, display: api + " (Aura)" };
+    const ext = /\.([^.]+)$/.exec(parts[parts.length - 1].replace(/-meta\.xml$/, ""));
+    return { api: api, display: ext ? api + "." + ext[1] : api };
+}
+
+// Unique components of a list of git file paths: { api, display }.
+function componentsOf(paths) {
+    const seen = new Map();
+    paths.forEach((p) => {
+        const c = parseComponent(p);
+        if (c && !seen.has(c.api)) seen.set(c.api, c);
+    });
+    return Array.from(seen.values());
+}
+
 function makeIsCovered(names, hasLabels) {
     const list = Array.from(names);
     return (c) => {
@@ -175,8 +197,9 @@ function makeIsCovered(names, hasLabels) {
     };
 }
 
-function mk(id, status, summary, lines) {
-    return { id: id, title: TITLES[id], status: status, summary: summary, lines: lines };
+// rows (optional): structured detail rows for the popup (coloured parts, collapsible lists); lines stay as the plain-text version.
+function mk(id, status, summary, lines, rows) {
+    return { id: id, title: TITLES[id], status: status, summary: summary, lines: lines, rows: rows || [] };
 }
 
 function skippedChecks(reason) {
@@ -420,7 +443,7 @@ function checkUnregistered(ctx) {
     const analysed = unreg.slice(0, MAX_ANALYSE);
     const details = analysed.map((c) => {
         const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "--no-renames", "-z", c.sha]);
-        const comps = uniq((out === null ? [] : out.split("\0").filter(Boolean)).map(parseApiName).filter(Boolean));
+        const comps = componentsOf(out === null ? [] : out.split("\0").filter(Boolean));
         const sl = c.sha.toLowerCase();
         const nc = cfg.nonComplete.find((n) => n.sha.length >= 7 && (sl.startsWith(n.sha) || n.sha.startsWith(sl)));
         return {
@@ -430,7 +453,7 @@ function checkUnregistered(ctx) {
             subject: c.subject,
             auto: AUTO_PREFIXES.some((p) => c.subject.startsWith(p)),
             status: nc ? nc.status : null,
-            uncovered: comps.filter((x) => !ctx.isCovered(x))
+            uncovered: comps.filter((x) => !ctx.isCovered(x.api)).map((x) => x.display)
         };
     });
     const lines = details.slice(0, 50).map((d) => {
@@ -440,10 +463,25 @@ function checkUnregistered(ctx) {
         if (d.status) line += " [Copado status: " + d.status + "]";
         return line;
     });
-    if (details.length > 50) lines.push("+" + (details.length - 50) + " more");
+    // One structured row per commit so the popup can colour the id, the author, the message and the component names apart.
+    const rows = details.slice(0, 50).map((d) => ({
+        t: "commit",
+        sha: d.sha10,
+        author: d.author,
+        subject: d.subject,
+        comps: d.uncovered.slice(0, 30),
+        moreComps: Math.max(0, d.uncovered.length - 30),
+        note: d.auto ? "Copado auto-commit, exempt" : d.status ? "Copado status: " + d.status : ""
+    }));
+    if (details.length > 50) {
+        lines.push("+" + (details.length - 50) + " more");
+        rows.push({ t: "text", text: "+" + (details.length - 50) + " more" });
+    }
     if (unreg.length > analysed.length) {
-        lines.push("Only the first " + analysed.length + " of " + unreg.length + " commits were analysed.");
-        return mk(id, "fail", unreg.length + " commits outside Copado " + DASH + " too many to analyse", lines);
+        const cutOff = "Only the first " + analysed.length + " of " + unreg.length + " commits were analysed.";
+        lines.push(cutOff);
+        rows.push({ t: "text", text: cutOff });
+        return mk(id, "fail", unreg.length + " commits outside Copado " + DASH + " too many to analyse", lines, rows);
     }
     const effective = details.filter((d) => !d.auto);
     const hard = details.filter((d) => d.status && d.status.toLowerCase() !== "failed");
@@ -451,22 +489,23 @@ function checkUnregistered(ctx) {
     const authors = uniq(effective.filter((d) => d.email && !regEmails.has(d.email)).map((d) => d.author));
     if (effective.length === 0) {
         const note = unreg.length === 0 ? "all registered" : unreg.length + " Copado auto-commit(s) exempt, rest registered";
-        return mk(id, "pass", extra.length + " commit(s), " + note, lines);
+        return mk(id, "pass", extra.length + " commit(s), " + note, lines, rows);
     }
     if (hard.length > 0) {
-        return mk(id, "fail", "Commit " + hard[0].sha10 + " has Copado status \"" + hard[0].status + "\"", lines);
+        return mk(id, "fail", "Commit " + hard[0].sha10 + " has Copado status \"" + hard[0].status + "\"", lines, rows);
     }
     if (uncoveredCommits.length > 0) {
-        return mk(id, "fail", uncoveredCommits.length + " commit(s) outside Copado change unregistered components", lines);
+        return mk(id, "fail", uncoveredCommits.length + " commit(s) outside Copado change unregistered components", lines, rows);
     }
     if (authors.length > 0) {
-        return mk(id, "fail", "Commit by " + authors.join(", ") + " is not a registered committer " + DASH + " verify manually", lines);
+        return mk(id, "fail", "Commit by " + authors.join(", ") + " is not a registered committer " + DASH + " verify manually", lines, rows);
     }
     return mk(
         id,
         "warn",
         effective.length + " commit(s) outside Copado; components registered, same author",
-        lines
+        lines,
+        rows
     );
 }
 
@@ -475,24 +514,34 @@ function checkMetadata(ctx) {
     let raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
     if (raw === null) raw = tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
-    const comps = uniq(raw.split("\0").filter(Boolean).map(parseApiName).filter(Boolean));
-    const uncovered = comps.filter((c) => !ctx.isCovered(c));
+    const comps = componentsOf(raw.split("\0").filter(Boolean));
+    const uncoveredNames = comps.filter((c) => !ctx.isCovered(c.api)).map((c) => c.display);
+    const uncovered = uncoveredNames;
+    const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";
     const lines = [];
+    const rows = [];
     if (uncovered.length > 0) {
-        // The names always get their own detail line under the headline (the popup shows it in its own colour).
+        // The names get their own detail line under the headline; the warning sentence is a separate "danger" row in the popup.
         lines.push("Not registered: " + capList(uncovered, 100));
-        lines.push("Their changes won't deploy to target - add them to the story in Copado.");
+        lines.push(WONT_DEPLOY);
+        rows.push({ t: "names", label: "Not registered", items: uncovered.slice(0, 100), more: Math.max(0, uncovered.length - 100) });
+        rows.push({ t: "danger", text: WONT_DEPLOY });
     }
-    const changed = new Set(comps.map((c) => c.toLowerCase()));
+    const changed = new Set(comps.map((c) => c.api.toLowerCase()));
     const changedList = Array.from(changed);
     const unchanged = Array.from(ctx.cfg.metadata).filter(
         (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
     );
-    if (unchanged.length > 0) lines.push("Registered but unchanged in git: " + capList(unchanged.map((r) => ctx.cfg.metadataNames.get(r) || r), 50));
-    if (uncovered.length > 0) {
-        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered", lines);
+    if (unchanged.length > 0) {
+        const unchangedNames = unchanged.map((r) => ctx.cfg.metadataNames.get(r) || r);
+        lines.push("Registered but unchanged in git (" + unchangedNames.length + "): " + capList(unchangedNames, 50));
+        // A collapsible row in the popup: the count, and the full list one per line when opened.
+        rows.push({ t: "group", label: "Registered but unchanged in git", count: unchangedNames.length, items: unchangedNames.slice(0, 500) });
     }
-    return mk(id, "pass", comps.length === 0 ? "No changed components found in git" : "All " + comps.length + " changed components registered", lines);
+    if (uncovered.length > 0) {
+        return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered", lines, rows);
+    }
+    return mk(id, "pass", comps.length === 0 ? "No changed components found in git" : "All " + comps.length + " changed components registered", lines, rows);
 }
 
 function guarded(id, ctx, fn) {
@@ -511,7 +560,8 @@ function buildResult(cfg, status, notes, checks, cap) {
     const cut = checks.map((ch) => {
         const lines = ch.lines.slice(0, cap).map((l) => clip(l));
         if (ch.lines.length > cap) lines.push("(+" + (ch.lines.length - cap) + " more lines omitted)");
-        return { id: ch.id, title: ch.title, status: ch.status, summary: clip(ch.summary), lines: lines };
+        const rows = (ch.rows || []).slice(0, cap).map((r) => (r.t === "group" ? Object.assign({}, r, { items: r.items.slice(0, cap * 5) }) : r));
+        return { id: ch.id, title: ch.title, status: ch.status, summary: clip(ch.summary), lines: lines, rows: rows };
     });
     const findingLines = cfg.findings.map((f) => (f.severity === "issue" ? "ISSUE: " : "INFO: ") + clip(f.message));
     const noteLines = notes.map((n) => "NOTE: " + clip(n));

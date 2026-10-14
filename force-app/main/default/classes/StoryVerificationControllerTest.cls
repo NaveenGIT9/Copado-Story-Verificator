@@ -333,6 +333,21 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void parseChecksPassesStructuredRowsThroughAsJson() {
+        List<StoryVerificationController.CheckResult> checks = StoryVerificationController.parseChecks(
+            '{"checks":[{"id":"metadata-coverage","status":"fail","lines":["a"],"rows":[{"t":"names","items":["Foo.cls"]}]},' +
+            '{"id":"org-branch-merge","status":"pass","rows":[]},{"id":"unregistered-commits","status":"pass"}]}'
+        );
+        System.assertEquals(3, checks.size());
+        System.assertNotEquals(null, checks[0].rowsJson);
+        List<Object> rows = (List<Object>) JSON.deserializeUntyped(checks[0].rowsJson);
+        System.assertEquals(1, rows.size());
+        System.assertEquals('names', ((Map<String, Object>) rows[0]).get('t'));
+        System.assertEquals(null, checks[1].rowsJson);
+        System.assertEquals(null, checks[2].rowsJson);
+    }
+
+    @IsTest
     static void parseChecksToleratesBadShapes() {
         System.assertEquals(0, StoryVerificationController.parseChecks(null).size());
         System.assertEquals(0, StoryVerificationController.parseChecks('[]').size());
