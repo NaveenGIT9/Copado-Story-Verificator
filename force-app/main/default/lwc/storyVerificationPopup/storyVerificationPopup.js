@@ -479,17 +479,32 @@ export default class StoryVerificationPopup extends LightningElement {
         }
         if (row.t === 'group') {
             const open = !!this.openGroups[key];
-            const items = Array.isArray(row.items) ? row.items : [];
+            // The list is a flat sequence of entries: a heading per metadata type, then that type's components one per line.
+            // Results stored without types (a flat "items" list) show just the components.
+            const entries = [];
+            if (Array.isArray(row.groups)) {
+                row.groups.forEach((group, gi) => {
+                    entries.push({ key: key + '-t' + gi, isHeading: true, text: String(group.type || 'Other'), cssClass: 'type-heading' });
+                    (Array.isArray(group.items) ? group.items : []).forEach((name, i) => {
+                        entries.push({ key: key + '-t' + gi + '-i' + i, isHeading: false, text: String(name), cssClass: 'component-name' });
+                    });
+                });
+            } else {
+                (Array.isArray(row.items) ? row.items : []).forEach((name, i) => {
+                    entries.push({ key: key + '-i' + i, isHeading: false, text: String(name), cssClass: 'component-name' });
+                });
+            }
+            const count = entries.filter((e) => !e.isHeading).length;
             return {
                 key,
                 isGroup: true,
                 groupKey: key,
-                label: (row.label || 'Components') + ': ' + (row.count === undefined ? items.length : row.count),
+                label: (row.label || 'Components') + ': ' + (row.count === undefined ? count : row.count),
                 open,
                 ariaExpanded: String(open),
                 chevron: open ? 'utility:chevrondown' : 'utility:chevronright',
                 toggleTitle: open ? 'Hide the list' : 'Show the list',
-                items: items.map((name, i) => ({ key: key + '-i' + i, name: String(name) }))
+                entries
             };
         }
         return { key, isText: true, text: String(row.text === undefined || row.text === null ? '' : row.text) };

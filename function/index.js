@@ -166,19 +166,22 @@ function parseObject(raw) {
     return v !== null && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
 
-// Copado metadata type -> the file extension used to name a component (ChatterUtil.cls); other types are shown in brackets.
-const TYPE_EXT = {
-    ApexClass: "cls", ApexTrigger: "trigger", ApexPage: "page", ApexComponent: "component", CustomField: "field", CustomObject: "object",
-    ValidationRule: "validationRule", Flow: "flow", Layout: "layout", PermissionSet: "permissionset", Profile: "profile",
-    DuplicateRule: "duplicateRule", CustomLabels: "labels", CustomTab: "tab", QuickAction: "quickAction", RecordType: "recordType",
-    CustomPermission: "customPermission", StaticResource: "resource", FlexiPage: "flexipage"
-};
+// "CustomField" -> "Custom Field"; an item without a recorded type goes under "Other".
+function typeLabel(type) {
+    const t = str(type).trim();
+    return t ? t.replace(/([a-z])([A-Z])/g, "$1 $2") : "Other";
+}
 
-function typedName(name, type) {
-    if (!type) return name;
-    if (type === "LightningComponentBundle") return name + " (LWC)";
-    if (type === "AuraDefinitionBundle") return name + " (Aura)";
-    return TYPE_EXT[type] ? name + "." + TYPE_EXT[type] : name + " (" + type + ")";
+// Keeps at most "limit" names over all groups (in order) and drops groups that end up empty.
+function capGroups(groups, limit) {
+    let left = limit;
+    const out = [];
+    groups.forEach((g) => {
+        const items = g.items.slice(0, Math.max(0, left));
+        left -= items.length;
+        if (items.length > 0) out.push({ type: g.type, items: items });
+    });
+    return out;
 }
 
 function parseApiName(filePath) {
@@ -569,10 +572,20 @@ function checkMetadata(ctx) {
         (r) => !changed.has(r) && !changedList.some((cl) => r.startsWith(cl + "."))
     );
     if (unchanged.length > 0) {
-        const unchangedNames = unchanged.map((r) => typedName(ctx.cfg.metadataNames.get(r) || r, ctx.cfg.metadataTypes.get(r)));
-        lines.push("Registered but unchanged in git (" + unchangedNames.length + "): " + capList(unchangedNames, 50));
-        // A collapsible row in the popup: the count, and the full list one per line when opened.
-        rows.push({ t: "group", label: "Registered but unchanged in git", count: unchangedNames.length, items: unchangedNames.slice(0, 500) });
+        const byType = new Map();
+        unchanged.forEach((r) => {
+            const name = ctx.cfg.metadataNames.get(r) || r;
+            const label = typeLabel(ctx.cfg.metadataTypes.get(r));
+            if (!byType.has(label)) byType.set(label, []);
+            byType.get(label).push(name);
+        });
+        const groups = Array.from(byType.entries())
+            .sort((x, y) => (x[0] === "Other" ? 1 : y[0] === "Other" ? -1 : x[0].localeCompare(y[0])))
+            .map((e) => ({ type: e[0], items: e[1].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())) }));
+        const allNames = [].concat.apply([], groups.map((g) => g.items));
+        lines.push("Registered but unchanged in git (" + allNames.length + "): " + capList(allNames, 50));
+        // A collapsible row in the popup: the count, then the components under their metadata type, one per line, when opened.
+        rows.push({ t: "group", label: "Registered but unchanged in git", count: allNames.length, groups: capGroups(groups, 500) });
     }
     if (uncovered.length > 0) {
         return mk(id, "fail", uncovered.length + " of " + comps.length + " changed components not registered", lines, rows);
@@ -596,7 +609,7 @@ function buildResult(cfg, status, notes, checks, cap) {
     const cut = checks.map((ch) => {
         const lines = ch.lines.slice(0, cap).map((l) => clip(l));
         if (ch.lines.length > cap) lines.push("(+" + (ch.lines.length - cap) + " more lines omitted)");
-        const rows = (ch.rows || []).slice(0, cap).map((r) => (r.t === "group" ? Object.assign({}, r, { items: r.items.slice(0, cap * 5) }) : r));
+        const rows = (ch.rows || []).slice(0, cap).map((r) => (r.t === "group" ? Object.assign({}, r, { groups: capGroups(r.groups, cap * 5) }) : r));
         return { id: ch.id, title: ch.title, status: ch.status, summary: clip(ch.summary), lines: lines, rows: rows };
     });
     const findingLines = cfg.findings.map((f) => (f.severity === "issue" ? "ISSUE: " : "INFO: ") + clip(f.message));

@@ -712,6 +712,39 @@ describe('c-story-verification-popup', () => {
         expect(row().querySelector('[data-id="group-items"]')).toBeNull();
     });
 
+    it('lists the unchanged registered components under a heading per metadata type, in different styles', async () => {
+        const checks = [
+            {
+                id: 'metadata-coverage',
+                title: 'Metadata coverage',
+                status: 'fail',
+                summary: 's',
+                lines: [],
+                rowsJson: JSON.stringify([
+                    {
+                        t: 'group',
+                        label: 'Registered but unchanged in git',
+                        count: 3,
+                        groups: [
+                            { type: 'Custom Object', items: ['Authorization', 'Contact'] },
+                            { type: 'Custom Field', items: ['Contact.field1'] }
+                        ]
+                    }
+                ])
+            }
+        ];
+        const element = await mountFinished(checks);
+        const row = () => stepRow(element, 'Metadata coverage');
+
+        expect(row().querySelector('[data-id="group-label"]').textContent).toBe('Registered but unchanged in git: 3');
+        row().querySelector('[data-id="group-toggle"]').click();
+        await tick();
+
+        const entries = Array.from(row().querySelectorAll('[data-id="group-items"] li'));
+        expect(entries.map((li) => li.textContent)).toEqual(['Custom Object', 'Authorization', 'Contact', 'Custom Field', 'Contact.field1']);
+        expect(entries.map((li) => li.className)).toEqual(['type-heading', 'component-name', 'component-name', 'type-heading', 'component-name']);
+    });
+
     it('falls back to the plain lines when the structured rows are missing or unreadable', async () => {
         const checks = [
             { id: 'metadata-coverage', title: 'Metadata coverage', status: 'fail', summary: 's', lines: ['line one', 'line two'], rowsJson: 'not json' }

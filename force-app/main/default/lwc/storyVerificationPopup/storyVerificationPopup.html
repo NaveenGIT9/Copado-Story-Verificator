@@ -109,8 +109,8 @@
                                             </button>
                                             <template lwc:if={checkLine.open}>
                                                 <ul class="group-items" data-id="group-items">
-                                                    <template for:each={checkLine.items} for:item="groupItem">
-                                                        <li key={groupItem.key}>{groupItem.name}</li>
+                                                    <template for:each={checkLine.entries} for:item="entry">
+                                                        <li key={entry.key} class={entry.cssClass}>{entry.text}</li>
                                                     </template>
                                                 </ul>
                                             </template>
