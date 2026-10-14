@@ -4,6 +4,8 @@ import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import NAME_FIELD from '@salesforce/schema/copado__User_Story__c.Name';
 import start from '@salesforce/apex/StoryVerificationController.start';
 import getProgress from '@salesforce/apex/StoryVerificationController.getProgress';
+import previewMetadata from '@salesforce/apex/StoryVerificationMetadataController.preview';
+import createMetadata from '@salesforce/apex/StoryVerificationMetadataController.create';
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_MS = 5 * 60 * 1000;
@@ -97,6 +99,14 @@ export default class StoryVerificationPopup extends LightningElement {
     expandedByUser = {};
     // group row key -> true when its list (for example the unchanged registered components) is opened.
     openGroups = {};
+    // The components ticked in the "Not registered" list: "<kind>|<name>" -> true.
+    selected = {};
+    // 'result' (the checks), 'preview' (what Create Selected Metadata would insert) or 'done' (what was inserted).
+    view = 'result';
+    previewData;
+    createData;
+    metaError = '';
+    busy = false;
 
     _timer;
     _runId;
@@ -107,6 +117,13 @@ export default class StoryVerificationPopup extends LightningElement {
     durationMs;
     // Bumped on every (re)start and on disconnect so late Apex responses from an old session are ignored.
     _session = 0;
+
+    // A checkbox cannot be "partly ticked" through an attribute, only through its property.
+    renderedCallback() {
+        this.template.querySelectorAll('input[data-scope]').forEach((box) => {
+            box.indeterminate = box.dataset.indeterminate === 'true';
+        });
+    }
 
     disconnectedCallback() {
         this.clearTimer();
@@ -120,6 +137,11 @@ export default class StoryVerificationPopup extends LightningElement {
         this._session += 1;
         const session = this._session;
         this.runStarted = true;
+        this.selected = {};
+        this.view = 'result';
+        this.previewData = undefined;
+        this.createData = undefined;
+        this.metaError = '';
         this.snapshot = undefined;
         this.errorText = undefined;
         this.timedOut = false;
@@ -236,6 +258,186 @@ export default class StoryVerificationPopup extends LightningElement {
         this.expandedByUser = { ...this.expandedByUser, [checkId]: !row.expanded };
     }
 
+    // ---- Create Selected Metadata ----
+
+    // The groups of the "Not registered" list of the stored Metadata Coverage check: { kind, type, items: [{ name, action, ... }] }.
+    get selectGroups() {
+        const check = ((this.snapshot && this.snapshot.checks) || []).find((c) => c.id === 'metadata-coverage');
+        if (!check || !check.rowsJson) {
+            return [];
+        }
+        try {
+            const rows = JSON.parse(check.rowsJson);
+            const row = (Array.isArray(rows) ? rows : []).find((r) => r && r.t === 'select');
+            return row && Array.isArray(row.groups) ? row.groups : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    get canSelectMetadata() {
+        return !!(this.snapshot && this.snapshot.canCreateMetadata && this.isFinished);
+    }
+
+    isSupportedKind(kind) {
+        return ((this.snapshot && this.snapshot.supportedKinds) || []).includes(kind);
+    }
+
+    keysOfKind(kind) {
+        const keys = [];
+        this.selectGroups
+            .filter((g) => g.kind === kind && this.isSupportedKind(g.kind))
+            .forEach((g) => (g.items || []).forEach((item) => keys.push(g.kind + '|' + item.name)));
+        return keys;
+    }
+
+    // Every component that may be ticked (its kind can be registered).
+    get selectableKeys() {
+        const keys = [];
+        this.selectGroups.forEach((g) => {
+            if (this.isSupportedKind(g.kind)) {
+                (g.items || []).forEach((item) => keys.push(g.kind + '|' + item.name));
+            }
+        });
+        return keys;
+    }
+
+    get selectedKeys() {
+        return this.selectableKeys.filter((key) => this.selected[key]);
+    }
+
+    handleSelectChange(event) {
+        const box = event.currentTarget;
+        const keys =
+            box.dataset.scope === 'item'
+                ? [box.dataset.key]
+                : box.dataset.scope === 'group'
+                  ? this.keysOfKind(box.dataset.kind)
+                  : this.selectableKeys;
+        const next = { ...this.selected };
+        keys.forEach((key) => {
+            if (box.checked) {
+                next[key] = true;
+            } else {
+                delete next[key];
+            }
+        });
+        this.selected = next;
+    }
+
+    apexMessage(error) {
+        return (error && error.body && error.body.message) || (error && error.message) || 'Something went wrong.';
+    }
+
+    async handleCreateSelected() {
+        if (this.busy || this.selectedKeys.length === 0) {
+            return;
+        }
+        this.busy = true;
+        this.metaError = '';
+        try {
+            this.previewData = await previewMetadata({ storyId: this._storyId, keys: this.selectedKeys });
+            this.view = 'preview';
+        } catch (error) {
+            this.metaError = this.apexMessage(error);
+        } finally {
+            this.busy = false;
+        }
+    }
+
+    handleBack() {
+        this.metaError = '';
+        this.view = 'result';
+    }
+
+    async handleInsert() {
+        if (this.busy || !this.previewData || !this.previewData.newCount) {
+            return;
+        }
+        this.busy = true;
+        this.metaError = '';
+        try {
+            this.createData = await createMetadata({ storyId: this._storyId, keys: this.selectedKeys });
+            this.selected = {};
+            this.view = 'done';
+        } catch (error) {
+            this.metaError = this.apexMessage(error);
+        } finally {
+            this.busy = false;
+        }
+    }
+
+    get previewStoryLabel() {
+        const data = this.previewData;
+        return data ? data.storyName + (data.storyTitle ? ' (' + data.storyTitle + ')' : '') : '';
+    }
+
+    // What Insert would create, grouped by metadata type.
+    get previewSections() {
+        const data = this.previewData;
+        if (!data) {
+            return [];
+        }
+        const sections = [];
+        const byLabel = {};
+        (data.lines || []).forEach((line, index) => {
+            const label = line.typeLabel || line.type;
+            if (!byLabel[label]) {
+                byLabel[label] = { key: 'preview-type-' + label, typeLabel: label, lines: [] };
+                sections.push(byLabel[label]);
+            }
+            byLabel[label].lines.push({
+                key: 'preview-line-' + index,
+                name: line.name,
+                action: line.action,
+                actionClass: line.action === 'Delete' ? 'action-badge action-delete' : 'action-badge action-add',
+                path: line.path || '(no file path)',
+                exists: !!line.exists,
+                cssClass: line.exists ? 'preview-line preview-exists' : 'preview-line'
+            });
+        });
+        return sections;
+    }
+
+    get previewSummary() {
+        const data = this.previewData;
+        if (!data) {
+            return '';
+        }
+        let text = data.newCount + (data.newCount === 1 ? ' record' : ' records') + ' will be created.';
+        if (data.existingCount) {
+            text += ' ' + data.existingCount + ' already registered and skipped.';
+        }
+        if (data.unsupported && data.unsupported.length) {
+            text += ' Not offered (type not supported yet): ' + data.unsupported.join(', ') + '.';
+        }
+        return text;
+    }
+
+    get insertLabel() {
+        return 'Insert' + (this.previewData && this.previewData.newCount ? ' (' + this.previewData.newCount + ')' : '');
+    }
+
+    get insertDisabled() {
+        return this.busy || !this.previewData || !this.previewData.newCount;
+    }
+
+    get doneSummary() {
+        const data = this.createData;
+        if (!data) {
+            return '';
+        }
+        let text = 'Created ' + data.created + (data.created === 1 ? ' record' : ' records') + ' under User Story Metadata of ' + this.previewStoryLabel + '.';
+        if (data.skipped) {
+            text += ' ' + data.skipped + ' already existed and were skipped.';
+        }
+        return text;
+    }
+
+    get doneErrors() {
+        return ((this.createData && this.createData.errors) || []).map((text, index) => ({ key: 'done-error-' + index, text }));
+    }
+
     handleGroupToggle(event) {
         const key = event.currentTarget.dataset.groupKey;
         // The button says whether the list is open now, so flip that.
@@ -250,7 +452,15 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get showRun() {
-        return this.runStarted;
+        return this.runStarted && this.view === 'result';
+    }
+
+    get showPreview() {
+        return this.view === 'preview' && !!this.previewData;
+    }
+
+    get showDone() {
+        return this.view === 'done' && !!this.createData;
     }
 
     get introText() {
@@ -274,7 +484,7 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get canRetry() {
-        return this.runStarted && (this.isFinished || !!this.errorText);
+        return this.runStarted && this.view !== 'preview' && (this.isFinished || !!this.errorText);
     }
 
     get jobStatus() {
@@ -472,7 +682,15 @@ export default class StoryVerificationPopup extends LightningElement {
                 cssClass: /^Not registered:/.test(text) ? 'component-names' : ''
             }));
         }
-        return rows.map((row, index) => this.detailItem('check-' + id + '-' + index, row || {}));
+        const items = rows.map((row, index) => this.detailItem('check-' + id + '-' + index, row || {}));
+        // The Create Selected Metadata button sits on the "won't deploy" line, once something is ticked.
+        if (items.some((item) => item.isSelect) && this.selectedKeys.length > 0) {
+            const warning = items.find((item) => item.isDanger);
+            if (warning) {
+                warning.hasAction = true;
+            }
+        }
+        return items;
     }
 
     // The commit's page in the Git host: the repository's commit address plus the full id. Only https addresses and plain
@@ -483,6 +701,75 @@ export default class StoryVerificationPopup extends LightningElement {
             return '';
         }
         return base + (base.endsWith('/') ? '' : '/') + fullSha;
+    }
+
+    // The "Not registered" list: a toggle with a "Select all" box, a box per metadata type and a box per component, each
+    // component with the action it needs (ADD / DELETE). Without the permission the boxes are not shown, only the actions.
+    selectItem(key, row) {
+        const open = !!this.openGroups[key];
+        const canSelect = this.canSelectMetadata;
+        const entries = [];
+        let selectable = 0;
+        let ticked = 0;
+        (Array.isArray(row.groups) ? row.groups : []).forEach((group, gi) => {
+            const items = Array.isArray(group.items) ? group.items : [];
+            const supported = this.isSupportedKind(group.kind);
+            const keys = items.map((item) => group.kind + '|' + item.name);
+            const groupTicked = supported ? keys.filter((k) => this.selected[k]).length : 0;
+            entries.push({
+                key: key + '-g' + gi,
+                isHeading: true,
+                text: String(group.type || 'Other'),
+                cssClass: 'type-heading',
+                showBox: canSelect,
+                scope: 'group',
+                kind: group.kind,
+                checked: supported && keys.length > 0 && groupTicked === keys.length,
+                indeterminate: String(groupTicked > 0 && groupTicked < keys.length),
+                disabled: !supported,
+                title: supported ? '' : 'This type cannot be registered from here yet',
+                ariaLabel: 'Select all ' + String(group.type || '')
+            });
+            items.forEach((item, i) => {
+                const itemKey = group.kind + '|' + item.name;
+                const isTicked = supported && !!this.selected[itemKey];
+                if (supported) {
+                    selectable += 1;
+                    ticked += isTicked ? 1 : 0;
+                }
+                entries.push({
+                    key: key + '-g' + gi + '-i' + i,
+                    isHeading: false,
+                    text: String(item.name),
+                    cssClass: 'component-name',
+                    showBox: canSelect,
+                    scope: 'item',
+                    itemKey,
+                    checked: isTicked,
+                    indeterminate: 'false',
+                    disabled: !supported,
+                    title: supported ? '' : 'This type cannot be registered from here yet',
+                    ariaLabel: 'Select ' + String(item.name),
+                    action: item.action === 'Delete' ? 'DELETE' : 'ADD',
+                    actionClass: item.action === 'Delete' ? 'action-badge action-delete' : 'action-badge action-add'
+                });
+            });
+        });
+        return {
+            key,
+            isSelect: true,
+            groupKey: key,
+            label: (row.label || 'Components') + ': ' + (row.count === undefined ? selectable : row.count),
+            labelClass: 'tone-warn',
+            open,
+            ariaExpanded: String(open),
+            chevron: open ? 'utility:chevrondown' : 'utility:chevronright',
+            toggleTitle: open ? 'Hide the list' : 'Show the list',
+            showAll: canSelect && selectable > 0,
+            allChecked: selectable > 0 && ticked === selectable,
+            allIndeterminate: String(ticked > 0 && ticked < selectable),
+            entries
+        };
     }
 
     detailItem(key, row) {
@@ -510,6 +797,9 @@ export default class StoryVerificationPopup extends LightningElement {
         }
         if (row.t === 'danger') {
             return { key, isDanger: true, cssClass: 'danger-line', text: String(row.text || '') };
+        }
+        if (row.t === 'select') {
+            return this.selectItem(key, row);
         }
         if (row.t === 'group') {
             // Lists start closed; after that the user's last choice is kept.

@@ -6,6 +6,12 @@
             </div>
         </template>
 
+        <template lwc:if={metaError}>
+            <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_small" role="alert" data-id="meta-error">
+                <span>{metaError}</span>
+            </div>
+        </template>
+
         <template lwc:if={showIntro}>
             <div data-id="intro">
                 <p class="slds-m-bottom_small" data-id="intro-text">{introText}</p>
@@ -105,6 +111,16 @@
                                                 class="slds-m-right_x-small"
                                             ></lightning-icon>
                                             <span data-id="danger-text">{checkLine.text}</span>
+                                            <template lwc:if={checkLine.hasAction}>
+                                                <lightning-button
+                                                    class="slds-m-left_medium"
+                                                    variant="brand"
+                                                    label="Create Selected Metadata"
+                                                    onclick={handleCreateSelected}
+                                                    disabled={busy}
+                                                    data-id="create-selected"
+                                                ></lightning-button>
+                                            </template>
                                         </template>
                                         <template lwc:elseif={checkLine.isGroup}>
                                             <button
@@ -132,6 +148,68 @@
                                                 </ul>
                                             </template>
                                         </template>
+                                        <template lwc:elseif={checkLine.isSelect}>
+                                            <button
+                                                type="button"
+                                                class="group-toggle slds-button"
+                                                aria-expanded={checkLine.ariaExpanded}
+                                                title={checkLine.toggleTitle}
+                                                data-id="group-toggle"
+                                                data-group-key={checkLine.groupKey}
+                                                onclick={handleGroupToggle}
+                                            >
+                                                <lightning-icon
+                                                    icon-name={checkLine.chevron}
+                                                    size="xx-small"
+                                                    alternative-text={checkLine.toggleTitle}
+                                                    class="slds-m-right_xx-small"
+                                                ></lightning-icon>
+                                                <span class={checkLine.labelClass} data-id="group-label">{checkLine.label}</span>
+                                            </button>
+                                            <template lwc:if={checkLine.open}>
+                                                <ul class="group-items select-items" data-id="select-items">
+                                                    <template lwc:if={checkLine.showAll}>
+                                                        <li class="select-all" data-id="select-all-row">
+                                                            <label>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="select-box"
+                                                                    checked={checkLine.allChecked}
+                                                                    data-scope="all"
+                                                                    data-indeterminate={checkLine.allIndeterminate}
+                                                                    data-id="select-all"
+                                                                    onchange={handleSelectChange}
+                                                                />
+                                                                <span class="select-label">Select all</span>
+                                                            </label>
+                                                        </li>
+                                                    </template>
+                                                    <template for:each={checkLine.entries} for:item="entry">
+                                                        <li key={entry.key} class={entry.cssClass} title={entry.title}>
+                                                            <template lwc:if={entry.showBox}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="select-box"
+                                                                    checked={entry.checked}
+                                                                    disabled={entry.disabled}
+                                                                    aria-label={entry.ariaLabel}
+                                                                    data-scope={entry.scope}
+                                                                    data-kind={entry.kind}
+                                                                    data-key={entry.itemKey}
+                                                                    data-indeterminate={entry.indeterminate}
+                                                                    data-id="select-box"
+                                                                    onchange={handleSelectChange}
+                                                                />
+                                                            </template>
+                                                            <span data-id="select-text">{entry.text}</span>
+                                                            <template lwc:if={entry.action}>
+                                                                <span class={entry.actionClass} data-id="action-badge">{entry.action}</span>
+                                                            </template>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </template>
+                                        </template>
                                         <template lwc:else>{checkLine.text}</template>
                                     </li>
                                 </template>
@@ -151,7 +229,48 @@
             </template>
         </template>
 
+        <template lwc:if={showPreview}>
+            <div data-id="preview">
+                <p class="slds-m-bottom_x-small" data-id="preview-intro">
+                    These records will be created under <strong>User Story Metadata</strong> of the story
+                    <strong data-id="preview-story">{previewStoryLabel}</strong>:
+                </p>
+                <p class="slds-text-color_weak slds-m-bottom_small" data-id="preview-summary">{previewSummary}</p>
+                <template for:each={previewSections} for:item="section">
+                    <div key={section.key} class="preview-section" data-id="preview-section">
+                        <p class="preview-type" data-id="preview-type">{section.typeLabel}</p>
+                        <ul class="preview-lines">
+                            <template for:each={section.lines} for:item="line">
+                                <li key={line.key} class={line.cssClass} data-id="preview-line">
+                                    <span class="component-name" data-id="preview-name">{line.name}</span>
+                                    <span class={line.actionClass} data-id="preview-action">{line.action}</span>
+                                    <template lwc:if={line.exists}>
+                                        <span class="preview-note" data-id="preview-exists">already registered, skipped</span>
+                                    </template>
+                                    <span class="preview-path" data-id="preview-path">{line.path}</span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template lwc:if={showDone}>
+            <div data-id="done">
+                <p class="slds-m-bottom_small" data-id="done-summary">{doneSummary}</p>
+                <template for:each={doneErrors} for:item="failure">
+                    <p key={failure.key} class="slds-text-color_error" data-id="done-error">{failure.text}</p>
+                </template>
+                <p class="slds-text-color_weak slds-m-top_small">Click Verify again to refresh the result.</p>
+            </div>
+        </template>
+
         <div slot="footer">
+            <template lwc:if={showPreview}>
+                <lightning-button class="slds-m-right_x-small" label="Back" onclick={handleBack} disabled={busy} data-id="back"></lightning-button>
+                <lightning-button variant="brand" label={insertLabel} onclick={handleInsert} disabled={insertDisabled} data-id="insert"></lightning-button>
+            </template>
             <lightning-button class="slds-m-right_x-small" label="Close" onclick={handleClose} data-id="close"></lightning-button>
             <template lwc:if={showIntro}>
                 <lightning-button variant="brand" label="Verify" onclick={handleVerify} data-id="verify"></lightning-button>

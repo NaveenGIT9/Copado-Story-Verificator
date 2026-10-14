@@ -54,16 +54,16 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 ## What is in the package
 
-`manifest/package.xml` lists 33 components (API 63.0):
+`manifest/package.xml` lists 37 components (API 63.0):
 
 | Type | Components |
 |---|---|
-| Apex classes (9) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), and four test classes |
+| Apex classes (11) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), and five test classes |
 | Lightning component | `storyVerificationPopup` |
 | Fields (6, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c` |
-| Custom permission | `Bypass_Verification_Gate` |
+| Custom permissions (2) | `Bypass_Verification_Gate`, `Create_Story_Metadata` |
 | Flow | `Story_Verification_Completion` |
-| Permission sets (2) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass` |
+| Permission sets (3) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass`, `Copado_Story_Verification_Metadata_Creator` |
 | Quick action | `copado__User_Story__c.Verify_Story_Live` |
 | Validation rules (12) | `Ready_Promote_Gate_*` and `Promote_Deploy_Gate_*`, each with: `Never_Verified`, `Running`, `Issues`, `Stale`, `Pending_Tests`, `PR_Not_Approved` |
 
@@ -103,6 +103,7 @@ node scripts/build-create-records.js --check  # verify they are up to date
 |---|---|---|
 | **Developers and anyone who runs Verify** | **Copado Story Verification User** | Access to the Verify popup's Apex and read access to the five `Verification_*` fields. The gate applies to them. |
 | **Emergency users who may skip the gate** | **Copado Story Verification Bypass** **and** **Copado Story Verification User** | Bypass switches off all 12 validation rules for the user. They still need User to use the Verify button, otherwise the popup says "You do not have access to this story". |
+| **People who may register missing metadata on stories** | **Copado Story Verification Metadata Creator** **and** **Copado Story Verification User** | Shows the **Create Selected Metadata** button (see below). Without it the "Not registered" list is still shown, with ADD or DELETE beside each component, but cannot be ticked. |
 | **Everyone else** | none | They cannot run Verify, and the gate still blocks their checkboxes. |
 
 Give **Bypass** to as few people as possible. It lets a user tick Ready to Promote and Promote and Deploy with no verification at all.
@@ -114,6 +115,20 @@ To assign from the CLI:
 sf org assign permset --name Copado_Story_Verification_User --target-org <alias> --on-behalf-of <username>
 ```
 There is no CLI command to remove an assignment. Delete the `PermissionSetAssignment` record in Setup instead.
+
+## Registering missing metadata from the popup
+
+The "Not registered" list under Metadata Coverage shows the components that changed in git but are not in the story's metadata, so they would not deploy. Each one shows the action it needs in Copado: **ADD**, or **DELETE** when the component is gone from the final version of the feature branch (every one of its files was removed, and nothing of it is left).
+
+For users with the **Metadata Creator** permission set the list has tick boxes: **Select all**, one box per metadata type and one per component. Once something is ticked, a **Create Selected Metadata** button appears under the "won't deploy" line.
+
+1. Clicking the button opens a **preview** inside the popup: the story, and the User Story Metadata records that would be created, grouped by metadata type, with their action and file path. Records that already exist are marked and skipped.
+2. **Insert** creates them. **Back** returns to the checks with the ticks kept.
+3. The result says how many were created. Click **Verify again** to refresh the verification.
+
+The records follow Copado's own pattern: `Metadata API Name`, `Type` (for example ApexClass), `Action` (Add or Delete), `Category` SFDX, `Module Directory` (the file path), `Last Commit Date`, a `Name` of the form `US-0001 Add ApexClass.MyClass` and a unique id built from the story, path, type and name, so clicking twice never creates a duplicate.
+
+Safety: the browser only says which components were ticked. The records are rebuilt on the server from the verification result stored on the story, so only components the verification itself found can be added. Reading and writing run as the user, so the user's own Copado permissions still apply. A type this tool cannot map to a Copado metadata type (and a `labels` file, which holds many labels) has its boxes disabled.
 
 ## Why there is a custom permission
 

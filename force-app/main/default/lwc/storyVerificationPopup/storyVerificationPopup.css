@@ -136,6 +136,77 @@
     font-weight: 600;
 }
 
+/* ADD / DELETE beside each component that is not registered. */
+.action-badge {
+    border-radius: 0.75rem;
+    border: 1px solid currentColor;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-left: 0.5rem;
+    padding: 0 0.45rem;
+}
+
+.action-add {
+    background: #ebf7e6;
+    color: #2e844a;
+}
+
+.action-delete {
+    background: #feded8;
+    color: #ba0517;
+}
+
+/* The selection boxes of the "Not registered" list. */
+.select-box {
+    accent-color: #0b5cab;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+.select-all {
+    font-weight: 600;
+    margin: 0.25rem 0 0.25rem 0;
+}
+
+.group-items li.type-heading .select-box + span {
+    vertical-align: middle;
+}
+
+/* The preview screen: what Insert would create, grouped by metadata type. */
+.preview-type {
+    color: #b45f06;
+    font-weight: 700;
+    margin-top: 0.6rem;
+}
+
+.preview-lines {
+    margin: 0.2rem 0 0.2rem 0.9rem;
+}
+
+.preview-line .component-name {
+    color: #0a7d78;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+.preview-path {
+    color: #706e6b;
+    display: block;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    margin-bottom: 0.3rem;
+}
+
+.preview-exists .component-name {
+    text-decoration: line-through;
+}
+
+.preview-note {
+    color: #706e6b;
+    font-style: italic;
+    margin-left: 0.5rem;
+}
+
 .step-icon {
     display: inline-flex;
     width: 1.5rem;

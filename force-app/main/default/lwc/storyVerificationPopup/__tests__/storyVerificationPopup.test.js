@@ -3,6 +3,8 @@ import StoryVerificationPopup from 'c/storyVerificationPopup';
 import { getRecord } from 'lightning/uiRecordApi';
 import start from '@salesforce/apex/StoryVerificationController.start';
 import getProgress from '@salesforce/apex/StoryVerificationController.getProgress';
+import previewMetadata from '@salesforce/apex/StoryVerificationMetadataController.preview';
+import createMetadata from '@salesforce/apex/StoryVerificationMetadataController.create';
 
 jest.mock(
     '@salesforce/apex/StoryVerificationController.start',
@@ -11,6 +13,16 @@ jest.mock(
 );
 jest.mock(
     '@salesforce/apex/StoryVerificationController.getProgress',
+    () => ({ default: jest.fn() }),
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/StoryVerificationMetadataController.preview',
+    () => ({ default: jest.fn() }),
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/StoryVerificationMetadataController.create',
     () => ({ default: jest.fn() }),
     { virtual: true }
 );
@@ -882,6 +894,215 @@ describe('c-story-verification-popup', () => {
         const row = stepRow(element, 'Pull Request Approval');
         expect(row.querySelector('[data-id="step-text"]').textContent).toBe('Pull Request Approval: No commits');
         expect(row.querySelector('lightning-icon').iconName).toBe('utility:check');
+    });
+
+    describe('create selected metadata', () => {
+        const SELECT_ROW = {
+            t: 'select',
+            label: 'Not registered',
+            count: 3,
+            groups: [
+                {
+                    kind: 'classes',
+                    type: 'Apex Class',
+                    items: [
+                        { name: 'ChatterUtil', action: 'Add', date: '', path: 'force-app/main/default/classes/ChatterUtil.cls' },
+                        { name: 'OldHelper', action: 'Delete', date: '', path: 'force-app/main/default/classes/OldHelper.cls' }
+                    ]
+                },
+                { kind: 'weirdFolder', type: 'Weird', items: [{ name: 'Thing', action: 'Add', date: '', path: 'x/Thing.xyz' }] }
+            ]
+        };
+        const SELECT_CHECKS = [
+            {
+                id: 'metadata-coverage',
+                title: 'Metadata coverage',
+                status: 'fail',
+                summary: '3 of 4 changed components not registered under story metadata',
+                lines: [],
+                rowsJson: JSON.stringify([SELECT_ROW, { t: 'danger', text: "Their changes won't deploy to target - add them to the story in Copado." }])
+            }
+        ];
+        const PREVIEW = {
+            storyName: 'US-0000026',
+            storyTitle: 'My story',
+            newCount: 2,
+            existingCount: 0,
+            unsupported: [],
+            lines: [
+                { typeLabel: 'Apex Class', type: 'ApexClass', name: 'ChatterUtil', action: 'Add', path: 'force-app/main/default/classes/ChatterUtil.cls', exists: false },
+                { typeLabel: 'Apex Class', type: 'ApexClass', name: 'OldHelper', action: 'Delete', path: 'force-app/main/default/classes/OldHelper.cls', exists: false }
+            ]
+        };
+
+        async function mountSelect(overrides) {
+            const element = await mountFinished(SELECT_CHECKS, { canCreateMetadata: true, supportedKinds: ['classes'], ...overrides });
+            stepRow(element, 'Metadata Coverage').querySelector('[data-id="group-toggle"]').click();
+            await tick();
+            return element;
+        }
+        const boxes = (element) => Array.from(element.shadowRoot.querySelectorAll('[data-id="select-box"]'));
+        const itemBox = (element, name) => boxes(element).find((box) => box.dataset.key === 'classes|' + name);
+        const groupBox = (element, kind) => boxes(element).find((box) => box.dataset.scope === 'group' && box.dataset.kind === kind);
+
+        it('shows ADD and DELETE beside every component, and no boxes or button without the permission', async () => {
+            const element = await mountSelect({ canCreateMetadata: false });
+
+            const badges = Array.from(element.shadowRoot.querySelectorAll('[data-id="action-badge"]')).map((b) => b.textContent);
+            expect(badges).toEqual(['ADD', 'DELETE', 'ADD']);
+            expect(boxes(element)).toHaveLength(0);
+            expect(byId(element, 'select-all')).toBeNull();
+            expect(byId(element, 'create-selected')).toBeNull();
+        });
+
+        it('offers Select all, a box per type and a box per component, none ticked, and no button yet', async () => {
+            const element = await mountSelect();
+
+            expect(boxes(element)).toHaveLength(5);
+            expect(byId(element, 'select-all').checked).toBe(false);
+            expect(boxes(element).every((box) => !box.checked)).toBe(true);
+            expect(byId(element, 'create-selected')).toBeNull();
+        });
+
+        it('disables the boxes of a type that cannot be registered', async () => {
+            const element = await mountSelect();
+
+            expect(groupBox(element, 'weirdFolder').disabled).toBe(true);
+            expect(boxes(element).find((box) => box.dataset.key === 'weirdFolder|Thing').disabled).toBe(true);
+            expect(groupBox(element, 'classes').disabled).toBe(false);
+        });
+
+        it('shows the button once one component is ticked and hides it again when nothing is', async () => {
+            const element = await mountSelect();
+
+            itemBox(element, 'ChatterUtil').click();
+            await tick();
+            expect(byId(element, 'create-selected')).not.toBeNull();
+            expect(byId(element, 'create-selected').label).toBe('Create Selected Metadata');
+            expect(itemBox(element, 'ChatterUtil').checked).toBe(true);
+            expect(groupBox(element, 'classes').indeterminate).toBe(true);
+            expect(byId(element, 'select-all').indeterminate).toBe(true);
+
+            itemBox(element, 'ChatterUtil').click();
+            await tick();
+            expect(byId(element, 'create-selected')).toBeNull();
+            expect(groupBox(element, 'classes').indeterminate).toBe(false);
+        });
+
+        it('lets a type box and Select all tick everything they cover, but never an unsupported component', async () => {
+            const element = await mountSelect();
+
+            groupBox(element, 'classes').click();
+            await tick();
+            expect(itemBox(element, 'ChatterUtil').checked).toBe(true);
+            expect(itemBox(element, 'OldHelper').checked).toBe(true);
+            expect(groupBox(element, 'classes').checked).toBe(true);
+            expect(byId(element, 'select-all').checked).toBe(true);
+            expect(byId(element, 'create-selected')).not.toBeNull();
+
+            byId(element, 'select-all').click();
+            await tick();
+            expect(boxes(element).every((box) => !box.checked)).toBe(true);
+            expect(byId(element, 'create-selected')).toBeNull();
+
+            byId(element, 'select-all').click();
+            await tick();
+            expect(itemBox(element, 'ChatterUtil').checked).toBe(true);
+            expect(boxes(element).find((box) => box.dataset.key === 'weirdFolder|Thing').checked).toBe(false);
+        });
+
+        it('previews exactly the ticked components under the story, grouped by type, when the button is clicked', async () => {
+            previewMetadata.mockResolvedValue(PREVIEW);
+            const element = await mountSelect();
+            groupBox(element, 'classes').click();
+            await tick();
+
+            byId(element, 'create-selected').click();
+            await flush();
+
+            expect(previewMetadata).toHaveBeenCalledWith({ storyId: STORY_ID, keys: ['classes|ChatterUtil', 'classes|OldHelper'] });
+            expect(byId(element, 'preview')).not.toBeNull();
+            expect(byId(element, 'steps')).toBeNull();
+            expect(byId(element, 'preview-story').textContent).toBe('US-0000026 (My story)');
+            expect(byId(element, 'preview-summary').textContent).toBe('2 records will be created.');
+            expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="preview-type"]')).map((p) => p.textContent)).toEqual(['Apex Class']);
+            expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="preview-name"]')).map((p) => p.textContent)).toEqual(['ChatterUtil', 'OldHelper']);
+            expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="preview-action"]')).map((p) => p.textContent)).toEqual(['Add', 'Delete']);
+            expect(byId(element, 'insert').label).toBe('Insert (2)');
+            expect(byId(element, 'insert').disabled).toBe(false);
+            expect(byId(element, 'retry')).toBeNull();
+        });
+
+        it('goes back from the preview to the checks and keeps the ticks', async () => {
+            previewMetadata.mockResolvedValue(PREVIEW);
+            const element = await mountSelect();
+            itemBox(element, 'ChatterUtil').click();
+            await tick();
+            byId(element, 'create-selected').click();
+            await flush();
+
+            byId(element, 'back').click();
+            await tick();
+
+            expect(byId(element, 'preview')).toBeNull();
+            expect(byId(element, 'steps')).not.toBeNull();
+            expect(itemBox(element, 'ChatterUtil')).not.toBeUndefined();
+            expect(itemBox(element, 'ChatterUtil').checked).toBe(true);
+        });
+
+        it('inserts the records and reports what was created', async () => {
+            previewMetadata.mockResolvedValue(PREVIEW);
+            createMetadata.mockResolvedValue({ created: 1, skipped: 1, errors: ['OldHelper: Insufficient access'] });
+            const element = await mountSelect();
+            groupBox(element, 'classes').click();
+            await tick();
+            byId(element, 'create-selected').click();
+            await flush();
+
+            byId(element, 'insert').click();
+            await flush();
+
+            expect(createMetadata).toHaveBeenCalledWith({ storyId: STORY_ID, keys: ['classes|ChatterUtil', 'classes|OldHelper'] });
+            expect(byId(element, 'done')).not.toBeNull();
+            expect(byId(element, 'preview')).toBeNull();
+            expect(byId(element, 'done-summary').textContent).toBe(
+                'Created 1 record under User Story Metadata of US-0000026 (My story). 1 already existed and were skipped.'
+            );
+            expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="done-error"]')).map((p) => p.textContent)).toEqual(['OldHelper: Insufficient access']);
+            expect(byId(element, 'retry')).not.toBeNull();
+        });
+
+        it('keeps the user on the checks and shows the message when the preview fails', async () => {
+            previewMetadata.mockRejectedValue({ body: { message: 'You are not allowed to register metadata on stories.' } });
+            const element = await mountSelect();
+            itemBox(element, 'ChatterUtil').click();
+            await tick();
+
+            byId(element, 'create-selected').click();
+            await flush();
+
+            expect(byId(element, 'meta-error').textContent).toContain('You are not allowed to register metadata on stories.');
+            expect(byId(element, 'preview')).toBeNull();
+            expect(byId(element, 'steps')).not.toBeNull();
+        });
+
+        it('cannot insert when every ticked component already exists', async () => {
+            previewMetadata.mockResolvedValue({
+                ...PREVIEW,
+                newCount: 0,
+                existingCount: 2,
+                lines: PREVIEW.lines.map((line) => ({ ...line, exists: true }))
+            });
+            const element = await mountSelect();
+            groupBox(element, 'classes').click();
+            await tick();
+            byId(element, 'create-selected').click();
+            await flush();
+
+            expect(byId(element, 'insert').disabled).toBe(true);
+            expect(byId(element, 'preview-summary').textContent).toBe('0 records will be created. 2 already registered and skipped.');
+            expect(element.shadowRoot.querySelectorAll('[data-id="preview-exists"]')).toHaveLength(2);
+        });
     });
 
     it('puts the not-registered component names on their own line under the headline, in their own style', async () => {
