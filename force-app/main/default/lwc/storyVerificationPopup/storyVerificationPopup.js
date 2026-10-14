@@ -8,14 +8,20 @@ import getProgress from '@salesforce/apex/StoryVerificationController.getProgres
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_MS = 5 * 60 * 1000;
 
-// "Pending tests: None pending." -> key "Pending tests: " (shown in capitals) and value "None".
+// "Org/environment branch merge" -> "Org/Environment Branch Merge": the first letter of every word, other letters untouched.
+function titleCase(text) {
+    return String(text).replace(/(^|[\s/(-])([a-z])/g, (match, before, letter) => before + letter.toUpperCase());
+}
+
+// "Pending tests: None pending." -> key "Pending Tests", colon ": ", value "None". The colon is its own element so it can
+// have a gap before it; the text of the row (key + colon + value) reads exactly as before apart from the capital letters.
 function keyValue(text) {
     const t = String(text === undefined || text === null ? '' : text);
     const at = t.indexOf(': ');
     if (at < 0) {
-        return { keyText: '', valueText: t };
+        return { keyText: '', colonText: '', valueText: t };
     }
-    return { keyText: t.slice(0, at + 2), valueText: t.slice(at + 2).replace(/^None pending\.?$/i, 'None') };
+    return { keyText: titleCase(t.slice(0, at)), colonText: ': ', valueText: t.slice(at + 2).replace(/^None pending\.?$/i, 'None') };
 }
 
 // 17 s, or 2 min 23 s
@@ -622,7 +628,11 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get stateKey() {
-        return this.showsVerdict ? 'Verification finished: ' : '';
+        return this.showsVerdict ? 'Verification Finished' : '';
+    }
+
+    get stateColon() {
+        return this.showsVerdict ? ': ' : '';
     }
 
     get stateValue() {

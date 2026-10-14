@@ -27,7 +27,7 @@
                         <lightning-spinner size="x-small" alternative-text="Verification in progress"></lightning-spinner>
                     </span>
                 </template>
-                <p class={stateClass} aria-live="polite" data-id="state"><span class="state-key" data-id="state-key">{stateKey}</span><span class={stateValueClass} data-id="state-value">{stateValue}</span></p>
+                <p class={stateClass} aria-live="polite" data-id="state"><span class="state-key" data-id="state-key">{stateKey}</span><span class="step-colon" data-id="state-colon">{stateColon}</span><span class={stateValueClass} data-id="state-value">{stateValue}</span></p>
             </div>
 
             <ul class="slds-m-bottom_small" data-id="steps">
@@ -49,7 +49,7 @@
                                     ></lightning-icon>
                                 </span>
                             </template>
-                            <span class={step.textClass} data-id="step-text"><span class="step-key" data-id="step-key">{step.keyText}</span>{step.valueText}</span>
+                            <span class={step.textClass} data-id="step-text"><span class="step-key" data-id="step-key">{step.keyText}</span><span class="step-colon" data-id="step-colon">{step.colonText}</span>{step.valueText}</span>
                             <template lwc:if={step.hasLines}>
                                 <button
                                     type="button"

@@ -86,12 +86,10 @@
     margin-left: 0.9rem;
 }
 
-/* The words before the colon on every check row ("Pending tests:") are shown in dark capitals, so keys and values read apart. */
+/* The words before the colon on every check row ("Pending Tests") are dark and bold, so keys and values read apart. */
 .step-key {
     color: #181818;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
 }
 
 .step-icon {
@@ -100,12 +98,18 @@
     flex-shrink: 0;
 }
 
-/* "Verification finished:" key, same dark capitals as the check keys. */
+/* "Verification Finished" key, styled like the check keys. */
 .state-key {
     color: #181818;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+}
+
+/* The colon between a key and its value, with a gap on both sides ("Pending Tests  :  None"). */
+.step-colon {
+    color: #181818;
+    font-weight: 600;
+    margin-left: 0.3rem;
+    margin-right: 0.15rem;
 }
 
 .failure-text {
