@@ -8,6 +8,16 @@ import getProgress from '@salesforce/apex/StoryVerificationController.getProgres
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_MS = 5 * 60 * 1000;
 
+// "Pending tests: None pending." -> key "Pending tests: " (shown in capitals) and value "None".
+function keyValue(text) {
+    const t = String(text === undefined || text === null ? '' : text);
+    const at = t.indexOf(': ');
+    if (at < 0) {
+        return { keyText: '', valueText: t };
+    }
+    return { keyText: t.slice(0, at + 2), valueText: t.slice(at + 2).replace(/^None pending\.?$/i, 'None') };
+}
+
 // 17 s, or 2 min 23 s
 function formatDuration(ms) {
     const seconds = Math.max(0, Math.round(ms / 1000));
@@ -354,7 +364,8 @@ export default class StoryVerificationPopup extends LightningElement {
             .forEach((r) => list.push(this.checkRow({ id: r.id, title: r.title || r.id, result: r })));
         // While the run is going the order is fixed (rows do not jump as they resolve); once finished, passed checks come
         // first, then warnings and skipped checks, then the failures.
-        return this.isFinished ? this.passedFirst(list) : list;
+        const ordered = this.isFinished ? this.passedFirst(list) : list;
+        return ordered.map((row) => ({ ...row, ...keyValue(row.text) }));
     }
 
     passedFirst(list) {

@@ -49,7 +49,7 @@
                                     ></lightning-icon>
                                 </span>
                             </template>
-                            <span class={step.textClass} data-id="step-text">{step.text}</span>
+                            <span class={step.textClass} data-id="step-text"><span class="step-key" data-id="step-key">{step.keyText}</span>{step.valueText}</span>
                             <template lwc:if={step.hasLines}>
                                 <button
                                     type="button"

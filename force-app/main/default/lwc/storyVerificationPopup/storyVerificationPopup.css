@@ -86,6 +86,14 @@
     margin-left: 0.9rem;
 }
 
+/* The word before the colon on every check row ("Pending tests:") is shown in capitals and one colour, so keys and values read apart. */
+.step-key {
+    color: #b45f06;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
 .step-icon {
     display: inline-flex;
     width: 1.5rem;

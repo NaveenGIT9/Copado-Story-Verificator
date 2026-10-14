@@ -755,6 +755,19 @@ describe('c-story-verification-popup', () => {
         expect(items).toEqual(['line one', 'line two']);
     });
 
+    it('splits every check row into a key (shown in capitals by its style) and a value', async () => {
+        const element = await mountFinished(CHECKS);
+
+        const row = stepRow(element, 'Unregistered commits');
+        expect(row.querySelector('[data-id="step-key"]').textContent).toBe('Unregistered commits: ');
+        expect(row.querySelector('[data-id="step-text"]').textContent).toBe(
+            'Unregistered commits: 1 commit(s) made outside Copado change components that are not registered on the story'
+        );
+        const keys = Array.from(element.shadowRoot.querySelectorAll('[data-id="step-key"]')).map((k) => k.textContent);
+        expect(keys).toContain('Metadata coverage: ');
+        expect(keys).toContain('Org/environment branch merge: ');
+    });
+
     it('puts the not-registered component names on their own line under the headline, in their own style', async () => {
         const checks = [
             {
@@ -1197,7 +1210,7 @@ describe('c-story-verification-popup', () => {
             );
             expect(pullRequest.querySelector('lightning-icon').iconName).toBe('utility:check');
             const pending = stepRow(element, 'Pending tests');
-            expect(pending.querySelector('[data-id="step-text"]').textContent).toBe('Pending tests: None pending.');
+            expect(pending.querySelector('[data-id="step-text"]').textContent).toBe('Pending tests: None');
             expect(pending.querySelector('lightning-icon').iconName).toBe('utility:check');
         });
 
