@@ -67,7 +67,17 @@ private class StoryVerificationMetadataControllerTest {
                 'type' => 'Custom Field',
                 'items' => new List<Object>{ item('Contact.Phone2__c', 'Add', '', 'force-app/main/default/objects/Contact/fields/Phone2__c.field-meta.xml') }
             },
-            new Map<String, Object>{ 'kind' => 'weirdFolder', 'type' => 'Weird', 'items' => new List<Object>{ item('Thing', 'Add', '', 'x/Thing.xyz') } }
+            new Map<String, Object>{ 'kind' => 'weirdFolder', 'type' => 'Weird', 'items' => new List<Object>{ item('Thing', 'Add', '', 'x/Thing.xyz') } },
+            new Map<String, Object>{
+                'kind' => 'profiles',
+                'type' => 'Profile',
+                'items' => new List<Object>{ item('Admin', 'Add', '', 'force-app/main/default/profiles/Admin.profile-meta.xml') }
+            },
+            new Map<String, Object>{
+                'kind' => 'permissionsets',
+                'type' => 'Permission Set',
+                'items' => new List<Object>{ item('Sales_PS', 'Add', '', 'force-app/main/default/permissionsets/Sales_PS.permissionset-meta.xml') }
+            }
         };
         Map<String, Object> row = new Map<String, Object>{ 't' => 'select', 'label' => 'Not registered', 'count' => 4, 'groups' => groups };
         Map<String, Object> check = new Map<String, Object>{ 'id' => 'metadata-coverage', 'status' => 'fail', 'rows' => new List<Object>{ row } };
@@ -220,6 +230,43 @@ private class StoryVerificationMetadataControllerTest {
             null,
             StoryVerificationMetadataController.freeUniqueId('x', new Set<String>{ 'x', 'x-1', 'x-2', 'x-3', 'x-4', 'x-5' })
         );
+    }
+
+    @IsTest
+    static void typesThatMustNotBeCommittedFromTheCliKeepTheDirectoryBlank() {
+        User user = newUser(true);
+        System.runAs(user) {
+            copado__User_Story__c story = story();
+            storeVerification(story.Id, 'Issues');
+            List<String> keys = new List<String>{ 'profiles|Admin', 'permissionsets|Sales_PS' };
+
+            StoryVerificationMetadataController.PreviewResult preview = StoryVerificationMetadataController.preview(story.Id, keys);
+
+            System.assertEquals(2, preview.lines.size());
+            System.assertEquals('', preview.lines[0].path, 'A profile must not carry a file path');
+            System.assert(preview.lines[0].note.contains('no directory stored'), preview.lines[0].note);
+            System.assertEquals(String.valueOf(story.Id) + ';;Profile;Admin', preview.lines[0].uniqueId, 'The unique ID has an empty path part, as a UI commit has');
+            System.assertEquals(
+                'force-app/main/default/permissionsets/Sales_PS.permissionset-meta.xml',
+                preview.lines[1].path,
+                'Permission sets can be committed from the CLI, so they keep their path'
+            );
+            System.assertEquals(null, preview.lines[1].note);
+
+            StoryVerificationMetadataController.CreateResult result = StoryVerificationMetadataController.create(story.Id, keys);
+            System.assertEquals(2, result.created, String.valueOf(result.errors));
+            copado__User_Story_Metadata__c profile = [
+                SELECT copado__ModuleDirectory__c, copado__Unique_ID__c
+                FROM copado__User_Story_Metadata__c
+                WHERE copado__Type__c = 'Profile'
+            ];
+            System.assert(String.isBlank(profile.copado__ModuleDirectory__c), 'The stored directory is blank');
+            System.assertEquals(String.valueOf(story.Id) + ';;Profile;Admin', profile.copado__Unique_ID__c);
+            System.assertEquals(
+                'force-app/main/default/permissionsets/Sales_PS.permissionset-meta.xml',
+                [SELECT copado__ModuleDirectory__c FROM copado__User_Story_Metadata__c WHERE copado__Type__c = 'PermissionSet'].copado__ModuleDirectory__c
+            );
+        }
     }
 
     @IsTest

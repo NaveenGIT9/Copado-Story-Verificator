@@ -128,7 +128,7 @@ For users with the **Metadata Creator** permission set the list has tick boxes: 
 
 The records follow Copado's own pattern: `Metadata API Name`, `Type` (for example ApexClass), `Action` (Add or Delete), `Category` SFDX, `Module Directory` (the file path), `Last Commit Date`, a `Name` of the form `US-0001 Add ApexClass.MyClass` and a unique id built from the story, path, type and name, so clicking twice never creates a duplicate.
 
-Safety: the browser only says which components were ticked. The records are rebuilt on the server from the verification result stored on the story, so only components the verification itself found can be added. Reading and writing run as the user, so the user's own Copado permissions still apply. A type this tool cannot map to a Copado metadata type (and a `labels` file, which holds many labels) has its boxes disabled.
+Safety: the browser only says which components were ticked. The records are rebuilt on the server from the verification result stored on the story, so only components the verification itself found can be added. Reading and writing run as the user, so the user's own Copado permissions still apply. For types Copado cannot commit from the CLI (Profile, Workflow, CustomLabels, AssignmentRules, Translations, CustomObjectTranslation, AutoResponseRules, MatchingRules, SharingRules, EscalationRules) the **Module Directory is left blank**, because a directory path marks a record as a CLI commit; permission sets and objects keep their path. A type this tool cannot map to a Copado metadata type (and a `labels` file, which holds many labels) has its boxes disabled.
 
 ## Why there is a custom permission
 

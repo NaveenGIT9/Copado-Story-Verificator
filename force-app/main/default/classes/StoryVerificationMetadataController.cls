@@ -12,6 +12,28 @@ public with sharing class StoryVerificationMetadataController {
     private static final String CATEGORY = 'SFDX';
     private static final Integer NAME_LENGTH = 80;
     private static final Integer MAX_ID_SUFFIX = 5;
+
+    // Types whose nested components Copado cannot commit from the CLI (the file is added to the story, not the changed component).
+    // A record that carries a directory path looks like a CLI commit, and the org's automation ends the story's life cycle for these
+    // types, so the records created here keep the directory blank, like a commit made in the Copado UI. Permission sets and objects
+    // are not listed: they can be committed from the CLI (objects in Salesforce Source Format pipelines).
+    private static final Set<String> NO_DIRECTORY_TYPES = new Set<String>{
+        'profile',
+        'workflow',
+        'customlabel',
+        'customlabels',
+        'assignmentrule',
+        'assignmentrules',
+        'translations',
+        'customobjecttranslation',
+        'autoresponserule',
+        'autoresponserules',
+        'matchingrule',
+        'matchingrules',
+        'sharingrules',
+        'escalationrule',
+        'escalationrules'
+    };
     private static final Set<String> VERIFIED_STATUSES = new Set<String>{ 'Clean', 'Issues' };
 
     // The folder a component lives in (as the Function reports it) -> the metadata type Copado records for it. A kind that is not
@@ -199,6 +221,10 @@ public with sharing class StoryVerificationMetadataController {
                 line.name = name;
                 line.action = 'Delete'.equalsIgnoreCase(String.valueOf(item.get('action'))) ? 'Delete' : 'Add';
                 line.path = item.get('path') == null ? '' : String.valueOf(item.get('path'));
+                if (NO_DIRECTORY_TYPES.contains(type.toLowerCase())) {
+                    line.path = '';
+                    line.note = 'no directory stored: ' + type + ' must not look like a CLI commit';
+                }
                 line.committedAt = parseTime(item.get('date'));
                 line.uniqueId = String.valueOf(story.id) + ';' + line.path + ';' + type + ';' + name;
                 result.lines.add(line);
@@ -250,7 +276,8 @@ public with sharing class StoryVerificationMetadataController {
                 continue;
             }
             if (free != line.uniqueId) {
-                line.note = 'unique ID adjusted (' + free.substring(line.uniqueId.length()) + ') because another record uses it';
+                String adjusted = 'unique ID adjusted (' + free.substring(line.uniqueId.length()) + ') because another record uses it';
+                line.note = line.note == null ? adjusted : line.note + '; ' + adjusted;
                 line.uniqueId = free;
             }
             taken.add(free);
