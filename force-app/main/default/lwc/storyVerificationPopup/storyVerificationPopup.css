@@ -242,7 +242,7 @@
     white-space: pre-line;
 }
 
-/* ---- Timeline: the checks as nodes on a vertical line, ringed in the colour of their result. ---- */
+/* ---- Timeline: the checks as nodes on a vertical line. ---- */
 .timeline {
     list-style: none;
     margin-left: 0.25rem;
@@ -250,7 +250,7 @@
 }
 
 .tl-item {
-    padding: 0.15rem 0 1.1rem 2.4rem;
+    padding: 0.1rem 0 1.1rem 2.2rem;
     position: relative;
 }
 
@@ -259,9 +259,9 @@
     background: #e3e7ee;
     bottom: -0.1rem;
     content: '';
-    left: 0.7rem;
+    left: 0.6rem;
     position: absolute;
-    top: 1.6rem;
+    top: 1.4rem;
     width: 2px;
 }
 
@@ -269,32 +269,32 @@
     display: none;
 }
 
-/* The node: a white disc with a ring around the result icon. A running spinner has no ring, like the spinner at the top. */
+/* The node: a solid coloured disc. A running spinner has no disc, like the spinner at the top. */
 .tl-item .step-icon,
 .tl-item .spinner-holder {
     align-items: center;
-    background: #fff;
     box-shadow: 0 0 0 4px #fff;
-    height: 1.5rem;
+    height: 1.25rem;
     justify-content: center;
     left: 0;
     margin: 0;
     position: absolute;
-    top: 0.05rem;
-    width: 1.5rem;
+    top: 0.1rem;
+    width: 1.25rem;
 }
 
-/* A result node is a solid disc with a white icon (green passed, red failed, amber warning, grey pending). */
+.tl-item .spinner-holder {
+    background: #fff;
+}
+
 .tl-item .step-icon {
     background: #98a2b3;
     border-radius: 50%;
 }
 
+/* The mark inside the disc is drawn here, in white, so it always shows on the colour. The icon element stays for screen readers' sake in the DOM. */
 .tl-item .step-icon lightning-icon {
-    --slds-c-icon-color-foreground: #fff;
-    --slds-c-icon-color-foreground-default: #fff;
-    --sds-c-icon-color-foreground: #fff;
-    --sds-c-icon-color-foreground-default: #fff;
+    display: none;
 }
 
 .tl-ok .step-icon {
@@ -307,6 +307,57 @@
 
 .tl-warn .step-icon {
     background: #d98200;
+}
+
+/* passed: a check mark */
+.tl-ok .step-icon::after {
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    content: '';
+    height: 0.55rem;
+    left: 50%;
+    position: absolute;
+    top: 46%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    width: 0.3rem;
+}
+
+/* failed: a cross */
+.tl-bad .step-icon::before,
+.tl-bad .step-icon::after {
+    background: #fff;
+    border-radius: 1px;
+    content: '';
+    height: 2px;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    width: 0.6rem;
+}
+
+.tl-bad .step-icon::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tl-bad .step-icon::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* warning: an exclamation mark */
+.tl-warn .step-icon::after {
+    color: #fff;
+    content: '!';
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* pending or skipped: a dash */
+.tl-wait .step-icon::after {
+    background: #fff;
+    content: '';
+    height: 2px;
+    width: 0.5rem;
 }
 
 /* What opens under a check: a quiet panel, so the details belong to the node above them. */
