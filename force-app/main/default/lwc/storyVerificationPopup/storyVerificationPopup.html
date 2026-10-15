@@ -253,7 +253,9 @@
                                     <template lwc:if={line.conflict}>
                                         <span class="preview-conflict-note" data-id="preview-conflict">{line.conflict}</span>
                                     </template>
-                                    <span class="preview-path" data-id="preview-path">{line.path}</span>
+                                    <template lwc:if={line.path}>
+                                        <span class="preview-path" data-id="preview-path">{line.path}</span>
+                                    </template>
                                 </li>
                             </template>
                         </ul>

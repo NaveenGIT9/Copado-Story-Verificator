@@ -252,7 +252,6 @@ public with sharing class StoryVerificationMetadataController {
                 line.path = item.get('path') == null ? '' : String.valueOf(item.get('path'));
                 if (NO_DIRECTORY_TYPES.contains(type.toLowerCase())) {
                     line.path = '';
-                    line.note = 'no directory stored: ' + type + ' must not look like a CLI commit';
                 }
                 line.committedAt = parseTime(item.get('date'));
                 line.uniqueId = String.valueOf(story.id) + ';' + line.path + ';' + type + ';' + name;

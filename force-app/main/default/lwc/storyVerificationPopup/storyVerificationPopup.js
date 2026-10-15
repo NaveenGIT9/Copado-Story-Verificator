@@ -391,7 +391,7 @@ export default class StoryVerificationPopup extends LightningElement {
                 name: line.name,
                 action: line.action,
                 actionClass: line.action === 'Delete' ? 'action-badge action-delete' : 'action-badge action-add',
-                path: line.path || '(no file path)',
+                path: line.path || '',
                 exists: !!line.exists,
                 conflict: line.conflict || '',
                 note: line.note || '',

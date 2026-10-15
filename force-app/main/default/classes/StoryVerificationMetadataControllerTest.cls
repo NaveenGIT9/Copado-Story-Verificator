@@ -244,7 +244,7 @@ private class StoryVerificationMetadataControllerTest {
 
             System.assertEquals(2, preview.lines.size());
             System.assertEquals('', preview.lines[0].path, 'A profile must not carry a file path');
-            System.assert(preview.lines[0].note.contains('no directory stored'), preview.lines[0].note);
+            System.assertEquals(null, preview.lines[0].note, 'A blank directory needs no note');
             System.assertEquals(String.valueOf(story.Id) + ';;Profile;Admin', preview.lines[0].uniqueId, 'The unique ID has an empty path part, as a UI commit has');
             System.assertEquals(
                 'force-app/main/default/permissionsets/Sales_PS.permissionset-meta.xml',
