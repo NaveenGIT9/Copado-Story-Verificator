@@ -269,13 +269,11 @@
     display: none;
 }
 
-/* The node: a white disc with a ring (the icon or spinner sits inside it). */
+/* The node: a white disc with a ring around the result icon. A running spinner has no ring, like the spinner at the top. */
 .tl-item .step-icon,
 .tl-item .spinner-holder {
     align-items: center;
     background: #fff;
-    border: 2px solid #c9cfd8;
-    border-radius: 50%;
     box-shadow: 0 0 0 4px #fff;
     height: 1.5rem;
     justify-content: center;
@@ -284,6 +282,11 @@
     position: absolute;
     top: 0.05rem;
     width: 1.5rem;
+}
+
+.tl-item .step-icon {
+    border: 2px solid #c9cfd8;
+    border-radius: 50%;
 }
 
 .tl-ok .step-icon {
@@ -297,10 +300,6 @@
 
 .tl-warn .step-icon {
     border-color: #d48806;
-}
-
-.tl-run .spinner-holder {
-    border-color: #0b5cab;
 }
 
 .tl-ok::before {
