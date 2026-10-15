@@ -349,7 +349,7 @@ function makeIsCovered(items, hasLabels) {
 function changedLabels(base, file) {
     const gone = file.status === "D";
     const added = file.status === "A";
-    const before = added ? "" : tryRun("git", ["show", "origin/" + base + ":" + file.path]);
+    const before = added ? "" : tryRun("git", ["show", baseRef(base) + ":" + file.path]);
     const after = gone ? "" : tryRun("git", ["show", "HEAD:" + file.path]);
     if (before === null || after === null) return null;
     const blocks = (text) => {
@@ -370,6 +370,15 @@ function changedLabels(base, file) {
         if (!now.has(name)) out.push({ name: name, action: "Delete" });
     });
     return out;
+}
+
+// Where the feature branch split off the base branch. The labels and the workflow parts of the base branch are read from there, not
+// from the base branch's latest commit: a label or rule that the base branch gained after the split is not in the feature branch,
+// but it was not removed by it either. So a part is a Delete only when it was in the file at the split and the feature branch's own
+// commits took it out. Falls back to the base branch tip when the common ancestor cannot be found (a very shallow clone).
+function baseRef(base) {
+    const mb = tryRun("git", ["merge-base", "origin/" + base, "HEAD"]);
+    return mb && mb.trim() ? mb.trim() : "origin/" + base;
 }
 
 // The <labels> blocks of a file, keyed by <fullName>, each as one normalised string.
@@ -402,7 +411,7 @@ const WORKFLOW_PARTS = {
 function changedWorkflowParts(base, file, objectName) {
     const gone = file.status === "D";
     const added = file.status === "A";
-    const before = added ? "" : tryRun("git", ["show", "origin/" + base + ":" + file.path]);
+    const before = added ? "" : tryRun("git", ["show", baseRef(base) + ":" + file.path]);
     const after = gone ? "" : tryRun("git", ["show", "HEAD:" + file.path]);
     if (before === null || after === null) return null;
     const out = [];
