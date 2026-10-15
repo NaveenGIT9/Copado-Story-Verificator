@@ -205,7 +205,7 @@ const KIND_TYPES = {
     profiles: "Profile", flexipages: "FlexiPage", customMetadata: "CustomMetadata", customPermissions: "CustomPermission", email: "EmailTemplate",
     approvalProcesses: "ApprovalProcess", quickActions: "QuickAction", tabs: "CustomTab", applications: "CustomApplication", reports: "Report",
     reportTypes: "ReportType", dashboards: "Dashboard", staticresources: "StaticResource", duplicateRules: "DuplicateRule", matchingRules: "MatchingRule",
-    globalValueSets: "GlobalValueSet", objects: "CustomObject", "objects/fields": "CustomField", "objects/validationRules": "ValidationRule",
+    globalValueSets: "GlobalValueSet", labels: "CustomLabel", objects: "CustomObject", "objects/fields": "CustomField", "objects/validationRules": "ValidationRule",
     "objects/recordTypes": "RecordType", "objects/listViews": "ListView", "objects/fieldSets": "FieldSet", "objects/webLinks": "WebLink",
     "objects/compactLayouts": "CompactLayout", "objects/businessProcesses": "BusinessProcess"
 };
@@ -224,7 +224,7 @@ function sameComponent(item, api, kind) {
 }
 
 const FOLDER_TYPES = {
-    classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
+    labels: "Custom Label", classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
     flows: "Flow", permissionsets: "Permission Set", duplicateRules: "Duplicate Rule", fields: "Custom Field", validationRules: "Validation Rule"
 };
 
@@ -283,6 +283,7 @@ function stillThere(c) {
 // A component that is gone from the final version of the branch (every one of its files deleted, nothing left) is a Delete;
 // anything else, even with some files removed, is an Add.
 function actionOf(c) {
+    if (c.action) return c.action;
     if (c.files.length === 0 || !c.files.every((f) => f.status === "D")) return "Add";
     return stillThere(c) ? "Add" : "Delete";
 }
@@ -331,7 +332,55 @@ function componentsOf(paths) {
 // A changed component is registered only by an item of the same type with exactly its name. Nothing registered under a related
 // name stands in for it: not an object's fields for the object, not a class for a trigger of the same name.
 function makeIsCovered(items, hasLabels) {
-    return (c, kind) => items.some((it) => sameComponent(it, c, kind)) || (c.toLowerCase() === "customlabels" && hasLabels);
+    return (c, kind) =>
+        items.some((it) => sameComponent(it, c, kind)) ||
+        // The whole labels file registered as "CustomLabels" covers every label in it.
+        (kind === "labels" && items.some((it) => it.name.toLowerCase() === "customlabels")) ||
+        (c.toLowerCase() === "customlabels" && hasLabels);
+}
+
+// The labels file holds every custom label, so a change to it is a change to some labels. Which ones is read from the file: its
+// <labels> blocks on the base branch and on the feature branch, matched by <fullName>. Returns [{ name, action }] (a new or changed
+// label is an Add, a label that is no longer in the file a Delete), or null when the file cannot be read (then the file itself
+// stays one component).
+function changedLabels(base, file) {
+    const gone = file.status === "D";
+    const added = file.status === "A";
+    const before = added ? "" : tryRun("git", ["show", "origin/" + base + ":" + file.path]);
+    const after = gone ? "" : tryRun("git", ["show", "HEAD:" + file.path]);
+    if (before === null || after === null) return null;
+    const blocks = (text) => {
+        const map = new Map();
+        (text.match(/<labels>[\s\S]*?<\/labels>/g) || []).forEach((block) => {
+            const m = /<fullName>([^<]+)<\/fullName>/.exec(block);
+            if (m) map.set(m[1].trim(), block.replace(/\s+/g, " ").trim());
+        });
+        return map;
+    };
+    const old = blocks(before);
+    const now = blocks(after);
+    const out = [];
+    now.forEach((block, name) => {
+        if (!old.has(name) || old.get(name) !== block) out.push({ name: name, action: "Add" });
+    });
+    old.forEach((block, name) => {
+        if (!now.has(name)) out.push({ name: name, action: "Delete" });
+    });
+    return out;
+}
+
+// Each changed component as it is, except the labels file, which becomes one component per changed label.
+function expandLabels(comps, base) {
+    const out = [];
+    comps.forEach((c) => {
+        const labels = c.kind === "labels" && c.files.length > 0 ? changedLabels(base, c.files[0]) : null;
+        if (labels === null) {
+            out.push(c);
+            return;
+        }
+        labels.forEach((l) => out.push({ api: l.name, kind: "labels", type: c.type, action: l.action, files: [{ status: l.action === "Delete" ? "D" : "A", path: c.files[0].path }] }));
+    });
+    return out;
 }
 
 // rows (optional): structured detail rows for the popup (coloured parts, collapsible lists); lines stay as the plain-text version.
@@ -729,7 +778,7 @@ function checkMetadata(ctx) {
     let raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
     if (raw === null) raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
-    const comps = componentsFromChanges(parseNameStatus(raw));
+    const comps = expandLabels(componentsFromChanges(parseNameStatus(raw)), ctx.base);
     const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api, c.kind));
     const uncovered = uncoveredComps.map((c) => c.api);
     const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";

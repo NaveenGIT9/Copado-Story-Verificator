@@ -270,6 +270,36 @@ private class StoryVerificationMetadataControllerTest {
     }
 
     @IsTest
+    static void aCustomLabelIsRegisteredWithoutADirectory() {
+        User user = newUser(true);
+        System.runAs(user) {
+            copado__User_Story__c story = story();
+            List<Object> groups = new List<Object>{
+                new Map<String, Object>{
+                    'kind' => 'labels',
+                    'type' => 'Custom Label',
+                    'items' => new List<Object>{ item('Welcome_Text', 'Add', '', 'force-app/main/default/labels/CustomLabels.labels-meta.xml') }
+                }
+            };
+            Map<String, Object> row = new Map<String, Object>{ 't' => 'select', 'groups' => groups };
+            Map<String, Object> check = new Map<String, Object>{ 'id' => 'metadata-coverage', 'rows' => new List<Object>{ row } };
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Status__c = 'Issues',
+                Verification_Checks__c = JSON.serialize(new Map<String, Object>{ 'checks' => new List<Object>{ check } })
+            );
+
+            StoryVerificationMetadataController.CreateResult result = StoryVerificationMetadataController.create(story.Id, new List<String>{ 'labels|Welcome_Text' });
+
+            System.assertEquals(1, result.created, String.valueOf(result.errors));
+            copado__User_Story_Metadata__c label = [SELECT copado__Type__c, copado__ModuleDirectory__c, copado__Unique_ID__c FROM copado__User_Story_Metadata__c];
+            System.assertEquals('CustomLabel', label.copado__Type__c);
+            System.assert(String.isBlank(label.copado__ModuleDirectory__c), 'A label is not a CLI commit: no directory');
+            System.assertEquals(String.valueOf(story.Id) + ';;CustomLabel;Welcome_Text', label.copado__Unique_ID__c);
+        }
+    }
+
+    @IsTest
     static void aUserWithoutThePermissionCanNeitherPreviewNorCreate() {
         User user = newUser(false);
         System.runAs(user) {
@@ -360,6 +390,6 @@ private class StoryVerificationMetadataControllerTest {
         for (String kind : new List<String>{ 'classes', 'lwc', 'aura', 'objects/fields', 'objects/validationRules', 'permissionsets', 'flows' }) {
             System.assert(kinds.contains(kind), kind);
         }
-        System.assert(!kinds.contains('labels'), 'A labels file holds many labels, so it cannot be registered as one component');
+        System.assert(kinds.contains('labels'), 'The labels file is offered label by label (type CustomLabel), never as one component');
     }
 }

@@ -65,6 +65,7 @@ public with sharing class StoryVerificationMetadataController {
         'duplicateRules' => 'DuplicateRule',
         'matchingRules' => 'MatchingRule',
         'globalValueSets' => 'GlobalValueSet',
+        'labels' => 'CustomLabel',
         'objects' => 'CustomObject',
         'objects/fields' => 'CustomField',
         'objects/validationRules' => 'ValidationRule',
