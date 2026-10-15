@@ -38,6 +38,20 @@ const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
 
 // The three git checks run by the Copado Function (ids match function/index.js).
+// The timeline: each check row is a node on a vertical line, ringed in the colour of its result.
+function timelineClass(row) {
+    const tone = row.isSpinner
+        ? 'tl-run'
+        : row.iconName === 'utility:close'
+          ? 'tl-bad'
+          : row.iconName === 'utility:warning'
+            ? 'tl-warn'
+            : row.iconName === 'utility:check'
+              ? 'tl-ok'
+              : 'tl-wait';
+    return 'tl-item ' + tone;
+}
+
 const GIT_CHECKS = [
     { id: 'unregistered-commits', title: 'Unregistered commits' },
     { id: 'metadata-coverage', title: 'Metadata coverage' },
@@ -589,7 +603,7 @@ export default class StoryVerificationPopup extends LightningElement {
         // While the run is going the order is fixed (rows do not jump as they resolve); once finished, passed checks come
         // first, then warnings and skipped checks, then the failures.
         const ordered = this.isFinished ? this.passedFirst(list) : list;
-        return ordered.map((row) => ({ ...row, ...keyValue(row.text) }));
+        return ordered.map((row) => ({ ...row, ...keyValue(row.text), itemClass: timelineClass(row) }));
     }
 
     passedFirst(list) {

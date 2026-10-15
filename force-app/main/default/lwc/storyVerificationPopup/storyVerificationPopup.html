@@ -36,9 +36,9 @@
                 <p class={stateClass} aria-live="polite" data-id="state"><span class="state-key" data-id="state-key">{stateKey}</span><span class="step-colon" data-id="state-colon">{stateColon}</span><span class={stateValueClass} data-id="state-value">{stateValue}</span></p>
             </div>
 
-            <ul class="slds-m-bottom_small" data-id="steps">
+            <ul class="timeline slds-m-bottom_small" data-id="steps">
                 <template for:each={steps} for:item="step">
-                    <li key={step.key} class="slds-p-vertical_xx-small" data-id="step">
+                    <li key={step.key} class={step.itemClass} data-id="step">
                         <div class="slds-grid slds-grid_vertical-align-center">
                             <template lwc:if={step.isSpinner}>
                                 <span class="spinner-holder slds-m-right_x-small">
