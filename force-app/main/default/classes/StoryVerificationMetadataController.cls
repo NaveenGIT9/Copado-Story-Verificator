@@ -20,6 +20,14 @@ public with sharing class StoryVerificationMetadataController {
     private static final Set<String> NO_DIRECTORY_TYPES = new Set<String>{
         'profile',
         'workflow',
+        'workflowalert',
+        'workflowfieldupdate',
+        'workflowrule',
+        'workflowtask',
+        'workflowoutboundmessage',
+        'workflowknowledgepublish',
+        'workflowflowautomation',
+        'workflowsend',
         'customlabel',
         'customlabels',
         'assignmentrule',
@@ -66,6 +74,15 @@ public with sharing class StoryVerificationMetadataController {
         'matchingRules' => 'MatchingRule',
         'globalValueSets' => 'GlobalValueSet',
         'labels' => 'CustomLabel',
+        'workflows' => 'Workflow',
+        'workflows/alerts' => 'WorkflowAlert',
+        'workflows/fieldUpdates' => 'WorkflowFieldUpdate',
+        'workflows/rules' => 'WorkflowRule',
+        'workflows/tasks' => 'WorkflowTask',
+        'workflows/outboundMessages' => 'WorkflowOutboundMessage',
+        'workflows/knowledgePublishes' => 'WorkflowKnowledgePublish',
+        'workflows/flowActions' => 'WorkflowFlowAutomation',
+        'workflows/send' => 'WorkflowSend',
         'objects' => 'CustomObject',
         'objects/fields' => 'CustomField',
         'objects/validationRules' => 'ValidationRule',
@@ -202,6 +219,17 @@ public with sharing class StoryVerificationMetadataController {
         result.storyName = story.name;
         result.storyTitle = story.title;
 
+        // A rule or an action of a workflow is registered together with the Workflow record of its object (named like the object):
+        // deploying them without it fails. The object is the part of the name before the first dot.
+        Set<String> workflowObjects = new Set<String>();
+        for (String key : new List<String>(wanted)) {
+            if (key.startsWith('workflows/') && key.contains('|') && key.substringAfter('|').contains('.')) {
+                workflowObjects.add(key.substringAfter('|').substringBefore('.'));
+            }
+        }
+        for (String objectName : workflowObjects) {
+            wanted.add('workflows|' + objectName);
+        }
         List<String> uniqueIds = new List<String>();
         for (Map<String, Object> grp : selectableGroups(story.checks)) {
             String kind = String.valueOf(grp.get('kind'));

@@ -205,7 +205,10 @@ const KIND_TYPES = {
     profiles: "Profile", flexipages: "FlexiPage", customMetadata: "CustomMetadata", customPermissions: "CustomPermission", email: "EmailTemplate",
     approvalProcesses: "ApprovalProcess", quickActions: "QuickAction", tabs: "CustomTab", applications: "CustomApplication", reports: "Report",
     reportTypes: "ReportType", dashboards: "Dashboard", staticresources: "StaticResource", duplicateRules: "DuplicateRule", matchingRules: "MatchingRule",
-    globalValueSets: "GlobalValueSet", labels: "CustomLabel", objects: "CustomObject", "objects/fields": "CustomField", "objects/validationRules": "ValidationRule",
+    globalValueSets: "GlobalValueSet", labels: "CustomLabel", workflows: "Workflow", "workflows/alerts": "WorkflowAlert",
+    "workflows/fieldUpdates": "WorkflowFieldUpdate", "workflows/rules": "WorkflowRule", "workflows/tasks": "WorkflowTask",
+    "workflows/outboundMessages": "WorkflowOutboundMessage", "workflows/knowledgePublishes": "WorkflowKnowledgePublish",
+    "workflows/flowActions": "WorkflowFlowAutomation", "workflows/send": "WorkflowSend", objects: "CustomObject", "objects/fields": "CustomField", "objects/validationRules": "ValidationRule",
     "objects/recordTypes": "RecordType", "objects/listViews": "ListView", "objects/fieldSets": "FieldSet", "objects/webLinks": "WebLink",
     "objects/compactLayouts": "CompactLayout", "objects/businessProcesses": "BusinessProcess"
 };
@@ -224,7 +227,7 @@ function sameComponent(item, api, kind) {
 }
 
 const FOLDER_TYPES = {
-    labels: "Custom Label", classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
+    labels: "Custom Label", workflows: "Workflow", classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
     flows: "Flow", permissionsets: "Permission Set", duplicateRules: "Duplicate Rule", fields: "Custom Field", validationRules: "Validation Rule"
 };
 
@@ -365,6 +368,72 @@ function changedLabels(base, file) {
     });
     old.forEach((block, name) => {
         if (!now.has(name)) out.push({ name: name, action: "Delete" });
+    });
+    return out;
+}
+
+// The <labels> blocks of a file, keyed by <fullName>, each as one normalised string.
+function blocksOf(text, tag) {
+    const map = new Map();
+    (text.match(new RegExp("<" + tag + ">[\\s\\S]*?</" + tag + ">", "g")) || []).forEach((block) => {
+        const m = /<fullName>([^<]+)<\/fullName>/.exec(block);
+        if (m) map.set(m[1].trim(), block.replace(/\s+/g, " ").trim());
+    });
+    return map;
+}
+
+// The parts of a workflow file: XML tag -> [kind, label shown in the popup]. The Copado type of each kind is in KIND_TYPES.
+const WORKFLOW_PARTS = {
+    rules: ["workflows/rules", "Workflow Rule"],
+    alerts: ["workflows/alerts", "Workflow Alert"],
+    fieldUpdates: ["workflows/fieldUpdates", "Workflow Field Update"],
+    tasks: ["workflows/tasks", "Workflow Task"],
+    outboundMessages: ["workflows/outboundMessages", "Workflow Outbound Message"],
+    knowledgePublishes: ["workflows/knowledgePublishes", "Workflow Knowledge Publish"],
+    flowActions: ["workflows/flowActions", "Workflow Flow Action"],
+    send: ["workflows/send", "Workflow Send"]
+};
+
+// A workflow file holds every rule and action of one object. Like the labels, the parts that changed are read from the file: the base
+// branch against the FINAL version on the feature branch (HEAD), matched by <fullName> (kept as written in the file, so URL-encoded,
+// which is how Copado records them). A part is a Delete only when it is not in that final version, so a part removed in one commit and
+// put back in a later one is not a Delete. Each part is named <Object>.<fullName>; a Workflow record named <Object> comes with them,
+// because the deployment of a rule or an action needs it. Returns null when the file cannot be read (it then stays one component).
+function changedWorkflowParts(base, file, objectName) {
+    const gone = file.status === "D";
+    const added = file.status === "A";
+    const before = added ? "" : tryRun("git", ["show", "origin/" + base + ":" + file.path]);
+    const after = gone ? "" : tryRun("git", ["show", "HEAD:" + file.path]);
+    if (before === null || after === null) return null;
+    const out = [];
+    Object.keys(WORKFLOW_PARTS).forEach((tag) => {
+        const old = blocksOf(before, tag);
+        const now = blocksOf(after, tag);
+        now.forEach((block, name) => {
+            if (!old.has(name) || old.get(name) !== block) out.push({ api: objectName + "." + name, kind: WORKFLOW_PARTS[tag][0], type: WORKFLOW_PARTS[tag][1], action: "Add" });
+        });
+        old.forEach((block, name) => {
+            if (!now.has(name)) out.push({ api: objectName + "." + name, kind: WORKFLOW_PARTS[tag][0], type: WORKFLOW_PARTS[tag][1], action: "Delete" });
+        });
+    });
+    return out;
+}
+
+// Each changed workflow file becomes its changed parts plus the Workflow record of the object (a Delete only when the file is gone).
+function expandWorkflows(comps, base) {
+    const out = [];
+    comps.forEach((c) => {
+        const parts = c.kind === "workflows" && c.files.length > 0 ? changedWorkflowParts(base, c.files[0], c.api) : null;
+        if (parts === null) {
+            out.push(c);
+            return;
+        }
+        const path = c.files[0].path;
+        parts.forEach((p) => out.push(Object.assign({}, p, { files: [{ status: p.action === "Delete" ? "D" : "A", path: path }] })));
+        if (parts.length > 0) {
+            const fileGone = c.files[0].status === "D";
+            out.push({ api: c.api, kind: "workflows", type: c.type, action: fileGone ? "Delete" : "Add", files: [{ status: fileGone ? "D" : "A", path: path }] });
+        }
     });
     return out;
 }
@@ -778,7 +847,7 @@ function checkMetadata(ctx) {
     let raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
     if (raw === null) raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
-    const comps = expandLabels(componentsFromChanges(parseNameStatus(raw)), ctx.base);
+    const comps = expandWorkflows(expandLabels(componentsFromChanges(parseNameStatus(raw)), ctx.base), ctx.base);
     const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api, c.kind));
     const uncovered = uncoveredComps.map((c) => c.api);
     const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";

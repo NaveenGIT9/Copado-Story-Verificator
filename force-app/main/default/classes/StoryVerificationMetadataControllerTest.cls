@@ -300,6 +300,57 @@ private class StoryVerificationMetadataControllerTest {
     }
 
     @IsTest
+    static void aWorkflowPartIsRegisteredTogetherWithTheWorkflowOfItsObject() {
+        User user = newUser(true);
+        System.runAs(user) {
+            copado__User_Story__c story = story();
+            String file = 'force-app/main/default/workflows/Case.workflow-meta.xml';
+            List<Object> groups = new List<Object>{
+                new Map<String, Object>{
+                    'kind' => 'workflows/rules',
+                    'type' => 'Workflow Rule',
+                    'items' => new List<Object>{ item('Case.%5BAcme%5D rule', 'Add', '', file), item('Case.Other rule', 'Add', '', file) }
+                },
+                new Map<String, Object>{ 'kind' => 'workflows', 'type' => 'Workflow', 'items' => new List<Object>{ item('Case', 'Add', '', file) } }
+            };
+            Map<String, Object> row = new Map<String, Object>{ 't' => 'select', 'groups' => groups };
+            Map<String, Object> check = new Map<String, Object>{ 'id' => 'metadata-coverage', 'rows' => new List<Object>{ row } };
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Status__c = 'Issues',
+                Verification_Checks__c = JSON.serialize(new Map<String, Object>{ 'checks' => new List<Object>{ check } })
+            );
+
+            // only the rule is ticked: the Workflow record of Case comes with it
+            StoryVerificationMetadataController.CreateResult result = StoryVerificationMetadataController.create(
+                story.Id,
+                new List<String>{ 'workflows/rules|Case.%5BAcme%5D rule' }
+            );
+
+            System.assertEquals(2, result.created, String.valueOf(result.errors));
+            List<copado__User_Story_Metadata__c> records = [
+                SELECT copado__Type__c, copado__Metadata_API_Name__c, copado__ModuleDirectory__c, copado__Unique_ID__c
+                FROM copado__User_Story_Metadata__c
+                ORDER BY copado__Type__c
+            ];
+            System.assertEquals('Workflow', records[0].copado__Type__c);
+            System.assertEquals('Case', records[0].copado__Metadata_API_Name__c);
+            System.assertEquals('WorkflowRule', records[1].copado__Type__c);
+            System.assertEquals('Case.%5BAcme%5D rule', records[1].copado__Metadata_API_Name__c, 'The name stays as the file writes it');
+            System.assert(String.isBlank(records[0].copado__ModuleDirectory__c) && String.isBlank(records[1].copado__ModuleDirectory__c), 'No directory');
+            System.assertEquals(String.valueOf(story.Id) + ';;WorkflowRule;Case.%5BAcme%5D rule', records[1].copado__Unique_ID__c);
+
+            // a second part later: the Workflow record is already there, so only the part is new
+            StoryVerificationMetadataController.CreateResult again = StoryVerificationMetadataController.create(
+                story.Id,
+                new List<String>{ 'workflows/rules|Case.Other rule' }
+            );
+            System.assertEquals(1, again.created, String.valueOf(again.errors));
+            System.assertEquals(1, again.skipped, 'The Workflow record of Case already exists');
+        }
+    }
+
+    @IsTest
     static void aUserWithoutThePermissionCanNeitherPreviewNorCreate() {
         User user = newUser(false);
         System.runAs(user) {
