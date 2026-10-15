@@ -837,7 +837,17 @@ function checkUnregistered(ctx) {
         return mk(id, "fail", "Commit " + hard[0].sha10 + " has Copado status \"" + hard[0].status + "\"", lines, rows);
     }
     if (uncoveredCommits.length > 0) {
-        return mk(id, "fail", uncoveredCommits.length + " commit(s) outside Copado change unregistered components", lines, rows);
+        // The list shows every unregistered commit, so the headline counts them all and then says how many change unregistered components.
+        const listed = details.length;
+        return mk(
+            id,
+            "fail",
+            uncoveredCommits.length === listed
+                ? listed + " commit(s) outside Copado change unregistered components"
+                : listed + " commit(s) outside Copado, " + uncoveredCommits.length + " of them change unregistered components",
+            lines,
+            rows
+        );
     }
     if (authors.length > 0) {
         return mk(id, "fail", "Commit by " + authors.join(", ") + " is not a registered committer " + DASH + " verify manually", lines, rows);
