@@ -284,26 +284,29 @@
     width: 1.5rem;
 }
 
+/* A result node is a solid disc with a white icon (green passed, red failed, amber warning, grey pending). */
 .tl-item .step-icon {
-    border: 2px solid #c9cfd8;
+    background: #98a2b3;
     border-radius: 50%;
 }
 
+.tl-item .step-icon lightning-icon {
+    --slds-c-icon-color-foreground: #fff;
+    --slds-c-icon-color-foreground-default: #fff;
+    --sds-c-icon-color-foreground: #fff;
+    --sds-c-icon-color-foreground-default: #fff;
+}
+
 .tl-ok .step-icon {
-    border-color: #2e844a;
+    background: #1f8a4c;
 }
 
 .tl-bad .step-icon {
-    border-color: #ba0517;
-    background: #fff5f4;
+    background: #c23934;
 }
 
 .tl-warn .step-icon {
-    border-color: #d48806;
-}
-
-.tl-ok::before {
-    background: #bfe3cd;
+    background: #d98200;
 }
 
 /* What opens under a check: a quiet panel, so the details belong to the node above them. */
