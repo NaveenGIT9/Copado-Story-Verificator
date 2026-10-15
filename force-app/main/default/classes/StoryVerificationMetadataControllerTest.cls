@@ -300,6 +300,39 @@ private class StoryVerificationMetadataControllerTest {
     }
 
     @IsTest
+    static void aMatchingRuleIsRegisteredAloneWithoutADirectory() {
+        User user = newUser(true);
+        System.runAs(user) {
+            copado__User_Story__c story = story();
+            List<Object> groups = new List<Object>{
+                new Map<String, Object>{
+                    'kind' => 'matchingRules',
+                    'type' => 'Matching Rule',
+                    'items' => new List<Object>{ item('Account.Test_Story_Verification', 'Add', '', 'force-app/main/default/matchingRules/Account.matchingRule-meta.xml') }
+                }
+            };
+            Map<String, Object> row = new Map<String, Object>{ 't' => 'select', 'groups' => groups };
+            Map<String, Object> check = new Map<String, Object>{ 'id' => 'metadata-coverage', 'rows' => new List<Object>{ row } };
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Status__c = 'Issues',
+                Verification_Checks__c = JSON.serialize(new Map<String, Object>{ 'checks' => new List<Object>{ check } })
+            );
+
+            StoryVerificationMetadataController.CreateResult result = StoryVerificationMetadataController.create(
+                story.Id,
+                new List<String>{ 'matchingRules|Account.Test_Story_Verification' }
+            );
+
+            System.assertEquals(1, result.created, String.valueOf(result.errors));
+            copado__User_Story_Metadata__c rule = [SELECT copado__Type__c, copado__Metadata_API_Name__c, copado__ModuleDirectory__c FROM copado__User_Story_Metadata__c];
+            System.assertEquals('MatchingRule', rule.copado__Type__c);
+            System.assertEquals('Account.Test_Story_Verification', rule.copado__Metadata_API_Name__c, 'The rule alone, with no record for the whole file');
+            System.assert(String.isBlank(rule.copado__ModuleDirectory__c), 'No directory');
+        }
+    }
+
+    @IsTest
     static void aWorkflowPartIsRegisteredTogetherWithTheWorkflowOfItsObject() {
         User user = newUser(true);
         System.runAs(user) {

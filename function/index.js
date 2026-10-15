@@ -227,7 +227,7 @@ function sameComponent(item, api, kind) {
 }
 
 const FOLDER_TYPES = {
-    labels: "Custom Label", workflows: "Workflow", classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
+    labels: "Custom Label", matchingRules: "Matching Rule", workflows: "Workflow", classes: "Apex Class", triggers: "Apex Trigger", pages: "Visualforce Page", lwc: "Lightning Web Component", aura: "Aura Component",
     flows: "Flow", permissionsets: "Permission Set", duplicateRules: "Duplicate Rule", fields: "Custom Field", validationRules: "Validation Rule"
 };
 
@@ -443,6 +443,41 @@ function expandWorkflows(comps, base) {
             const fileGone = c.files[0].status === "D";
             out.push({ api: c.api, kind: "workflows", type: c.type, action: fileGone ? "Delete" : "Add", files: [{ status: fileGone ? "D" : "A", path: path }] });
         }
+    });
+    return out;
+}
+
+// The matching rules file of an object holds one <matchingRules> block per rule. Like the labels, each changed rule is one component,
+// named <Object>.<fullName> (the file is named after the object), compared with the file at the split from the base branch and with the
+// final version on the feature branch. There is no parent record: the rules alone are registered. Returns null when the file cannot
+// be read (it then stays one component).
+function changedMatchingRules(base, file, objectName) {
+    const gone = file.status === "D";
+    const added = file.status === "A";
+    const before = added ? "" : tryRun("git", ["show", baseRef(base) + ":" + file.path]);
+    const after = gone ? "" : tryRun("git", ["show", "HEAD:" + file.path]);
+    if (before === null || after === null) return null;
+    const old = blocksOf(before, "matchingRules");
+    const now = blocksOf(after, "matchingRules");
+    const out = [];
+    now.forEach((block, name) => {
+        if (!old.has(name) || old.get(name) !== block) out.push({ name: objectName + "." + name, action: "Add" });
+    });
+    old.forEach((block, name) => {
+        if (!now.has(name)) out.push({ name: objectName + "." + name, action: "Delete" });
+    });
+    return out;
+}
+
+function expandMatchingRules(comps, base) {
+    const out = [];
+    comps.forEach((c) => {
+        const rules = c.kind === "matchingRules" && c.files.length > 0 ? changedMatchingRules(base, c.files[0], c.api) : null;
+        if (rules === null) {
+            out.push(c);
+            return;
+        }
+        rules.forEach((r) => out.push({ api: r.name, kind: "matchingRules", type: c.type, action: r.action, files: [{ status: r.action === "Delete" ? "D" : "A", path: c.files[0].path }] }));
     });
     return out;
 }
@@ -866,7 +901,7 @@ function checkMetadata(ctx) {
     let raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]);
     if (raw === null) raw = tryRun("git", ["diff", "--name-status", "--no-renames", "-z", "origin/" + ctx.base + "..HEAD"]);
     if (raw === null) throw new Error("git diff against origin/" + ctx.base + " failed");
-    const comps = expandWorkflows(expandLabels(componentsFromChanges(parseNameStatus(raw)), ctx.base), ctx.base);
+    const comps = expandMatchingRules(expandWorkflows(expandLabels(componentsFromChanges(parseNameStatus(raw)), ctx.base), ctx.base), ctx.base);
     const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api, c.kind));
     const uncovered = uncoveredComps.map((c) => c.api);
     const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";
