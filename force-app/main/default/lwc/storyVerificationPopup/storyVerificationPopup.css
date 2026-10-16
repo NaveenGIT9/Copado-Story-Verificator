@@ -413,3 +413,38 @@
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
     margin-left: 0.2rem;
 }
+
+/* Parent story finding: the sentence in coloured parts. Red only for what is wrong and what to do; everything else is calm. */
+.part-bad {
+    color: #ba0517;
+}
+
+.part-ok {
+    color: #2e844a;
+}
+
+.part-warn {
+    color: #d48806;
+}
+
+.part-muted {
+    color: #444;
+}
+
+.part-story {
+    color: #0b827c;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+/* Environment names: dark blue, monospace and always in capitals (display only, the name itself is untouched). */
+.part-env {
+    color: #0b5cab;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    text-transform: uppercase;
+}
+
+.part-action {
+    color: #ba0517;
+    font-weight: 700;
+}

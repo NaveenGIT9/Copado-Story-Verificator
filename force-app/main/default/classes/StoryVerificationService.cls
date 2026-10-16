@@ -573,7 +573,7 @@ public with sharing class StoryVerificationService {
         String childEnvironmentName = story.copado__Environment__r?.Name;
         for (ParentLink link : links) {
             copado__User_Story__c parent = link.story;
-            findings.add(
+            Map<String, String> parentResult =
                 parentFinding(
                     parent.Name,
                     String.join(link.labels, ' + '),
@@ -584,8 +584,9 @@ public with sharing class StoryVerificationService {
                     story.copado__Environment__c,
                     childEnvironmentName,
                     levels
-                )
-            );
+                );
+            parentResult.put('parentId', String.valueOf(parent.Id));
+            findings.add(parentResult);
         }
     }
 
@@ -689,34 +690,78 @@ public with sharing class StoryVerificationService {
         String prefix = parentName + ' (' + via + ')';
         Boolean completed = parentStatus == 'Completed';
         String ahead = prefix + ' is in ' + parentText + ' - ahead of ' + childText + '.';
+        // The parts of the sentence, so the popup can colour them and link the parent (the message stays the plain text).
+        String via1 = via;
+        String pEnv = parentEnvironmentId == null ? '' : parentEnvironmentName;
+        String cEnv = childEnvironmentId == null ? '' : childEnvironmentName;
         if (completed) {
-            return finding(SEVERITY_INFO, ahead, GROUP_PARENTS);
+            return withParts(finding(SEVERITY_INFO, ahead, GROUP_PARENTS), 'ahead', parentName, via1, pEnv, cEnv);
         }
         if (parentEnvironmentId == null) {
-            return finding(SEVERITY_ISSUE, prefix + ' has no environment yet; promote it first.', GROUP_PARENTS);
+            return withParts(
+                finding(SEVERITY_ISSUE, prefix + ' has no environment yet; promote it first.', GROUP_PARENTS),
+                'no-env',
+                parentName,
+                via1,
+                '',
+                cEnv
+            );
         }
         Integer childLevel = childEnvironmentId == null || levels == null ? null : levels.get(childEnvironmentId);
         Integer parentLevel = levels == null ? null : levels.get(parentEnvironmentId);
         String verdict = parentVerdict(childLevel, parentLevel, completed);
         if (verdict == VERDICT_AHEAD) {
-            return finding(SEVERITY_INFO, ahead, GROUP_PARENTS);
+            return withParts(finding(SEVERITY_INFO, ahead, GROUP_PARENTS), 'ahead', parentName, via1, pEnv, cEnv);
         }
         if (verdict == VERDICT_NOT_AHEAD) {
-            return finding(
-                SEVERITY_ISSUE,
-                prefix + ' is in ' + parentText + ' - not ahead of ' + childText + '; promote it first.',
-                GROUP_PARENTS
+            return withParts(
+                finding(
+                    SEVERITY_ISSUE,
+                    prefix + ' is in ' + parentText + ' - not ahead of ' + childText + '; promote it first.',
+                    GROUP_PARENTS
+                ),
+                'not-ahead',
+                parentName,
+                via1,
+                pEnv,
+                cEnv
             );
         }
         // No pipeline order available: fall back to "has the parent been promoted at all".
         if (parentLastPromotion != null) {
-            return finding(SEVERITY_INFO, prefix + ' is in ' + parentText + ', already promoted.', GROUP_PARENTS);
+            return withParts(
+                finding(SEVERITY_INFO, prefix + ' is in ' + parentText + ', already promoted.', GROUP_PARENTS),
+                'promoted',
+                parentName,
+                via1,
+                pEnv,
+                cEnv
+            );
         }
-        return finding(
-            SEVERITY_ISSUE,
-            prefix + ' is in ' + parentText + ', not promoted yet; promote it first.',
-            GROUP_PARENTS
+        return withParts(
+            finding(SEVERITY_ISSUE, prefix + ' is in ' + parentText + ', not promoted yet; promote it first.', GROUP_PARENTS),
+            'not-promoted',
+            parentName,
+            via1,
+            pEnv,
+            cEnv
         );
+    }
+
+    private static Map<String, String> withParts(
+        Map<String, String> result,
+        String kind,
+        String parentName,
+        String via,
+        String parentEnv,
+        String childEnv
+    ) {
+        result.put('kind', kind);
+        result.put('parentName', parentName);
+        result.put('via', via);
+        result.put('parentEnv', parentEnv == null ? '' : parentEnv);
+        result.put('childEnv', childEnv == null ? '' : childEnv);
+        return result;
     }
 
     private static String environmentText(Id environmentId, String environmentName) {

@@ -723,6 +723,45 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
+    static void parentFindingCarriesTheStructuredPartsForEveryCase() {
+        Id devEnv = fakeId(1);
+        Id intEnv = fakeId(2);
+        Id otherEnv = fakeId(9);
+        Map<Id, Integer> levels = new Map<Id, Integer>{ devEnv => 0, intEnv => 1 };
+
+        Map<String, String> notAhead = StoryVerificationService.parentFinding(
+            'US-2', 'dependency', 'In Progress', devEnv, 'Dev2-SFP', null, intEnv, 'INT-SFP', levels
+        );
+        System.assertEquals('not-ahead', notAhead.get('kind'));
+        System.assertEquals('US-2', notAhead.get('parentName'));
+        System.assertEquals('dependency', notAhead.get('via'));
+        System.assertEquals('Dev2-SFP', notAhead.get('parentEnv'));
+        System.assertEquals('INT-SFP', notAhead.get('childEnv'));
+
+        System.assertEquals(
+            'ahead',
+            StoryVerificationService.parentFinding('US-1', 'base branch', 'In Progress', intEnv, 'INT-SFP', null, devEnv, 'Dev1-SFP', levels).get('kind')
+        );
+        System.assertEquals(
+            'ahead',
+            StoryVerificationService.parentFinding('US-3', 'dependency', 'Completed', devEnv, 'Dev1-SFP', null, intEnv, 'INT-SFP', levels).get('kind')
+        );
+        Map<String, String> noEnvironment = StoryVerificationService.parentFinding(
+            'US-4', 'base branch', 'In Progress', null, null, null, intEnv, 'INT-SFP', levels
+        );
+        System.assertEquals('no-env', noEnvironment.get('kind'));
+        System.assertEquals('', noEnvironment.get('parentEnv'));
+        System.assertEquals(
+            'promoted',
+            StoryVerificationService.parentFinding('US-5', 'base branch', 'In Progress', otherEnv, 'Elsewhere', System.now(), devEnv, 'Dev1-SFP', levels).get('kind')
+        );
+        System.assertEquals(
+            'not-promoted',
+            StoryVerificationService.parentFinding('US-6', 'base branch', 'In Progress', otherEnv, 'Elsewhere', null, null, null, new Map<Id, Integer>()).get('kind')
+        );
+    }
+
+    @IsTest
     static void startFlagsACopadoDependencyParentWithoutPipelineUsingTheFallbackRule() {
         User admin = newAdmin();
         System.runAs(admin) {

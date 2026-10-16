@@ -1567,6 +1567,53 @@ describe('c-story-verification-popup', () => {
             expect(pullRequest.querySelector('[data-id="check-lines"]')).toBeNull();
         });
 
+        it('shows a parent story finding as coloured parts with a link and capital environment names', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [
+                    {
+                        severity: 'issue',
+                        message: PARENT_BAD,
+                        groupKey: 'parent-dependencies',
+                        kind: 'not-ahead',
+                        parentId: 'a1vWQ00000A7RliYAF',
+                        parentName: 'US-0004810',
+                        via: 'dependency',
+                        parentEnv: 'trndev1',
+                        childEnv: 'trndev1'
+                    }
+                ]
+            });
+
+            const row = stepRow(element, 'Parent Story Dependencies');
+            const text = row.querySelector('[data-id="step-text"]').textContent;
+            expect(text).toContain('Parent US-0004810 (dependency) is still in trndev1. It must be ahead of this story. Promote it first.');
+            const link = row.querySelector('[data-id="part-link"]');
+            expect(link.textContent).toBe('US-0004810');
+            expect(link.getAttribute('href')).toBe('/lightning/r/copado__User_Story__c/a1vWQ00000A7RliYAF/view');
+            expect(link.getAttribute('target')).toBe('_blank');
+            expect(link.classList.contains('part-story')).toBe(true);
+            const env = row.querySelector('.part-env');
+            expect(env.textContent).toBe('trndev1');
+            expect(row.querySelector('.part-action').textContent).toBe('Promote it first.');
+            expect(row.querySelector('.part-bad')).not.toBeNull();
+        });
+
+        it('shows an ahead parent in green and lists several parents as parts too', async () => {
+            const element = await mountFinished(CHECKS, {
+                findings: [
+                    { severity: 'info', message: PARENT_OK, groupKey: 'parent-dependencies', kind: 'ahead', parentId: 'a1vWQ00000A7RliYAF', parentName: 'US-1', via: 'base branch', parentEnv: 'uat', childEnv: 'dev1' },
+                    { severity: 'issue', message: PARENT_BAD, groupKey: 'parent-dependencies', kind: 'no-env', parentId: 'a1vWQ00000BkW6bYAF', parentName: 'US-2', via: 'dependency', parentEnv: '', childEnv: 'dev1' }
+                ]
+            });
+
+            const row = stepRow(element, 'Parent Story Dependencies');
+            const lines = row.querySelector('[data-id="check-lines"]');
+            expect(lines.querySelectorAll('[data-id="part-link"]').length).toBe(2);
+            expect(lines.querySelector('.part-ok')).not.toBeNull();
+            expect(lines.querySelector('.part-env').textContent).toBe('uat');
+            expect(lines.textContent).toContain('Parent US-2 (dependency) has no environment yet. Promote it first.');
+        });
+
         it('does not repeat the title when the single message already starts with it', async () => {
             const element = await mountFinished(CHECKS, {
                 findings: [{ severity: 'info', message: 'Pending tests: 0.', groupKey: 'pending-tests' }]

@@ -536,7 +536,14 @@ function readConfig() {
                   message: str(f.message),
                   group: str(f.group),
                   noCommits: f.noCommits === true || f.noCommits === "true",
-                  nothing: f.nothing === true || f.nothing === "true"
+                  nothing: f.nothing === true || f.nothing === "true",
+                  // The parts of a parent story finding, passed back untouched for the popup.
+                  kind: str(f.kind),
+                  parentId: str(f.parentId),
+                  parentName: str(f.parentName),
+                  via: str(f.via),
+                  parentEnv: str(f.parentEnv),
+                  childEnv: str(f.childEnv)
               }
             : { severity: "info", message: str(f), group: "", noCommits: false, nothing: false }
     );

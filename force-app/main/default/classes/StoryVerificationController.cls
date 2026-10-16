@@ -30,6 +30,20 @@ public with sharing class StoryVerificationController {
         // Named groupKey (not group) because group is a SOQL keyword and may not be usable as an Apex identifier; the popup reads groupKey.
         @AuraEnabled
         public String groupKey;
+        // Parent story findings only: the parts of the sentence (kind: ahead | not-ahead | no-env | not-promoted | promoted), so the
+        // popup can link the parent story and colour the environments. Blank on every other finding.
+        @AuraEnabled
+        public String kind;
+        @AuraEnabled
+        public String parentId;
+        @AuraEnabled
+        public String parentName;
+        @AuraEnabled
+        public String via;
+        @AuraEnabled
+        public String parentEnv;
+        @AuraEnabled
+        public String childEnv;
     }
 
     /** Result of one git check as reported by the Function (state: pass | fail | warn | skipped). */
@@ -372,6 +386,10 @@ public with sharing class StoryVerificationController {
     }
 
     @TestVisible
+    private static String textOf(Object value) {
+        return value == null || String.isBlank(String.valueOf(value)) ? null : String.valueOf(value).trim();
+    }
+
     private static List<Finding> parseFindings(Object raw) {
         List<Finding> findings = new List<Finding>();
         if (!(raw instanceof List<Object>)) {
@@ -388,6 +406,12 @@ public with sharing class StoryVerificationController {
             finding.message = map1.get('message') == null ? '' : String.valueOf(map1.get('message'));
             String groupText = map1.get('group') == null ? '' : String.valueOf(map1.get('group')).trim();
             finding.groupKey = String.isBlank(groupText) ? null : groupText;
+            finding.kind = textOf(map1.get('kind'));
+            finding.parentId = textOf(map1.get('parentId'));
+            finding.parentName = textOf(map1.get('parentName'));
+            finding.via = textOf(map1.get('via'));
+            finding.parentEnv = textOf(map1.get('parentEnv'));
+            finding.childEnv = textOf(map1.get('childEnv'));
             findings.add(finding);
         }
         return findings;

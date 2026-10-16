@@ -38,6 +38,41 @@ const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
 
 // The three git checks run by the Copado Function (ids match function/index.js).
+// The sentence of one parent story finding as coloured parts: the parent is a link to the story, the environments are names (shown in
+// capitals by the style), the action stands out. null when the finding has no parts (old results): the plain message is shown.
+const STORY_PATH = '/lightning/r/copado__User_Story__c/';
+
+function part(text, cls, href) {
+    return { text, cls: cls || '', href: href || '', isLink: !!href };
+}
+
+function parentParts(f) {
+    if (!f || !f.kind) return null;
+    const tone = f.severity === 'issue' ? 'part-bad' : f.severity === 'warn' ? 'part-warn' : 'part-ok';
+    const story = part(f.parentName || 'story', 'part-story', f.parentId ? STORY_PATH + f.parentId + '/view' : '');
+    const env = (name) => part(name || 'an unnamed environment', 'part-env');
+    const action = part('Promote it first.', 'part-action');
+    const head = [part('Parent ', tone), story];
+    if (f.via) head.push(part(' (' + f.via + ')', 'part-muted'));
+    let tail;
+    if (f.kind === 'not-ahead') {
+        tail = [part(' is still in ', tone), env(f.parentEnv), part('. ', tone), part('It must be ahead of this story. ', 'part-muted'), action];
+    } else if (f.kind === 'no-env') {
+        tail = [part(' has no environment yet. ', tone), action];
+    } else if (f.kind === 'not-promoted') {
+        tail = [part(' is in ', tone), env(f.parentEnv), part(', not promoted yet. ', tone), action];
+    } else if (f.kind === 'promoted') {
+        tail = [part(' is in ', tone), env(f.parentEnv), part(', already promoted.', tone)];
+    } else if (f.kind === 'ahead') {
+        tail = [part(' is in ', tone), env(f.parentEnv), part(', ahead of ', tone)].concat(
+            f.childEnv ? [env(f.childEnv), part('.', tone)] : [part('this story.', tone)]
+        );
+    } else {
+        return null;
+    }
+    return head.concat(tail).map((p, i) => ({ ...p, key: 'part-' + i }));
+}
+
 // The timeline: each check row is a node on a vertical line, ringed in the colour of its result.
 function timelineClass(row) {
     const tone = row.isSpinner
@@ -672,12 +707,18 @@ export default class StoryVerificationPopup extends LightningElement {
         }
         const hasLines = findings.length > 1;
         const expanded = hasLines && this.isExpanded(checkId, issueCount > 0 ? 'fail' : 'pass');
+        const single = findings.length === 1 ? parentParts(findings[0]) : null;
         return {
             ...row,
             ...visual,
             text,
             hasLines,
-            lines: findings.map((f, index) => ({ key: checkId + '-' + index, text: f.message, isText: true })),
+            hasParts: !!single,
+            valueParts: single || [],
+            lines: findings.map((f, index) => {
+                const parts = parentParts(f);
+                return { key: checkId + '-' + index, text: f.message, isText: true, hasParts: !!parts, parts: parts || [] };
+            }),
             expanded,
             ariaExpanded: String(expanded),
             toggleLabel: expanded ? 'Hide details' : 'Show details'
