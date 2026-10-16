@@ -12,6 +12,15 @@
             </div>
         </template>
 
+        <template lwc:if={showStoryInfo}>
+            <div class="story-info" data-id="story-info">
+                <div class="story-name" data-id="story-name">{storyName}</div>
+                <template lwc:if={baseBranch}>
+                    <div class="story-base" data-id="story-base"><span class="story-base-key">Base branch</span><span class="step-colon">:</span><span class="story-base-value">{baseBranch}</span></div>
+                </template>
+            </div>
+        </template>
+
         <template lwc:if={showIntro}>
             <div data-id="intro">
                 <p class="slds-m-bottom_small" data-id="intro-text">{introText}</p>

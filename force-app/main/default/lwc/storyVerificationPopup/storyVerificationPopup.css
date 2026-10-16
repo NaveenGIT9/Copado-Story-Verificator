@@ -384,3 +384,29 @@
 .tl-item .check-lines li.danger-line {
     margin-top: 0.75rem;
 }
+
+/* The story number and its base branch, under the title. */
+.story-info {
+    margin-bottom: 0.9rem;
+}
+
+.story-name {
+    color: #181818;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.story-base {
+    color: #444;
+    font-size: 0.8125rem;
+}
+
+.story-base-key {
+    font-weight: 600;
+}
+
+.story-base-value {
+    color: #0b5cab;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    margin-left: 0.2rem;
+}

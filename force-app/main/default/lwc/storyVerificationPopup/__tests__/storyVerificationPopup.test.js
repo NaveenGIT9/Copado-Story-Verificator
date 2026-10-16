@@ -625,6 +625,24 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'state-spinner')).not.toBeNull();
     });
 
+    it('shows the story number and its base branch under the title', async () => {
+        const element = await mountFinished(CHECKS, { baseBranch: 'master' });
+        getRecord.emit({ fields: { Name: { value: STORY_NAME } } });
+        await flush();
+
+        expect(byId(element, 'story-name').textContent).toBe(STORY_NAME);
+        expect(byId(element, 'story-base').textContent).toBe('Base branch:master');
+    });
+
+    it('leaves out the base branch line when the story has none', async () => {
+        const element = await mountFinished(CHECKS, { baseBranch: null });
+        getRecord.emit({ fields: { Name: { value: STORY_NAME } } });
+        await flush();
+
+        expect(byId(element, 'story-name').textContent).toBe(STORY_NAME);
+        expect(byId(element, 'story-base')).toBeNull();
+    });
+
     it('renders the real result of every check with its icon and summary', async () => {
         const element = await mountFinished(CHECKS);
 

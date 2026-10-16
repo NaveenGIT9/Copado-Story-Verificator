@@ -88,6 +88,9 @@ public with sharing class StoryVerificationController {
         // How long the Function script itself ran (seconds); the rest of the wait was Copado starting the job.
         @AuraEnabled
         public Integer scriptSeconds;
+        // The branch the story was cut from (the story's Base Branch field), shown under the popup title.
+        @AuraEnabled
+        public String baseBranch;
         // The repository's commit address up to the commit id (https://github.com/org/repo/commit/); blank when unknown.
         @AuraEnabled
         public String commitBaseUrl;
@@ -306,6 +309,7 @@ public with sharing class StoryVerificationController {
         snapshot.isFinished = FINISHED_STATUSES.contains(story.Verification_Status__c);
         snapshot.isCurrentRun = snapshot.runId == runId;
         snapshot.details = splitLines(story.Verification_Details__c);
+        snapshot.baseBranch = baseBranchOf(story.Id);
 
         JobReader reader = new JobReader();
         snapshot.facts = reader.readFacts(story.Id);
@@ -322,6 +326,17 @@ public with sharing class StoryVerificationController {
         snapshot.jobError = info.error;
         snapshot.progressText = info.progressText;
         return snapshot;
+    }
+
+    // Read apart from loadStory (which has already checked the user may open the story), so a user who cannot read the Base Branch
+    // field still gets the popup; the header then simply has no base branch line.
+    private static String baseBranchOf(Id storyId) {
+        try {
+            List<copado__User_Story__c> rows = [SELECT copado__Base_Branch__c FROM copado__User_Story__c WHERE Id = :storyId LIMIT 1];
+            return rows.isEmpty() || String.isBlank(rows[0].copado__Base_Branch__c) ? null : rows[0].copado__Base_Branch__c.trim();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // USER_MODE enforces object/field read access in addition to sharing, so a user without access gets an error.

@@ -156,6 +156,20 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
+    static void getProgressReturnsTheBaseBranchOfTheStory() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            update new copado__User_Story__c(Id = storyId, copado__Base_Branch__c = 'master');
+            setState(storyId, 'Running', 'run-a', null);
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.getProgress(storyId, 'run-a');
+
+            System.assertEquals('master', snapshot.baseBranch);
+        }
+    }
+
+    @IsTest
     static void getProgressWithoutJobExecutionIsQueued() {
         User user = newUser('System Administrator', true);
         System.runAs(user) {

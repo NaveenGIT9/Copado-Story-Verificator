@@ -466,6 +466,14 @@ export default class StoryVerificationPopup extends LightningElement {
 
     // ---- view state ----
 
+    get showStoryInfo() {
+        return !!this.storyName;
+    }
+
+    get baseBranch() {
+        return (this.snapshot && this.snapshot.baseBranch) || '';
+    }
+
     get showIntro() {
         return !this.runStarted;
     }
