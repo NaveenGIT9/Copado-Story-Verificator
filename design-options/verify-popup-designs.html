@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify popup designs</title>
+<style>
+:root{--teal:#2f6f7b;--teal-d:#245863;--ok:#1f8a4c;--bad:#c23934;--warn:#d98200;--ink:#1d2330;--mut:#667085;--line:#e3e7ee;--bg:#eef1f5;--card:#fff;--type:#a45a05;--code:#0c7a86}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.top{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:10px 16px}
+.top h1{margin:0 0 8px;font-size:15px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--ink)}
+.pill b{color:var(--teal)}
+.pill.on{background:var(--teal);color:#fff;border-color:var(--teal)}.pill.on b{color:#bfe6ec}
+.blurb{margin-top:8px;color:var(--mut);font-size:12.5px}
+.stage{padding:26px 12px 60px;display:flex;justify-content:center;background:repeating-linear-gradient(45deg,#e6e9ef 0 12px,#eceff4 12px 24px)}
+.modal{width:100%;max-width:780px;background:#fff;border-radius:10px;box-shadow:0 20px 60px rgba(20,30,50,.28);overflow:hidden;position:relative}
+.mh{padding:16px 22px;text-align:center;font-size:18px;border-bottom:1px solid var(--line)}
+.mx{position:absolute;right:10px;top:10px;width:28px;height:28px;border-radius:6px;border:0;background:transparent;font-size:20px;cursor:pointer;color:var(--mut)}
+.mb{padding:18px 22px;max-height:none}
+.mf{padding:12px 22px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;background:#fafbfc}
+.mf .t{margin-right:auto;color:var(--mut);font-size:12px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer}
+.btn.p{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.p:disabled{opacity:.45;cursor:not-allowed}
+.btn.s{padding:5px 10px;font-size:12px}
+svg{vertical-align:-3px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.code{font-family:ui-monospace,Consolas,Menlo,monospace;color:var(--code)}
+.sha{font-family:ui-monospace,Consolas,Menlo,monospace;color:#0b5cad;font-size:12.5px;text-decoration:underline}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;letter-spacing:.3px}
+.tag.add{background:#e6f5ec;color:var(--ok);border:1px solid #9bd4b2}
+.tag.del{background:#fdeceb;color:var(--bad);border:1px solid #f0a7a3}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--teal);cursor:pointer;vertical-align:-3px}
+.chev{display:inline-block;transition:transform .15s}.chev.o{transform:rotate(90deg)}
+.link{color:var(--teal);cursor:pointer;font-size:12.5px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1d2330;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.cb-line{display:flex;align-items:center;gap:8px;padding:5px 0}
+.clk{cursor:pointer;user-select:none}
+
+/* 1 command centre */
+.d1 .hero{background:linear-gradient(120deg,#fff4e0,#ffe6c2);border:1px solid #f3cf9a;border-radius:10px;padding:16px 18px;display:flex;align-items:center;gap:14px}
+.d1 .hero .big{font-size:26px;font-weight:800;color:#a85d00;line-height:1}
+.d1 .hero small{color:#7a5a2a}
+.d1 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.d1 .tile{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.d1 .tile b{display:block;font-size:22px}
+.d1 .tile span{color:var(--mut);font-size:12px}
+.d1 .sec{font-size:11px;letter-spacing:.8px;color:var(--mut);font-weight:700;margin:16px 0 8px;text-transform:uppercase}
+.d1 .card{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;margin-bottom:10px}
+.d1 .card .ch{padding:10px 14px;display:flex;gap:10px;align-items:center;cursor:pointer}
+.d1 .card .cb{padding:2px 14px 12px 38px;border-top:1px dashed var(--line)}
+.d1 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.d1 .chipok{border:1px solid #bfe3cd;background:#f1faf4;color:#1c6b3d;border-radius:999px;padding:4px 11px;font-size:12.5px}
+
+/* 2 timeline */
+.d2 .tl{position:relative;margin-left:14px;padding-left:28px}
+.d2 .tl:before{content:"";position:absolute;left:10px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.d2 .it{position:relative;padding:4px 0 16px}
+.d2 .node{position:absolute;left:-28px;top:2px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;box-shadow:0 0 0 4px #fff}
+.d2 .node.ok{background:var(--ok)}.d2 .node.bad{background:var(--bad)}
+.d2 .it h4{margin:0;font-size:14px}
+.d2 .it p{margin:1px 0 0;color:var(--mut);font-size:12.5px}
+.d2 .panel{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:#fcfcfd}
+.d2 .verdict{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.d2 .vb{background:#fff4e0;color:#a85d00;border:1px solid #f3cf9a;border-radius:999px;padding:3px 12px;font-weight:700}
+
+/* 3 master detail */
+.d3 .md{display:grid;grid-template-columns:250px 1fr;min-height:430px}
+.d3 .side{border-right:1px solid var(--line);background:#f8fafc;padding:10px}
+.d3 .row{display:flex;gap:9px;padding:9px 10px;border-radius:8px;cursor:pointer;align-items:flex-start}
+.d3 .row:hover{background:#eef3f7}.d3 .row.on{background:#fff;box-shadow:0 0 0 1px var(--teal) inset}
+.d3 .row b{display:block;font-size:13px}.d3 .row small{color:var(--mut);font-size:11.5px}
+.d3 .det{padding:16px 20px}
+.d3 .det h3{margin:0 0 4px;font-size:16px}
+.d3 .vtop{padding:12px 16px;background:#fff4e0;border-bottom:1px solid #f3cf9a;color:#8a4e00;font-weight:600}
+
+/* 4 tabs */
+.d4 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 14px}
+.d4 .tab{padding:11px 14px;cursor:pointer;color:var(--mut);border-bottom:3px solid transparent;font-weight:600;font-size:13px}
+.d4 .tab.on{color:var(--teal);border-color:var(--teal)}
+.d4 .tab i{font-style:normal;background:#fdeceb;color:var(--bad);border-radius:999px;padding:0 7px;font-size:11px;margin-left:5px}
+.d4 .tab i.g{background:#e6f5ec;color:var(--ok)}
+.d4 .nx{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.d4 .nx .n{width:22px;height:22px;border-radius:50%;background:var(--teal);color:#fff;text-align:center;font-size:12px;line-height:22px;flex:none}
+
+/* 5 card grid */
+.d5 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.d5 .gc{border:1px solid var(--line);border-top:4px solid var(--ok);border-radius:10px;padding:10px 12px}
+.d5 .gc.bad{border-top-color:var(--bad);background:#fffafa}
+.d5 .gc small{color:var(--mut);display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
+.d5 .gc b{display:block;font-size:15px;margin-top:3px}
+.d5 .gc em{font-style:normal;color:var(--mut);font-size:12.5px}
+.d5 .wide{border:1px solid var(--line);border-radius:10px;margin-top:12px;overflow:hidden}
+.d5 .wide h4{margin:0;padding:10px 14px;background:#fff6f5;border-bottom:1px solid #f4d3d1;display:flex;justify-content:space-between;color:var(--bad);font-size:13.5px}
+.d5 .wide .in{padding:8px 14px}
+
+/* 6 terminal */
+.d6.modal{background:#0f1720;color:#d4dee9;border:1px solid #223041}
+.d6 .mh{background:#0b121a;border-color:#223041;font-family:ui-monospace,Consolas,monospace;font-size:13px;text-align:left;color:#7fd1dd}
+.d6 .mx{color:#8aa0b5}
+.d6 .mb{font-family:ui-monospace,Consolas,monospace;font-size:12.8px}
+.d6 .ln{padding:2px 0}
+.d6 .okc{color:#4ade80}.d6 .badc{color:#ff7b72}.d6 .dim{color:#7d8ea1}.d6 .cy{color:#7fd1dd}.d6 .am{color:#f5b85b}
+.d6 .ind{margin-left:22px;border-left:1px solid #26384a;padding-left:12px}
+.d6 .mf{background:#0b121a;border-color:#223041}
+.d6 .btn{background:#16222f;color:#d4dee9;border-color:#2a3b4d}
+.d6 .btn.p{background:#1e8aa0;border-color:#1e8aa0;color:#fff}
+.d6 input[type=checkbox]{accent-color:#7fd1dd}
+.d6 .mf .t{color:#7d8ea1}
+
+/* 7 board */
+.d7 .strip{display:flex;gap:6px;overflow:auto;padding-bottom:6px}
+.d7 .cm{flex:none;border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:210px;font-size:12px}
+.d7 .cm.flag{border-color:#f0a7a3;background:#fff8f7}
+.d7 .cm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.d7 .cols{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.d7 .col{background:#f6f8fb;border:1px solid var(--line);border-radius:10px;padding:8px}
+.d7 .col h5{margin:2px 4px 8px;font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--type);display:flex;justify-content:space-between}
+.d7 .kc{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;gap:8px;align-items:center;cursor:pointer}
+.d7 .kc.sel{border-color:var(--teal);box-shadow:0 0 0 2px #cfe7ea}
+.d7 .kc .nm{flex:1;word-break:break-all;font-size:12.5px}
+.d7 h6{margin:14px 0 8px;font-size:11.5px;letter-spacing:.7px;color:var(--mut);text-transform:uppercase}
+
+/* 8 table */
+.d8 table{width:100%;border-collapse:collapse;font-size:13px}
+.d8 th{text-align:left;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);padding:6px 8px;border-bottom:2px solid var(--line);background:#fafbfc}
+.d8 td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.d8 tr.f td{background:#fffafa}
+.d8 .sub{margin:6px 0 14px 18px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.d8 .bar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 0 0;display:flex;align-items:center;gap:10px;margin-top:8px}
+
+/* 9 wizard */
+.d9 .steps{display:flex;padding:14px 22px;border-bottom:1px solid var(--line);gap:8px;background:#fafbfc}
+.d9 .st{flex:1;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut)}
+.d9 .st i{width:24px;height:24px;border-radius:50%;background:#e3e7ee;color:#fff;font-style:normal;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.d9 .st.on{color:var(--ink);font-weight:600}.d9 .st.on i{background:var(--teal)}
+.d9 .st.done i{background:var(--ok)}
+.d9 .st:not(:last-child):after{content:"";flex:1;height:2px;background:var(--line);margin-left:6px}
+.d9 .pv{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.d9 .pv h5{margin:0;padding:7px 12px;background:#f6f8fb;color:var(--type);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.d9 .pv div{padding:6px 12px;display:flex;gap:8px;align-items:center}
+
+/* 10 blockers first */
+.d10 .ban{background:#c23934;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:12px}
+.d10 .ban b{font-size:16px}.d10 .ban small{opacity:.85;display:block}
+.d10 .bk{border:1px solid #f0c9c7;border-radius:10px;margin-bottom:12px;overflow:hidden}
+.d10 .bk>.h{background:#fff6f5;padding:10px 14px;display:flex;gap:10px;align-items:center}
+.d10 .bk>.h .num{width:24px;height:24px;border-radius:50%;background:var(--bad);color:#fff;text-align:center;line-height:24px;font-weight:700;font-size:12px;flex:none}
+.d10 .fix{margin:0;padding:8px 14px;background:#fffbea;border-top:1px solid #f3e3a5;font-size:12.5px;color:#7a5b00}
+.d10 .bk .in{padding:6px 14px}
+.d10 .passed{border:1px solid #bfe3cd;border-radius:10px;background:#f6fcf8}
+.d10 .passed .h{padding:10px 14px;display:flex;justify-content:space-between;cursor:pointer;color:#1c6b3d;font-weight:600}
+.d10 .passed ul{margin:0;padding:0 14px 10px 36px;color:#2d5a41;font-size:13px}
+
+@media(max-width:700px){.d1 .tiles,.d5 .grid{grid-template-columns:1fr 1fr}.d3 .md{grid-template-columns:1fr}.d7 .cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Verify story popup &mdash; 10 design options <span style="font-weight:400;color:var(--mut)">(same data as your screenshot, click around: checkboxes, Select all, expand, Create)</span></h1>
+  <div class="pills" id="pills"></div>
+  <div class="blurb" id="blurb"></div>
+</div>
+<div class="stage"><div id="stage" style="width:100%;display:flex;justify-content:center"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const I={
+ ok:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ bad:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ warn:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l10 18H2L12 3zm-1 7v5h2v-5h-2zm0 6v2h2v-2h-2z"/></svg>',
+ link:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>',
+ chev:'<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>'
+};
+const D={
+ verdict:'Issues',
+ time:'1 min 3 s (Copado queue 16 s + checks 47 s)',
+ passed:[
+  {id:'pr',t:'Pull Request Approval',r:'Approved.'},
+  {id:'tests',t:'Pending Tests',r:'None'},
+  {id:'parent',t:'Parent Story Dependencies',r:'None.'},
+  {id:'org',t:'Org/Environment Branch Merge',r:'No environment branch merged'},
+  {id:'reg',t:'Registered Commits',r:'1, metadata items: 27.'}
+ ],
+ commits:[
+  {sha:'da7b038ccd',m:'Update Case.workflow-meta.xml'},
+  {sha:'cb399ac3c8',m:'Update CustomLabels.labels-meta.xml - ADD , DELETE , 2 CHANGED'},
+  {sha:'7f9ea68992',m:'Update CustomLabels.labels-meta.xml'},
+  {sha:'be25d73457',m:'Update Contact.Contact_Duplicates_Lead.duplicateRule-meta.xml',flag:1},
+  {sha:'0e7e9996ff',m:'Update ChatterUtil.cls',flag:1}
+ ],
+ groups:[
+  {g:'Apex Class',items:[{id:'a',n:'ChatterUtil',a:'ADD'}]},
+  {g:'Duplicate Rule',items:[{id:'b',n:'Contact.Contact_Duplicates_Lead',a:'ADD'}]},
+  {g:'Workflow Field Update',items:[{id:'c',n:'Case.Update_Jira_Description_Blank',a:'ADD'}]},
+  {g:'Workflow Rule',items:[{id:'d',n:'Case.Case - Changed to In Progress',a:'DELETE'}]}
+ ],
+ unchanged:19
+};
+const ALL=D.groups.flatMap(g=>g.items.map(i=>i.id));
+const S={d:1,sel:new Set(['d']),open:{unreg:true,meta:true},tab:'over',cur:'unreg',step:1,done:false};
+const NAMES=[
+ ['Command center','Big verdict banner, KPI tiles, only the problems expanded, passed checks collapsed to chips. Best for a quick read.'],
+ ['Timeline','Vertical timeline of the six checks in order, failed ones open with their details.'],
+ ['Master / detail','Checks as a list on the left, details of the selected check on the right. Nothing scrolls away.'],
+ ['Tabs','Overview, Commits, Metadata and Passed as tabs with red / green counts, plus a numbered "what to do next".'],
+ ['Card grid','Six status cards at a glance (green / red top bar) and the two failing checks as full-width panels below.'],
+ ['Terminal','Dark console look with monospace output, for a DevOps-style feel.'],
+ ['Board','Commits as a horizontal strip, not-registered metadata as selectable cards grouped by type in columns.'],
+ ['Data table','Dense grid for people who like tables: checks table with nested commit and metadata tables and a sticky action bar.'],
+ ['Fix-it wizard','Three steps: Review issues, Select metadata, Preview and create. Guides the user through the fix.'],
+ ['Blockers first','Red banner "2 blockers", each with a one-line how-to-fix hint, and "5 checks passed" folded away.']
+];
+
+const q=(s,a)=>(a||document).querySelector(s);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const tag=a=>'<span class="tag '+(a==='ADD'?'add':'del')+'">'+a+'</span>';
+const sha=c=>'<a class="sha">'+c.sha+'</a> '+I.link+' <span style="color:#0b8a8f">NaveenBonthu9</span> '+esc(c.m);
+const modal=(cls,body,foot,head)=>'<div class="modal '+cls+'"><button class="mx">&times;</button>'+(head===undefined?'<div class="mh">Verify story</div>':head)+body+(foot===undefined?footer():foot)+'</div>';
+const footer=()=>'<div class="mf"><span class="t">Time taken: '+D.time+'</span><button class="btn">Close</button><button class="btn p">Verify again</button></div>';
+const open=k=>S.open[k];
+const tog=(k,inner)=>'<span class="clk" data-act="toggle" data-k="'+k+'">'+inner+'</span>';
+const selCount=()=>S.sel.size;
+const commitList=(dense)=>D.commits.map(c=>'<div style="padding:'+(dense?'3':'5')+'px 0;display:flex;gap:8px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:'+(c.flag?'#c23934':'#e08a00')+';flex:none"></span><span>'+sha(c)+(c.flag?' <span class="tag del" style="margin-left:4px">changes unregistered</span>':'')+'</span></div>').join('');
+function metaList(){
+ let h='<label class="cb-line"><input type="checkbox" data-act="all" data-ind="all"> <b class="code" style="color:inherit">Select all</b></label>';
+ D.groups.forEach((g,gi)=>{
+  h+='<div style="margin:4px 0 4px 0"><label class="cb-line" style="padding-bottom:0"><input type="checkbox" data-act="grp" data-g="'+gi+'" data-ind="g'+gi+'"> <b style="color:var(--type)">'+g.g+'</b></label>';
+  g.items.forEach(i=>{h+='<label class="cb-line" style="margin-left:24px;padding:2px 0"><input type="checkbox" data-act="pick" data-id="'+i.id+'" '+(S.sel.has(i.id)?'checked':'')+'> <span class="code">'+esc(i.n)+'</span> '+tag(i.a)+'</label>'});
+  h+='</div>';
+ });
+ return h;
+}
+const createBtn=(cls)=>'<button class="btn p '+(cls||'')+'" data-act="create" '+(selCount()?'':'disabled')+'>Create Selected Metadata'+(selCount()?' ('+selCount()+')':'')+'</button>';
+const wont=()=>'<div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap"><span class="bad" style="font-size:13px">'+I.warn+' Their changes won\'t deploy to target &ndash; add them to the story in Copado.</span>'+createBtn()+'</div>';
+const unregHead='5 commit(s) outside Copado, 2 of them change unregistered components';
+const metaHead='4 of 12 changed components not registered under story metadata';
+
+/* ---------------- designs ---------------- */
+function d1(){
+ return modal('d1',
+ '<div class="mb"><div class="hero"><div><div class="big">Issues</div><small>Verification finished</small></div><div style="margin-left:auto;text-align:right"><b>2 checks need attention</b><br><small>5 checks passed</small></div></div>'+
+ '<div class="tiles"><div class="tile"><b class="bad">5</b><span>commits outside Copado</span></div><div class="tile"><b class="bad">4</b><span>components not registered</span></div><div class="tile"><b>'+D.unchanged+'</b><span>registered, unchanged</span></div><div class="tile"><b>1:03</b><span>total time</span></div></div>'+
+ '<div class="sec">Needs attention</div>'+
+ '<div class="card"><div class="ch" data-act="toggle" data-k="unreg"><span class="bad">'+I.bad+'</span><b style="flex:1">Unregistered commits</b><span style="color:var(--mut);font-size:12.5px">'+unregHead+'</span>'+I.chev.replace('class="chev"','class="chev'+(open('unreg')?' o':'')+'"')+'</div>'+(open('unreg')?'<div class="cb">'+commitList()+'</div>':'')+'</div>'+
+ '<div class="card"><div class="ch" data-act="toggle" data-k="meta"><span class="bad">'+I.bad+'</span><b style="flex:1">Metadata coverage</b><span style="color:var(--mut);font-size:12.5px">'+metaHead+'</span>'+I.chev.replace('class="chev"','class="chev'+(open('meta')?' o':'')+'"')+'</div>'+(open('meta')?'<div class="cb">'+metaList()+wont()+'<div class="link" style="margin-top:8px">&rsaquo; Registered but unchanged in git: '+D.unchanged+'</div></div>':'')+'</div>'+
+ '<div class="sec">Passed</div><div class="chips">'+D.passed.map(p=>'<span class="chipok">'+I.ok+' '+p.t+' <span style="opacity:.7">&middot; '+esc(p.r)+'</span></span>').join('')+'</div></div>');
+}
+function d2(){
+ const it=(ok,t,r,extra)=>'<div class="it"><div class="node '+(ok?'ok':'bad')+'">'+(ok?I.ok.replace(/16/g,'12'):I.bad.replace(/16/g,'12'))+'</div><h4>'+t+'</h4><p>'+r+'</p>'+(extra||'')+'</div>';
+ return modal('d2','<div class="mb"><div class="verdict"><div><b style="font-size:15px">Verification finished</b><div style="color:var(--mut);font-size:12.5px">6 steps in the order they ran</div></div><span class="vb">Issues</span></div><div class="tl">'+
+ D.passed.map(p=>it(1,p.t,esc(p.r))).join('')+
+ it(0,'Unregistered commits',unregHead,'<div class="panel">'+commitList(1)+'</div>')+
+ it(0,'Metadata coverage',metaHead,'<div class="panel">'+metaList()+wont()+'</div>')+
+ '</div></div>');
+}
+function d3(){
+ const rows=[['pr','Pull Request Approval','Approved.',1],['tests','Pending Tests','None',1],['parent','Parent Dependencies','None.',1],['org','Env Branch Merge','Not merged',1],['reg','Registered Commits','1, metadata 27',1],['unreg','Unregistered Commits','5 commits',0],['meta','Metadata Coverage','4 of 12',0]];
+ let det='';
+ if(S.cur==='unreg')det='<h3 class="bad">'+I.bad+' Unregistered commits</h3><div style="color:var(--mut);margin-bottom:10px">'+unregHead+'</div>'+commitList();
+ else if(S.cur==='meta')det='<h3 class="bad">'+I.bad+' Metadata coverage</h3><div style="color:var(--mut);margin-bottom:10px">'+metaHead+'</div>'+metaList()+wont();
+ else{const r=rows.find(x=>x[0]===S.cur);det='<h3 class="ok">'+I.ok+' '+r[1]+'</h3><div style="color:var(--mut)">'+r[2]+'. This check passed, nothing to do.</div>';}
+ return modal('d3','<div class="vtop">Verification finished: Issues &middot; 2 of 7 checks failed</div><div class="md"><div class="side">'+
+ rows.map(r=>'<div class="row '+(S.cur===r[0]?'on':'')+'" data-act="cur" data-v="'+r[0]+'"><span class="'+(r[3]?'ok':'bad')+'">'+(r[3]?I.ok:I.bad)+'</span><div><b>'+r[1]+'</b><small>'+r[2]+'</small></div></div>').join('')+
+ '</div><div class="det">'+det+'</div></div>');
+}
+function d4(){
+ const T=[['over','Overview',''],['commits','Commits','<i>5</i>'],['meta','Metadata','<i>4</i>'],['pass','Passed','<i class="g">5</i>']];
+ let c='';
+ if(S.tab==='over')c='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><span class="tag del" style="font-size:12px;padding:3px 10px">2 failed</span><span class="tag add" style="font-size:12px;padding:3px 10px">5 passed</span></div><b>What to do next</b><div style="margin-top:8px"><div class="nx"><span class="n">1</span><div><b>Review the 5 commits made outside Copado</b><div style="color:var(--mut);font-size:12.5px">2 of them change components with no story metadata.</div></div></div><div class="nx"><span class="n">2</span><div><b>Register the 4 missing components</b><div style="color:var(--mut);font-size:12.5px">Tick them on the Metadata tab and click Create Selected Metadata.</div></div></div><div class="nx"><span class="n">3</span><div><b>Verify again</b><div style="color:var(--mut);font-size:12.5px">The verdict turns Clean when both checks pass.</div></div></div></div>';
+ if(S.tab==='commits')c='<div style="color:var(--mut);margin-bottom:8px">'+unregHead+'</div>'+commitList();
+ if(S.tab==='meta')c='<div style="color:var(--mut);margin-bottom:8px">'+metaHead+'</div>'+metaList()+wont();
+ if(S.tab==='pass')c=D.passed.map(p=>'<div class="cb-line"><span class="ok">'+I.ok+'</span><b style="width:230px">'+p.t+'</b><span style="color:var(--mut)">'+esc(p.r)+'</span></div>').join('');
+ return modal('d4','<div class="tabs">'+T.map(t=>'<div class="tab '+(S.tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+t[2]+'</div>').join('')+'</div><div class="mb" style="min-height:300px">'+c+'</div>',undefined,'<div class="mh" style="text-align:left">Verify story <span class="tag del" style="margin-left:8px;font-size:12px;padding:2px 10px">Issues</span></div>');
+}
+function d5(){
+ const gc=(t,v,r,bad)=>'<div class="gc '+(bad?'bad':'')+'"><small>'+t+'</small><b class="'+(bad?'bad':'ok')+'">'+(bad?I.bad:I.ok)+' '+v+'</b><em>'+r+'</em></div>';
+ return modal('d5','<div class="mb"><div class="grid">'+
+ gc('Pull request','Approved','Review done')+gc('Pending tests','None','Nothing running')+gc('Parent stories','None','No dependencies')+
+ gc('Org branch merge','Not merged','No env branch')+gc('Registered commits','1 commit','27 metadata items')+gc('Unregistered','5 commits','2 change components',1)+'</div>'+
+ '<div class="wide" style="margin-top:12px"><h4><span>Unregistered commits</span><span>'+unregHead+'</span></h4><div class="in">'+commitList(1)+'</div></div>'+
+ '<div class="wide"><h4><span>Metadata coverage</span><span>'+metaHead+'</span></h4><div class="in">'+metaList()+wont()+'</div></div></div>');
+}
+function d6(){
+ const ln=(c,i,t,r)=>'<div class="ln"><span class="'+c+'">'+i+'</span> <span class="cy">'+t+'</span> <span class="dim">...</span> '+r+'</div>';
+ return modal('d6','<div class="mb"><div class="ln dim">$ verify --story US-0004795</div><div class="ln">verdict: <span class="am">ISSUES</span> <span class="dim">(2 failed, 5 passed)</span></div><div class="ln">&nbsp;</div>'+
+ D.passed.map(p=>ln('okc','[ok]',p.t.toLowerCase().replace(/ /g,'-'),esc(p.r))).join('')+
+ ln('badc','[x]','unregistered-commits','<span class="badc">'+unregHead+'</span>')+
+ '<div class="ind">'+D.commits.map(c=>'<div class="ln"><span class="am">*</span> <span class="cy">'+c.sha+'</span> '+esc(c.m)+(c.flag?' <span class="badc">&lt;uncovered&gt;</span>':'')+'</div>').join('')+'</div>'+
+ ln('badc','[x]','metadata-coverage','<span class="badc">'+metaHead+'</span>')+
+ '<div class="ind">'+
+  '<label class="ln" style="display:block"><input type="checkbox" data-act="all" data-ind="all"> <span class="am">select all</span></label>'+
+  D.groups.flatMap(g=>g.items.map(i=>'<label class="ln" style="display:block"><input type="checkbox" data-act="pick" data-id="'+i.id+'" '+(S.sel.has(i.id)?'checked':'')+'> <span class="dim">'+g.g+'/</span><span class="cy">'+esc(i.n)+'</span> <span class="'+(i.a==='ADD'?'okc':'badc')+'">'+i.a+'</span></label>')).join('')+
+  '<div class="ln badc">! their changes won\'t deploy - add them to the story</div><div class="ln">'+createBtn()+'</div></div>'+
+ '<div class="ln dim" style="margin-top:8px">'+D.unchanged+' registered components unchanged in git</div></div>',
+ '<div class="mf"><span class="t">elapsed '+D.time+'</span><button class="btn">Close</button><button class="btn p">Verify again</button></div>',
+ '<div class="mh">story-verify &mdash; US-0004795</div>');
+}
+function d7(){
+ return modal('d7','<div class="mb"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><b>Needs attention</b> <span class="tag del" style="margin-left:6px">Issues</span></div><div style="color:var(--mut);font-size:12.5px">'+D.passed.length+' checks passed</div></div>'+
+ '<h6 style="margin-top:0">Commits outside Copado &middot; 5 <span style="text-transform:none;letter-spacing:0;font-weight:400"> (red = changes unregistered components)</span></h6><div class="strip">'+D.commits.map(c=>'<div class="cm '+(c.flag?'flag':'')+'"><span class="sha">'+c.sha+'</span><b>'+esc(c.m.replace('Update ',''))+'</b><span style="color:var(--mut)">NaveenBonthu9</span></div>').join('')+'</div>'+
+ '<h6>Not registered &middot; click cards to select</h6><div class="cols">'+
+ D.groups.map(g=>'<div class="col"><h5><span>'+g.g+'</span><span>'+g.items.length+'</span></h5>'+g.items.map(i=>'<div class="kc '+(S.sel.has(i.id)?'sel':'')+'" data-act="pick" data-id="'+i.id+'" data-card="1"><input type="checkbox" '+(S.sel.has(i.id)?'checked':'')+' tabindex="-1"><span class="nm code">'+esc(i.n)+'</span>'+tag(i.a)+'</div>').join('')+'</div>').join('')+'</div>'+
+ '<div style="display:flex;align-items:center;gap:10px;margin-top:10px"><span class="bad" style="font-size:13px">'+I.warn+' Won\'t deploy to target until added to the story.</span><span style="margin-left:auto">'+createBtn()+'</span></div>'+
+ '<h6>Passed</h6><div style="color:var(--mut);font-size:12.5px">'+D.passed.map(p=>I.ok.replace('<svg','<svg style="color:#1f8a4c"')+' '+p.t).join(' &nbsp;&nbsp; ')+'</div></div>');
+}
+function d8(){
+ const rows=D.passed.map(p=>'<tr><td class="ok">'+I.ok+'</td><td><b>'+p.t+'</b></td><td>'+esc(p.r)+'</td></tr>').join('');
+ return modal('d8','<div class="mb"><table><thead><tr><th style="width:36px"></th><th style="width:240px">Check</th><th>Result</th></tr></thead><tbody>'+rows+
+ '<tr class="f"><td class="bad">'+I.bad+'</td><td><b>Unregistered commits</b></td><td>'+unregHead+'</td></tr></tbody></table>'+
+ '<div class="sub"><table><thead><tr><th>Commit</th><th>Author</th><th>Message</th><th>Unregistered</th></tr></thead><tbody>'+D.commits.map(c=>'<tr><td><a class="sha">'+c.sha+'</a></td><td>NaveenBonthu9</td><td>'+esc(c.m)+'</td><td>'+(c.flag?'<span class="tag del">yes</span>':'<span style="color:var(--mut)">no</span>')+'</td></tr>').join('')+'</tbody></table></div>'+
+ '<table><tbody><tr class="f"><td style="width:36px" class="bad">'+I.bad+'</td><td style="width:240px"><b>Metadata coverage</b></td><td>'+metaHead+'</td></tr></tbody></table>'+
+ '<div class="sub"><table><thead><tr><th style="width:30px"><input type="checkbox" data-act="all" data-ind="all"></th><th>Type</th><th>Component</th><th>Action</th></tr></thead><tbody>'+
+ D.groups.flatMap(g=>g.items.map(i=>'<tr><td><input type="checkbox" data-act="pick" data-id="'+i.id+'" '+(S.sel.has(i.id)?'checked':'')+'></td><td style="color:var(--type);font-weight:600">'+g.g+'</td><td class="code">'+esc(i.n)+'</td><td>'+tag(i.a)+'</td></tr>')).join('')+'</tbody></table></div>'+
+ '<div class="bar"><span class="bad" style="font-size:13px">'+I.warn+' Won\'t deploy to target until added</span><span style="margin-left:auto">'+createBtn()+'</span></div></div>');
+}
+function d9(){
+ const sel=D.groups.map(g=>({g:g.g,items:g.items.filter(i=>S.sel.has(i.id))})).filter(g=>g.items.length);
+ const st=(n,t)=>'<div class="st '+(S.step===n?'on':'')+(S.step>n?' done':'')+'"><i>'+(S.step>n?'&#10003;':n)+'</i>'+t+'</div>';
+ let c,foot;
+ if(S.done){c='<div style="text-align:center;padding:40px 10px"><div class="ok" style="font-size:42px">'+I.ok.replace(/16/g,'44')+'</div><h3>'+selCount()+' metadata record(s) created</h3><div style="color:var(--mut)">Click Verify again to refresh the verdict.</div></div>';foot='<div class="mf"><span class="t"></span><button class="btn p" data-act="reset">Verify again</button></div>';}
+ else if(S.step===1){c='<div style="background:#fff4e0;border:1px solid #f3cf9a;border-radius:8px;padding:10px 14px;margin-bottom:12px"><b>Issues found.</b> 2 checks failed, 5 passed.</div><b class="bad">'+I.bad+' Unregistered commits</b><div style="color:var(--mut);margin:2px 0 6px">'+unregHead+'</div>'+commitList(1)+'<div style="margin-top:12px"><b class="bad">'+I.bad+' Metadata coverage</b><div style="color:var(--mut)">'+metaHead+'</div></div>';foot='<div class="mf"><span class="t">Time taken: '+D.time+'</span><button class="btn">Close</button><button class="btn p" data-act="step" data-v="2">Fix: select metadata &rarr;</button></div>';}
+ else if(S.step===2){c='<div style="color:var(--mut);margin-bottom:8px">Tick the components to add to the story.</div>'+metaList();foot='<div class="mf"><span class="t">'+selCount()+' selected</span><button class="btn" data-act="step" data-v="1">&larr; Back</button><button class="btn p" data-act="step" data-v="3" '+(selCount()?'':'disabled')+'>Preview &rarr;</button></div>';}
+ else{c='<div style="color:var(--mut);margin-bottom:8px">These records will be created under User Story Metadata of US-0004795:</div>'+sel.map(g=>'<div class="pv"><h5>'+g.g+'</h5>'+g.items.map(i=>'<div><span class="code">'+esc(i.n)+'</span>'+tag(i.a)+'</div>').join('')+'</div>').join('');foot='<div class="mf"><span class="t">'+selCount()+' record(s)</span><button class="btn" data-act="step" data-v="2">&larr; Back</button><button class="btn p" data-act="insert">Insert ('+selCount()+')</button></div>';}
+ return modal('d9','<div class="steps">'+st(1,'Review issues')+st(2,'Select metadata')+st(3,'Preview &amp; create')+'</div><div class="mb" style="min-height:330px">'+c+'</div>',foot);
+}
+function d10(){
+ const pass=open('pass');
+ return modal('d10','<div class="ban"><span style="font-size:26px">&#9888;</span><div><b>2 blockers to fix before this story can be promoted</b><small>Verification finished &middot; Issues</small></div></div><div class="mb">'+
+ '<div class="bk"><div class="h"><span class="num">1</span><b style="flex:1">Unregistered commits</b><span style="color:var(--mut);font-size:12.5px">'+unregHead+'</span></div><div class="in">'+commitList(1)+'</div><p class="fix"><b>How to fix:</b> commit the missing components from the Copado UI so each commit is registered on the story, or confirm the commits are intended.</p></div>'+
+ '<div class="bk"><div class="h"><span class="num">2</span><b style="flex:1">Metadata coverage</b><span style="color:var(--mut);font-size:12.5px">'+metaHead+'</span></div><div class="in">'+metaList()+'<div style="margin:6px 0">'+createBtn()+'</div></div><p class="fix"><b>How to fix:</b> tick the components above and create their metadata records. Their changes won\'t deploy until they are on the story.</p></div>'+
+ '<div class="passed"><div class="h" data-act="toggle" data-k="pass"><span>'+I.ok+' 5 checks passed</span><span>'+I.chev.replace('class="chev"','class="chev'+(pass?' o':'')+'"')+'</span></div>'+(pass?'<ul>'+D.passed.map(p=>'<li><b>'+p.t+'</b> &mdash; '+esc(p.r)+'</li>').join('')+'</ul>':'')+'</div></div>');
+}
+const R=[d1,d2,d3,d4,d5,d6,d7,d8,d9,d10];
+
+/* ---------------- render + events ---------------- */
+function paintInd(){
+ document.querySelectorAll('[data-ind]').forEach(el=>{
+  const k=el.dataset.ind;let ids=k==='all'?ALL:D.groups[+k.slice(1)].items.map(i=>i.id);
+  const n=ids.filter(i=>S.sel.has(i)).length;el.checked=n===ids.length;el.indeterminate=n>0&&n<ids.length;
+ });
+}
+function render(){
+ q('#pills').innerHTML=NAMES.map((n,i)=>'<button class="pill '+(S.d===i+1?'on':'')+'" data-act="design" data-v="'+(i+1)+'"><b>'+(i+1)+'</b> '+n[0]+'</button>').join('');
+ q('#blurb').textContent=NAMES[S.d-1][1];
+ q('#stage').innerHTML=R[S.d-1]();
+ paintInd();
+}
+function toast(m){const t=q('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2200)}
+document.addEventListener('click',e=>{
+ const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act;
+ if(a==='pick'&&el.tagName==='INPUT'){}else if(a==='pick'||a==='grp'||a==='all'){}
+ if(a==='design'){S.d=+el.dataset.v;S.step=1;S.done=false;}
+ else if(a==='toggle'){S.open[el.dataset.k]=!S.open[el.dataset.k];}
+ else if(a==='tab'){S.tab=el.dataset.v}
+ else if(a==='cur'){S.cur=el.dataset.v}
+ else if(a==='step'){S.step=+el.dataset.v}
+ else if(a==='reset'){S.step=1;S.done=false}
+ else if(a==='pick'){const id=el.dataset.id;if(el.dataset.card&&e.target.tagName==='INPUT'){}S.sel.has(id)?S.sel.delete(id):S.sel.add(id)}
+ else if(a==='grp'){const ids=D.groups[+el.dataset.g].items.map(i=>i.id);const all=ids.every(i=>S.sel.has(i));ids.forEach(i=>all?S.sel.delete(i):S.sel.add(i))}
+ else if(a==='all'){const all=ALL.every(i=>S.sel.has(i));ALL.forEach(i=>all?S.sel.delete(i):S.sel.add(i))}
+ else if(a==='create'){toast('Would open the preview for '+selCount()+' record(s)');return}
+ else if(a==='insert'){S.done=true}
+ render();
+});
+render();
+</script>
+</body>
+</html>

@@ -18,7 +18,7 @@ A **Verify** button on the User Story runs six checks in a live popup, shows eac
 |---|---|
 | Unregistered commits | Commits made outside Copado, with extra care for different authors and unregistered components |
 | Metadata coverage | Components changed in git that are not registered on the story (they would not deploy) |
-| Org / environment branch merge | An environment branch merged into the feature branch |
+| Merged branches | Another branch (environment, promotion or another story's feature branch) merged into the feature branch |
 | Pull request approval | A story whose pull request is not approved |
 | Pending tests | A story that still has pending tests |
 | Parent story dependencies | A parent story that has not been promoted ahead of its child |

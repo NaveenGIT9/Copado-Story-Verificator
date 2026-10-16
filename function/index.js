@@ -28,7 +28,7 @@ const AUTO_PREFIXES = [
 const TITLES = {
     "unregistered-commits": "Unregistered commits",
     "metadata-coverage": "Metadata coverage",
-    "org-branch-merge": "Org/environment branch merge"
+    "org-branch-merge": "Merged branches"
 };
 const ORDER = ["unregistered-commits", "metadata-coverage", "org-branch-merge"];
 const secrets = [];
@@ -728,13 +728,46 @@ function isAncestor(a, b) {
     return tryRun("git", ["merge-base", "--is-ancestor", a, b]) !== null;
 }
 
+// The branch a merge commit brought in, read from its message: "Merge branch 'x'", "Merge remote-tracking branch 'origin/x'" and
+// GitHub's "Merge pull request #12 from org/x". null when the message does not name it.
+const MERGE_SUBJECTS = [/^Merge (?:remote-tracking )?branch '(?:origin\/)?([^']+)'/i, /^Merge pull request #\d+ from [^/\s]+\/(\S+)/i];
+
+function mergedBranchName(subject) {
+    for (let i = 0; i < MERGE_SUBJECTS.length; i++) {
+        const m = MERGE_SUBJECTS[i].exec(subject);
+        if (m) return m[1].trim();
+    }
+    return null;
+}
+
+const MERGE_KINDS = {
+    env: "environment branch",
+    promotion: "promotion branch",
+    feature: "feature branch",
+    base: "base branch",
+    other: "other branch",
+    unknown: "branch not named in the merge message"
+};
+
+function classifyMerge(name, ctx) {
+    if (name === null) return "unknown";
+    const lower = name.toLowerCase();
+    if (lower === ctx.cfg.feature.toLowerCase()) return "own";
+    if (lower === ctx.base.toLowerCase()) return "base";
+    if (ctx.cfg.envBranches.has(lower)) return "env";
+    if (/^promotion\//i.test(name)) return "promotion";
+    if (/^feature\//i.test(name)) return "feature";
+    return "other";
+}
+
+// Every branch merged into the feature branch since it left the base branch is reported, except the feature branch itself (a story
+// branch merged into its own copy is normal). An environment, promotion or other feature branch merged in is a failure: its commits
+// are not this story's. Merging the base branch is only a warning (a catch-up). The branch is read from the merge message; when the
+// message does not name it, an environment branch holding the merged commits is still recognised, otherwise it is "not named".
 function checkOrgMerge(ctx) {
     const id = "org-branch-merge";
     const cfg = ctx.cfg;
     const notes = ctx.missing.length ? ["Not on the remote, so not compared: " + ctx.missing.join(", ")] : [];
-    if (cfg.envBranches.size === 0) {
-        return mk(id, "skipped", "No environment branches configured", notes);
-    }
     const raw = run("git", ["log", "--first-parent", "--format=%H%x00%P%x00%s", "origin/" + ctx.base + "..HEAD"]);
     const rows = raw
         .split("\n")
@@ -744,43 +777,35 @@ function checkOrgMerge(ctx) {
             return { sha: p[0].trim(), parents: str(p[1]).trim().split(/\s+/).filter(Boolean), subject: str(p[2]) };
         })
         .filter((r) => r.sha.length >= 40);
-    const re = /^Merge (?:remote-tracking )?branch '(?:origin\/)?([^']+)'/i;
     const found = [];
-    // Method A: the merge commit subject names an environment branch.
     rows.forEach((r) => {
-        const m = re.exec(r.subject);
-        if (m && cfg.envBranches.has(m[1].toLowerCase())) found.push({ sha: r.sha.slice(0, 10), branch: m[1] });
-    });
-    // Method B (only when A found nothing): the second parent is reachable from an environment branch but not from base.
-    for (let i = 0; i < rows.length && found.length === 0; i++) {
-        const r = rows[i];
-        if (r.parents.length < 2) continue;
-        const m = re.exec(r.subject);
-        if (m && m[1].toLowerCase() === cfg.feature.toLowerCase()) continue;
-        const entries = Array.from(ctx.envOk.entries());
-        for (let j = 0; j < entries.length; j++) {
-            if (isAncestor(r.parents[1], "origin/" + entries[j][1]) && !isAncestor(r.parents[1], "origin/" + ctx.base)) {
-                found.push({ sha: r.sha.slice(0, 10), branch: entries[j][1] });
-                break;
+        if (r.parents.length < 2) return;
+        let name = mergedBranchName(r.subject);
+        if (name === null) {
+            const entries = Array.from(ctx.envOk.entries());
+            for (let j = 0; j < entries.length; j++) {
+                if (isAncestor(r.parents[1], "origin/" + entries[j][1]) && !isAncestor(r.parents[1], "origin/" + ctx.base)) {
+                    name = entries[j][1];
+                    break;
+                }
             }
         }
-    }
+        const kind = classifyMerge(name, ctx);
+        if (kind === "own") return;
+        found.push({ sha: r.sha.slice(0, 10), branch: name, kind: kind });
+    });
     if (found.length > 0) {
+        const named = (f) => (f.branch === null ? "A branch" : f.branch);
+        const blocking = found.some((f) => f.kind !== "base");
         // One merge: everything is in the summary (no repeated detail line). Several: the summary counts them, the lines list each.
-        const names = uniq(found.map((f) => f.branch));
-        const summary = found.length === 1
-            ? found[0].branch + " merged into the feature branch (commit " + found[0].sha + ")"
-            : found.length + " environment branch merges: " + names.join(", ");
-        const lines = (found.length === 1 ? [] : found.map((f) => f.branch + " " + DASH + " commit " + f.sha)).concat(notes);
-        return mk(id, "fail", summary, lines);
+        const summary =
+            found.length === 1
+                ? named(found[0]) + " (" + MERGE_KINDS[found[0].kind] + ") merged into the feature branch (commit " + found[0].sha + ")"
+                : found.length + " branch merges: " + uniq(found.map((f) => named(f))).join(", ");
+        const lines = (found.length === 1 ? [] : found.map((f) => named(f) + " " + DASH + " " + MERGE_KINDS[f.kind] + " " + DASH + " commit " + f.sha)).concat(notes);
+        return mk(id, blocking ? "fail" : "warn", summary, lines);
     }
-    // A pass must mean something was compared: when none of the pipeline's environment branches exist on the remote
-    // (other than the base branch, which is always allowed to be merged), say so instead of reporting a clean pass.
-    const comparable = Array.from(ctx.envOk.values()).filter((b) => b.toLowerCase() !== ctx.base.toLowerCase());
-    if (comparable.length === 0) {
-        return mk(id, "warn", "Not compared: no pipeline environment branch exists on the remote", notes);
-    }
-    return mk(id, "pass", "No environment branch merged", notes);
+    return mk(id, "pass", "No other branch merged into the feature branch", notes);
 }
 
 // Author emails (lower case) of the registered commits that exist in the local history; unknown or abbreviated-ambiguous ids are skipped.
@@ -1080,12 +1105,12 @@ function main() {
 
     const ctx = { cfg: cfg, base: base, envOk: envOk, missing: missing, problems: [], isCovered: makeIsCovered(cfg.metadata, cfg.hasLabels) };
     const checks = [];
-    progress("Checking org/environment branch merge" + ELL);
+    progress("Checking merged branches" + ELL);
     const org = guarded("org-branch-merge", ctx, checkOrgMerge);
     console.log(org.title + ": " + org.status + " - " + org.summary);
     checks.push(org);
     if (org.status === "fail") {
-        const why = "Skipped: environment branch merge detected";
+        const why = "Skipped: another branch was merged into the feature branch";
         checks.push(mk("unregistered-commits", "skipped", why, []), mk("metadata-coverage", "skipped", why, []));
     } else {
         progress("Checking unregistered commits" + ELL);

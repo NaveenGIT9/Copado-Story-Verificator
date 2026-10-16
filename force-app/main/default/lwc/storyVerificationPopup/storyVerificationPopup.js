@@ -55,7 +55,7 @@ function timelineClass(row) {
 const GIT_CHECKS = [
     { id: 'unregistered-commits', title: 'Unregistered commits' },
     { id: 'metadata-coverage', title: 'Metadata coverage' },
-    { id: 'org-branch-merge', title: 'Org/environment branch merge' }
+    { id: 'org-branch-merge', title: 'Merged branches' }
 ];
 
 // Apex findings that carry a group are shown as ONE row per group.
