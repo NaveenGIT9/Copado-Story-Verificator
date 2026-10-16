@@ -385,11 +385,11 @@ public with sharing class StoryVerificationController {
         return lines;
     }
 
-    @TestVisible
     private static String textOf(Object value) {
         return value == null || String.isBlank(String.valueOf(value)) ? null : String.valueOf(value).trim();
     }
 
+    @TestVisible
     private static List<Finding> parseFindings(Object raw) {
         List<Finding> findings = new List<Finding>();
         if (!(raw instanceof List<Object>)) {
