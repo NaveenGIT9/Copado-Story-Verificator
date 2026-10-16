@@ -414,17 +414,13 @@
     margin-left: 0.2rem;
 }
 
-/* Parent story finding: the sentence in coloured parts. Red only for what is wrong and what to do; everything else is calm. */
-.part-bad {
-    color: #ba0517;
-}
-
-.part-ok {
-    color: #2e844a;
-}
-
+/* Parent story finding: the sentence in parts. The plain words are black like the other rows, the parent is a teal link, the
+   environments are teal names in capitals (display only), and only the action is red, in the size and weight of "Their changes
+   won't deploy to target". */
+.part-bad,
+.part-ok,
 .part-warn {
-    color: #d48806;
+    color: #181818;
 }
 
 .part-muted {
@@ -437,14 +433,15 @@
     text-decoration: underline;
 }
 
-/* Environment names: dark blue, monospace and always in capitals (display only, the name itself is untouched). */
 .part-env {
-    color: #0b5cab;
+    color: #0b827c;
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
 .part-action {
     color: #ba0517;
-    font-weight: 700;
+    font-size: 0.8125rem;
+    font-weight: 600;
 }
