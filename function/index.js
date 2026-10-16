@@ -28,7 +28,7 @@ const AUTO_PREFIXES = [
 const TITLES = {
     "unregistered-commits": "Unregistered commits",
     "metadata-coverage": "Metadata coverage",
-    "org-branch-merge": "Merged branches"
+    "org-branch-merge": "External branch merge"
 };
 const ORDER = ["unregistered-commits", "metadata-coverage", "org-branch-merge"];
 const secrets = [];
@@ -805,7 +805,7 @@ function checkOrgMerge(ctx) {
         const lines = (found.length === 1 ? [] : found.map((f) => named(f) + " " + DASH + " " + MERGE_KINDS[f.kind] + " " + DASH + " commit " + f.sha)).concat(notes);
         return mk(id, blocking ? "fail" : "warn", summary, lines);
     }
-    return mk(id, "pass", "No other branch merged into the feature branch", notes);
+    return mk(id, "pass", "None", notes);
 }
 
 // Author emails (lower case) of the registered commits that exist in the local history; unknown or abbreviated-ambiguous ids are skipped.
@@ -1105,7 +1105,7 @@ function main() {
 
     const ctx = { cfg: cfg, base: base, envOk: envOk, missing: missing, problems: [], isCovered: makeIsCovered(cfg.metadata, cfg.hasLabels) };
     const checks = [];
-    progress("Checking merged branches" + ELL);
+    progress("Checking external branch merge" + ELL);
     const org = guarded("org-branch-merge", ctx, checkOrgMerge);
     console.log(org.title + ": " + org.status + " - " + org.summary);
     checks.push(org);

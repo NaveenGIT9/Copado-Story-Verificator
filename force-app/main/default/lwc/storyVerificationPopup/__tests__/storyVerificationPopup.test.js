@@ -38,7 +38,7 @@ const INTRO_ITEMS = [
     'Pull request approval',
     'Pending tests',
     'Parent story dependencies (and which environment the parent is in)',
-    'Other branches merged into the feature branch (environment, promotion or feature branches)'
+    'External branches merged into the feature branch (environment, promotion or other feature branches)'
 ];
 
 const FINDINGS = [
@@ -151,7 +151,7 @@ const CHECKS = [
     },
     {
         id: 'org-branch-merge',
-        title: 'Merged Branches',
+        title: 'External Branch Merge',
         status: 'warn',
         summary: 'Environment branches not compared',
         lines: ['environment branches not found on the remote (not compared): qa']
@@ -368,7 +368,7 @@ describe('c-story-verification-popup', () => {
         expect(steps[2]).toContain('Pull Request Approval: pending');
         expect(steps[3]).toContain('Pending Tests: pending');
         expect(steps[4]).toContain('Parent Story Dependencies: pending');
-        expect(steps[5]).toContain('Merged Branches: pending');
+        expect(steps[5]).toContain('External Branch Merge: pending');
         expect(steps[6]).toContain('Copado Job: pending');
         expect(steps[7]).toContain('Registered Commits: 1');
         expect(steps[8]).toContain('No metadata selected');
@@ -583,7 +583,7 @@ describe('c-story-verification-popup', () => {
 
         const element = await mountAndVerify();
 
-        ['Unregistered Commits', 'Metadata Coverage', 'Merged Branches'].forEach((title) => {
+        ['Unregistered Commits', 'Metadata Coverage', 'External Branch Merge'].forEach((title) => {
             const row = stepRow(element, title);
             expect(row).toBeDefined();
             expect(row.textContent).toContain(title + ': pending');
@@ -660,7 +660,7 @@ describe('c-story-verification-popup', () => {
             'Metadata Coverage: All 2 changed components are registered'
         );
 
-        const org = stepRow(element, 'Merged Branches');
+        const org = stepRow(element, 'External Branch Merge');
         expect(org.querySelector('lightning-icon').iconName).toBe('utility:warning');
         expect(org.querySelector('lightning-icon').variant).toBe('warning');
         expect(byId(element, 'state').textContent).toContain('Issues');
@@ -889,7 +889,7 @@ describe('c-story-verification-popup', () => {
         );
         const keys = Array.from(element.shadowRoot.querySelectorAll('[data-id="step-key"]')).map((k) => k.textContent);
         expect(keys).toContain('Metadata Coverage');
-        expect(keys).toContain('Merged Branches');
+        expect(keys).toContain('External Branch Merge');
     });
 
     it('shows a warning icon, not a failure, for a "No commits" pull request finding', async () => {
@@ -1198,7 +1198,7 @@ describe('c-story-verification-popup', () => {
         expect(unregistered.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
         expect(unregistered.querySelector('[data-id="check-lines"]').textContent).toContain('abcdef1234 Dev One');
 
-        const org = stepRow(element, 'Merged Branches');
+        const org = stepRow(element, 'External Branch Merge');
         expect(org.querySelector('[data-id="toggle"]').getAttribute('aria-expanded')).toBe('true');
         expect(org.querySelector('[data-id="check-lines"]')).not.toBeNull();
 
@@ -1236,7 +1236,7 @@ describe('c-story-verification-popup', () => {
             { id: 'metadata-coverage', title: 'Metadata Coverage', status: 'skipped', summary: reason, lines: [] },
             {
                 id: 'org-branch-merge',
-                title: 'Merged Branches',
+                title: 'External Branch Merge',
                 status: 'fail',
                 summary: 'Environment branch merged into the feature branch: main',
                 lines: ['merged main in commit 0123456789']
@@ -1250,7 +1250,7 @@ describe('c-story-verification-popup', () => {
         expect(unregistered.querySelector('[data-id="step-text"]').className).toContain('slds-text-color_weak');
         expect(unregistered.querySelector('[data-id="toggle"]')).toBeNull();
         expect(stepRow(element, 'Metadata Coverage').querySelector('lightning-icon').iconName).toBe('utility:dash');
-        expect(stepRow(element, 'Merged Branches').querySelector('lightning-icon').iconName).toBe(
+        expect(stepRow(element, 'External Branch Merge').querySelector('lightning-icon').iconName).toBe(
             'utility:close'
         );
     });
@@ -1413,7 +1413,7 @@ describe('c-story-verification-popup', () => {
             'Pull Request Approval',
             'Pending Tests',
             'Parent Story Dependencies',
-            'Merged Branches',
+            'External Branch Merge',
             'Copado Job',
             'Registered Commits'
         ];
@@ -1432,7 +1432,7 @@ describe('c-story-verification-popup', () => {
             });
             // Git checks still running, grouped Apex rows already known.
             expect(titles[0]).toBe('Unregistered Commits: running');
-            expect(titles[5]).toBe('Merged Branches: running');
+            expect(titles[5]).toBe('External Branch Merge: running');
         });
 
         it('puts passed checks first and failed checks last once the run has finished', async () => {
@@ -1651,7 +1651,7 @@ describe('c-story-verification-popup', () => {
                 'Pull Request Approval: pending',
                 'Pending Tests: pending',
                 'Parent Story Dependencies: pending',
-                'Merged Branches: pending'
+                'External Branch Merge: pending'
             ]);
         });
     });
