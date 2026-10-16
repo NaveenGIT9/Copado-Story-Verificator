@@ -205,14 +205,16 @@ describe('c-story-verification-popup', () => {
             getRecord.emit({ fields: { Name: { value: STORY_NAME } } });
             await flush();
 
-            expect(byId(element, 'intro-text').textContent).toBe('Verify ' + STORY_NAME + ' for');
+            expect(byId(element, 'story-name').textContent).toBe(STORY_NAME);
+            expect(byId(element, 'intro-text').textContent).toBe('Verify for');
         });
 
-        it('shows a fallback text until the story name has loaded', async () => {
+        it('shows no story number until the story name has loaded', async () => {
             const element = mount();
             await flush();
 
-            expect(byId(element, 'intro-text').textContent).toBe('Verify this story for');
+            expect(byId(element, 'story-name')).toBeNull();
+            expect(byId(element, 'intro-text').textContent).toBe('Verify for');
         });
 
         it('falls back to the generic text when the wire reports an error', async () => {
@@ -222,7 +224,7 @@ describe('c-story-verification-popup', () => {
             getRecord.error();
             await flush();
 
-            expect(byId(element, 'intro-text').textContent).toBe('Verify this story for');
+            expect(byId(element, 'intro-text').textContent).toBe('Verify for');
         });
 
         it('lists the six checks in order as a dotted (bullet) list', async () => {

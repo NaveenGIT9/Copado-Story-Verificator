@@ -491,7 +491,7 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get introText() {
-        return this.storyName ? 'Verify ' + this.storyName + ' for' : 'Verify this story for';
+        return 'Verify for';
     }
 
     get isFinished() {

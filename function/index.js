@@ -768,13 +768,13 @@ function checkOrgMerge(ctx) {
     const id = "org-branch-merge";
     const cfg = ctx.cfg;
     const notes = ctx.missing.length ? ["Not on the remote, so not compared: " + ctx.missing.join(", ")] : [];
-    const raw = run("git", ["log", "--first-parent", "--format=%H%x00%P%x00%s", "origin/" + ctx.base + "..HEAD"]);
+    const raw = run("git", ["log", "--first-parent", "--format=%H%x00%P%x00%s%x00%an", "origin/" + ctx.base + "..HEAD"]);
     const rows = raw
         .split("\n")
         .filter((l) => l.indexOf("\0") >= 0)
         .map((l) => {
             const p = l.split("\0");
-            return { sha: p[0].trim(), parents: str(p[1]).trim().split(/\s+/).filter(Boolean), subject: str(p[2]) };
+            return { sha: p[0].trim(), parents: str(p[1]).trim().split(/\s+/).filter(Boolean), subject: str(p[2]), author: str(p[3]) };
         })
         .filter((r) => r.sha.length >= 40);
     const found = [];
@@ -792,7 +792,7 @@ function checkOrgMerge(ctx) {
         }
         const kind = classifyMerge(name, ctx);
         if (kind === "own") return;
-        found.push({ sha: r.sha.slice(0, 10), branch: name, kind: kind });
+        found.push({ sha: r.sha.slice(0, 10), full: r.sha, author: r.author, subject: r.subject, branch: name, kind: kind });
     });
     if (found.length > 0) {
         const named = (f) => (f.branch === null ? "A branch" : f.branch);
@@ -800,10 +800,19 @@ function checkOrgMerge(ctx) {
         // One merge: everything is in the summary (no repeated detail line). Several: the summary counts them, the lines list each.
         const summary =
             found.length === 1
-                ? named(found[0]) + " (" + MERGE_KINDS[found[0].kind] + ") merged into the feature branch (commit " + found[0].sha + ")"
+                ? named(found[0]) + " (" + MERGE_KINDS[found[0].kind] + ") merged into the feature branch"
                 : found.length + " branch merges: " + uniq(found.map((f) => named(f))).join(", ");
         const lines = (found.length === 1 ? [] : found.map((f) => named(f) + " " + DASH + " " + MERGE_KINDS[f.kind] + " " + DASH + " commit " + f.sha)).concat(notes);
-        return mk(id, blocking ? "fail" : "warn", summary, lines);
+        // The merge commits are listed as commit rows (the id links to the commit on GitHub, like the unregistered commits).
+        const commitRows = found.map((f) => ({
+            t: "commit",
+            sha: f.sha,
+            full: f.full,
+            author: f.author || "unknown",
+            subject: f.subject,
+            note: found.length === 1 ? "" : named(f) + " (" + MERGE_KINDS[f.kind] + ")"
+        }));
+        return mk(id, blocking ? "fail" : "warn", summary, lines, commitRows);
     }
     return mk(id, "pass", "None", notes);
 }
