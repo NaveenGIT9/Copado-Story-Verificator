@@ -8,5 +8,5 @@
   AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
   ISPICKVAL(Verification_Status__c, "")
 )</errorConditionFormula>
-    <errorMessage>Run verification first: click Verify on this story, then tick Promote and Deploy again.</errorMessage>
+    <errorMessage>This User Story has not been verified. Run Verify before Promote.</errorMessage>
 </ValidationRule>

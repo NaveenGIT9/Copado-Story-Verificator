@@ -8,5 +8,5 @@
   AND(copado__Promote_Change__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_Change__c))),
   AND(ISPICKVAL(Verification_Status__c, "Clean"), OR(ISBLANK(Verification_Date__c), AND(NOT(ISBLANK(copado__Latest_Commit_Date__c)), Verification_Date__c &lt; copado__Latest_Commit_Date__c)))
 )</errorConditionFormula>
-    <errorMessage>There are new commits since the last verification. Run Verify again, then tick Ready to Promote again.</errorMessage>
+    <errorMessage>New commits were added after the last verification. Run Verify again before Promote.</errorMessage>
 </ValidationRule>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>StoryVerificationPushWebhook</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description>Assign only to the guest user of the Site that receives the GitHub push webhook. Lets it call the webhook class and publish Story Branch Push events.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Copado Story Verification Webhook</label>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Story_Branch_Push__e</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+</PermissionSet>

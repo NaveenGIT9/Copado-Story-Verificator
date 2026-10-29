@@ -8,5 +8,5 @@
   AND(copado__Promote_Change__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_Change__c))),
   AND(NOT(ISBLANK(copado__Pending_Tests__c)), copado__Pending_Tests__c > 0)
 )</errorConditionFormula>
-    <errorMessage>This story still has pending tests. Pending Tests must be 0 before ticking Ready to Promote. Wait for the tests to finish and try again.</errorMessage>
+    <errorMessage>All tests on this User Story must pass before Promote.</errorMessage>
 </ValidationRule>

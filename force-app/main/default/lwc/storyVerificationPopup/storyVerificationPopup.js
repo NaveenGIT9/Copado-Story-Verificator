@@ -4,6 +4,7 @@ import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
 import NAME_FIELD from '@salesforce/schema/copado__User_Story__c.Name';
 import start from '@salesforce/apex/StoryVerificationController.start';
 import getProgress from '@salesforce/apex/StoryVerificationController.getProgress';
+import cancelRun from '@salesforce/apex/StoryVerificationController.cancel';
 import previewMetadata from '@salesforce/apex/StoryVerificationMetadataController.preview';
 import createMetadata from '@salesforce/apex/StoryVerificationMetadataController.create';
 
@@ -36,6 +37,7 @@ function formatDuration(ms) {
 const TIMEOUT_TEXT = 'Still running. You can close this window; open the story later and check Verification Status.';
 const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
+const CANCELLED_TEXT = 'Verification cancelled. The story stays blocked until it is verified again.';
 
 // The three git checks run by the Copado Function (ids match function/index.js).
 // The sentence of one parent story finding as coloured parts: the parent is a link to the story, the environments are names (shown in
@@ -144,6 +146,9 @@ export default class StoryVerificationPopup extends LightningElement {
     starting = false;
     timedOut = false;
     superseded = false;
+    cancelled = false;
+    cancelling = false;
+    runningElsewhere = false;
     // check id -> true/false once the user has toggled that row; untouched rows use the default (open for fail/warn).
     expandedByUser = {};
     // group row key -> true when its list (for example the unchanged registered components) is opened.
@@ -195,6 +200,9 @@ export default class StoryVerificationPopup extends LightningElement {
         this.errorText = undefined;
         this.timedOut = false;
         this.superseded = false;
+        this.cancelled = false;
+        this.cancelling = false;
+        this.runningElsewhere = false;
         this.expandedByUser = {};
         this.openGroups = {};
         this._runId = undefined;
@@ -208,6 +216,12 @@ export default class StoryVerificationPopup extends LightningElement {
                 return;
             }
             this.starting = false;
+            // An earlier run (often from a popup that was closed) is still going: no error, offer to cancel or replace it.
+            if (result.alreadyRunning && result.runId) {
+                this._runId = result.runId;
+                this.runningElsewhere = true;
+                return;
+            }
             if (result.errorMessage) {
                 this.errorText = result.errorMessage;
                 return;
@@ -298,6 +312,65 @@ export default class StoryVerificationPopup extends LightningElement {
         this.begin();
     }
 
+    // Stops polling first so no progress response lands after the cancel; the story is then marked Failed (not verified).
+    async handleCancel() {
+        if (!this.canCancel && !this.runningElsewhere) {
+            return;
+        }
+        this.clearTimer();
+        this._session += 1;
+        const session = this._session;
+        this.cancelling = true;
+        try {
+            const result = await cancelRun({ storyId: this._storyId, runId: this._runId });
+            if (session !== this._session) {
+                return;
+            }
+            this.cancelling = false;
+            this.errorText = undefined;
+            this.runningElsewhere = false;
+            // Keep the last progress snapshot: the returned one has no run id, so it would read as a replaced run.
+            if (result.cancelled) {
+                this.cancelled = true;
+                return;
+            }
+            // Finished or replaced just before the click: show that result as a normal poll would.
+            this.handleSnapshot(result, session);
+        } catch (error) {
+            if (session !== this._session) {
+                return;
+            }
+            this.cancelling = false;
+            this.errorText = this.reduceError(error);
+        }
+    }
+
+    // Cancels the earlier run and starts a new one. If that run finished in the meantime, the new run simply starts.
+    async handleRestart() {
+        if (!this.runningElsewhere || this.cancelling) {
+            return;
+        }
+        this.clearTimer();
+        this._session += 1;
+        const session = this._session;
+        this.cancelling = true;
+        try {
+            await cancelRun({ storyId: this._storyId, runId: this._runId });
+        } catch (error) {
+            if (session !== this._session) {
+                return;
+            }
+            this.cancelling = false;
+            this.runningElsewhere = false;
+            this.errorText = this.reduceError(error);
+            return;
+        }
+        if (session !== this._session) {
+            return;
+        }
+        this.begin();
+    }
+
     handleToggle(event) {
         const checkId = event.currentTarget.dataset.checkId;
         const row = this.steps.find((step) => step.checkId === checkId);
@@ -318,10 +391,31 @@ export default class StoryVerificationPopup extends LightningElement {
         try {
             const rows = JSON.parse(check.rowsJson);
             const row = (Array.isArray(rows) ? rows : []).find((r) => r && r.t === 'select');
-            return row && Array.isArray(row.groups) ? row.groups : [];
+            return row && Array.isArray(row.groups) ? this.withoutImpliedWorkflows(row.groups) : [];
         } catch (e) {
             return [];
         }
+    }
+
+    // The server registers the Workflow record of an object together with any of its rules or actions, so that record is not offered
+    // separately while one of them is listed. A Workflow record missing on its own stays in the list.
+    withoutImpliedWorkflows(groups) {
+        const objects = new Set();
+        groups.forEach((g) => {
+            if (String((g && g.kind) || '').startsWith('workflows/')) {
+                (Array.isArray(g.items) ? g.items : []).forEach((item) => objects.add(String(item.name).split('.')[0]));
+            }
+        });
+        if (objects.size === 0) {
+            return groups;
+        }
+        return groups
+            .map((g) =>
+                g && g.kind === 'workflows'
+                    ? { ...g, items: (Array.isArray(g.items) ? g.items : []).filter((item) => !objects.has(String(item.name))) }
+                    : g
+            )
+            .filter((g) => !g || g.kind !== 'workflows' || g.items.length > 0);
     }
 
     get canSelectMetadata() {
@@ -538,7 +632,18 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get isActive() {
-        return !this.isFinished && !this.timedOut && !this.superseded && !this.errorText;
+        return (
+            !this.isFinished &&
+            !this.timedOut &&
+            !this.superseded &&
+            !this.cancelled &&
+            !this.runningElsewhere &&
+            !this.errorText
+        );
+    }
+
+    get showRestart() {
+        return this.runningElsewhere && this.view !== 'preview';
     }
 
     get showSpinner() {
@@ -546,7 +651,21 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get canRetry() {
-        return this.runStarted && this.view !== 'preview' && (this.isFinished || !!this.errorText);
+        // While an earlier run blocks, Verify again would only repeat "already running"; Cancel is the way forward.
+        return (
+            this.runStarted &&
+            !this.runningElsewhere &&
+            this.view !== 'preview' &&
+            (this.isFinished || this.cancelled || !!this.errorText)
+        );
+    }
+
+    // Only once start() has returned a run id (before that there is nothing to cancel); still offered after the popup stops polling.
+    get canCancel() {
+        if (!this.runStarted || this.starting || !this._runId || this.cancelled || this.runningElsewhere) {
+            return false;
+        }
+        return !this.isFinished && !this.superseded && !this.errorText;
     }
 
     get jobStatus() {
@@ -554,8 +673,14 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     get stateText() {
+        if (this.runningElsewhere) {
+            return 'Not started: an earlier verification of this story is still running.';
+        }
         if (this.errorText) {
             return 'Verification could not be completed.';
+        }
+        if (this.cancelled) {
+            return CANCELLED_TEXT;
         }
         if (this.timedOut) {
             return TIMEOUT_TEXT;
@@ -779,7 +904,11 @@ export default class StoryVerificationPopup extends LightningElement {
         const entries = [];
         let selectable = 0;
         let ticked = 0;
-        (Array.isArray(row.groups) ? row.groups : []).forEach((group, gi) => {
+        const allGroups = Array.isArray(row.groups) ? row.groups : [];
+        const groups = this.withoutImpliedWorkflows(allGroups);
+        const countItems = (list) => list.reduce((n, g) => n + (Array.isArray(g && g.items) ? g.items.length : 0), 0);
+        const hidden = countItems(allGroups) - countItems(groups);
+        groups.forEach((group, gi) => {
             const items = Array.isArray(group.items) ? group.items : [];
             const supported = this.isSupportedKind(group.kind);
             const keys = items.map((item) => group.kind + '|' + item.name);
@@ -827,7 +956,7 @@ export default class StoryVerificationPopup extends LightningElement {
             key,
             isSelect: true,
             groupKey: key,
-            label: (row.label || 'Components') + ': ' + (row.count === undefined ? selectable : row.count),
+            label: (row.label || 'Components') + ': ' + (row.count === undefined ? selectable : row.count - hidden),
             labelClass: 'tone-warn',
             open,
             ariaExpanded: String(open),

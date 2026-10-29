@@ -8,5 +8,5 @@
   AND(copado__Promote_Change__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_Change__c))),
   OR(ISPICKVAL(Verification_Status__c, "Issues"), ISPICKVAL(Verification_Status__c, "Failed"))
 )</errorConditionFormula>
-    <errorMessage>Verification found issues. Fix them and run Verify again before ticking Ready to Promote. See Verification Details on this story.</errorMessage>
+    <errorMessage>Verification did not pass. Resolve the issues listed in Verification Details and run Verify again before Promote.</errorMessage>
 </ValidationRule>

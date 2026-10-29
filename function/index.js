@@ -32,6 +32,7 @@ const TITLES = {
 };
 const ORDER = ["unregistered-commits", "metadata-coverage", "org-branch-merge"];
 const secrets = [];
+let verifiedHead = ""; // the feature-branch commit the checks ran against; the gate compares it with later pushes
 
 // ---- helpers ----
 
@@ -1008,7 +1009,7 @@ function buildResult(cfg, status, notes, checks, cap) {
         ch.lines.forEach((l) => text.push("  " + l));
     });
     // scriptSeconds: how long this script ran, so the popup can tell Copado's queue time from the checks' own time.
-    return { runId: cfg.runId, status: status, details: text.join("\n"), checks: cut, salesforceFindings: cfg.findings, scriptSeconds: Math.round((Date.now() - startedAt) / 1000) };
+    return { runId: cfg.runId, status: status, details: text.join("\n"), checks: cut, salesforceFindings: cfg.findings, scriptSeconds: Math.round((Date.now() - startedAt) / 1000), headSha: verifiedHead };
 }
 
 function finish(cfg, status, notes, checks) {
@@ -1105,6 +1106,7 @@ function main() {
         const reason = "Could not clone the repository or check out " + cfg.feature + ": " + errMsg(e);
         return finish(cfg, "Failed", [reason], skippedChecks("Not run: repository could not be cloned"));
     }
+    verifiedHead = (tryRun("git", ["rev-parse", "HEAD"]) || "").trim().toLowerCase();
 
     progress("Fetching base and environment branches" + ELL);
     const prepared = fetchBranchesForChecks(cfg);

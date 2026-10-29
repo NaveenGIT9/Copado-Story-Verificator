@@ -41,6 +41,7 @@ public with sharing class StoryVerificationService {
     @TestVisible
     private static final String TEMPLATE_API_NAME = 'Story_Verification_1';
     private static final Integer RUNNING_WINDOW_MINUTES = 30;
+    private static final Pattern SHA_PATTERN = Pattern.compile('^[0-9a-f]{40}$');
     private static final Integer MAX_DETAILS_LENGTH = 32000;
     private static final String FEATURE_PREFIX = 'feature/';
     private static final String SEVERITY_ISSUE = 'issue';
@@ -199,7 +200,8 @@ public with sharing class StoryVerificationService {
             Verification_Run_Id__c = runId,
             Verification_Details__c = null,
             Verification_Checks__c = null,
-            Verification_No_Commits__c = inputs.noWork
+            Verification_No_Commits__c = inputs.noWork,
+            Verified_Head_SHA__c = null
         );
 
         Map<String, Object> data = buildData(story, runId, inputs, findings);
@@ -229,6 +231,38 @@ public with sharing class StoryVerificationService {
             throw e;
         }
         return runId;
+    }
+
+    // Copado has no supported way to stop a job execution, so the job may still finish; clearing the run id makes
+    // applyOutcomes ignore its result. Returns false when the run already finished or was replaced.
+    public static Boolean cancelVerification(Id storyId, String runId) {
+        if (storyId == null || String.isBlank(runId)) {
+            return false;
+        }
+        List<copado__User_Story__c> stories = [
+            SELECT Id, Verification_Status__c, Verification_Run_Id__c
+            FROM copado__User_Story__c
+            WHERE Id = :storyId
+            LIMIT 1
+            FOR UPDATE
+        ];
+        if (
+            stories.isEmpty() ||
+            stories[0].Verification_Status__c != VerificationStatus.Running.name() ||
+            stories[0].Verification_Run_Id__c != runId
+        ) {
+            return false;
+        }
+        update new copado__User_Story__c(
+            Id = storyId,
+            Verification_Status__c = VerificationStatus.Failed.name(),
+            Verification_Details__c = truncate(
+                'Verification cancelled by ' + UserInfo.getName() + ' at ' + System.now().format() + '. Run Verify again before promoting.'
+            ),
+            Verification_Run_Id__c = null,
+            Verification_Checks__c = null
+        );
+        return true;
     }
 
     public static void completeVerification(Id jobExecutionId) {
@@ -871,7 +905,7 @@ public with sharing class StoryVerificationService {
             return;
         }
         Map<Id, copado__User_Story__c> stories = new Map<Id, copado__User_Story__c>([
-            SELECT Id, Verification_Run_Id__c
+            SELECT Id, Verification_Run_Id__c, Verification_Date__c, Branch_Head_Pushed_At__c
             FROM copado__User_Story__c
             WHERE Id IN :storyIds
         ]);
@@ -887,7 +921,7 @@ public with sharing class StoryVerificationService {
             if (String.isBlank(runId) || runId != story.Verification_Run_Id__c) {
                 continue;
             }
-            copado__User_Story__c storyUpdate = buildUpdate(story.Id, runId, outcome);
+            copado__User_Story__c storyUpdate = buildUpdate(story, runId, outcome);
             if (storyUpdate != null) {
                 updates.put(story.Id, storyUpdate);
             }
@@ -895,7 +929,8 @@ public with sharing class StoryVerificationService {
         saveUpdates(updates.values());
     }
 
-    private static copado__User_Story__c buildUpdate(Id storyId, String runId, JobOutcome outcome) {
+    private static copado__User_Story__c buildUpdate(copado__User_Story__c story, String runId, JobOutcome outcome) {
+        Id storyId = story.Id;
         if (outcome.status == 'Failed' || outcome.status == 'Error' || outcome.status == 'Canceled') {
             String message = String.isBlank(outcome.errorMessage)
                 ? 'The verification job ended with status ' + outcome.status + ' (no error message).'
@@ -920,12 +955,29 @@ public with sharing class StoryVerificationService {
             return fallbackFromFindings(storyId, outcome);
         }
         Object details = result.get('details');
-        return new copado__User_Story__c(
+        copado__User_Story__c storyUpdate = new copado__User_Story__c(
             Id = storyId,
             Verification_Status__c = resultStatus,
             Verification_Details__c = truncate(details == null ? '' : String.valueOf(details)),
             Verification_Checks__c = serializeChecks(result)
         );
+        recordVerifiedHead(story, storyUpdate, result.get('headSha'));
+        return storyUpdate;
+    }
+
+    // The clone happens after the run starts, so every push GitHub reported before the start is part of what was verified and
+    // the verified commit becomes the known branch head. A push reported after the start is kept: it may be newer than the clone.
+    private static void recordVerifiedHead(copado__User_Story__c story, copado__User_Story__c storyUpdate, Object headSha) {
+        String sha = headSha == null ? '' : String.valueOf(headSha).trim().toLowerCase();
+        if (!SHA_PATTERN.matcher(sha).matches()) {
+            return;
+        }
+        storyUpdate.Verified_Head_SHA__c = sha;
+        Datetime startedAt = story.Verification_Date__c;
+        if (startedAt != null && (story.Branch_Head_Pushed_At__c == null || story.Branch_Head_Pushed_At__c < startedAt)) {
+            storyUpdate.Branch_Head_SHA__c = sha;
+            storyUpdate.Branch_Head_Pushed_At__c = startedAt;
+        }
     }
 
     // Stores {checks, salesforceFindings} for the popup, or null when the result has no checks or would not fit the field.

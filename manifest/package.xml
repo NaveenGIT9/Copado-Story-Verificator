@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>StoryBranchPushHandler</members>
         <members>StoryVerificationComplete</members>
         <members>StoryVerificationCompleteTest</members>
         <members>StoryVerificationController</members>
@@ -8,6 +9,8 @@
         <members>StoryVerificationException</members>
         <members>StoryVerificationMetadataController</members>
         <members>StoryVerificationMetadataControllerTest</members>
+        <members>StoryVerificationPushWebhook</members>
+        <members>StoryVerificationPushWebhookTest</members>
         <members>StoryVerificationService</members>
         <members>StoryVerificationServiceTest</members>
         <members>StoryVerificationSetup</members>
@@ -15,16 +18,32 @@
         <name>ApexClass</name>
     </types>
     <types>
+        <members>StoryBranchPushTrigger</members>
+        <name>ApexTrigger</name>
+    </types>
+    <types>
         <members>storyVerificationPopup</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
+        <members>Story_Branch_Push__e</members>
+        <members>Story_Verification_Setting__mdt</members>
+        <name>CustomObject</name>
+    </types>
+    <types>
+        <members>Story_Branch_Push__e.Head_SHA__c</members>
+        <members>Story_Branch_Push__e.Pushed_At__c</members>
+        <members>Story_Branch_Push__e.Story_Name__c</members>
+        <members>Story_Verification_Setting__mdt.GitHub_Webhook_Secret__c</members>
+        <members>copado__User_Story__c.Branch_Head_Pushed_At__c</members>
+        <members>copado__User_Story__c.Branch_Head_SHA__c</members>
         <members>copado__User_Story__c.Verification_Checks__c</members>
         <members>copado__User_Story__c.Verification_Date__c</members>
         <members>copado__User_Story__c.Verification_Details__c</members>
         <members>copado__User_Story__c.Verification_No_Commits__c</members>
         <members>copado__User_Story__c.Verification_Run_Id__c</members>
         <members>copado__User_Story__c.Verification_Status__c</members>
+        <members>copado__User_Story__c.Verified_Head_SHA__c</members>
         <name>CustomField</name>
     </types>
     <types>
@@ -40,6 +59,7 @@
         <members>Copado_Story_Verification_Bypass</members>
         <members>Copado_Story_Verification_Metadata_Creator</members>
         <members>Copado_Story_Verification_User</members>
+        <members>Copado_Story_Verification_Webhook</members>
         <name>PermissionSet</name>
     </types>
     <types>
@@ -47,12 +67,14 @@
         <name>QuickAction</name>
     </types>
     <types>
+        <members>copado__User_Story__c.Promote_Deploy_Gate_Branch_Changed</members>
         <members>copado__User_Story__c.Promote_Deploy_Gate_Issues</members>
         <members>copado__User_Story__c.Promote_Deploy_Gate_Never_Verified</members>
         <members>copado__User_Story__c.Promote_Deploy_Gate_PR_Not_Approved</members>
         <members>copado__User_Story__c.Promote_Deploy_Gate_Pending_Tests</members>
         <members>copado__User_Story__c.Promote_Deploy_Gate_Running</members>
         <members>copado__User_Story__c.Promote_Deploy_Gate_Stale</members>
+        <members>copado__User_Story__c.Ready_Promote_Gate_Branch_Changed</members>
         <members>copado__User_Story__c.Ready_Promote_Gate_Issues</members>
         <members>copado__User_Story__c.Ready_Promote_Gate_Never_Verified</members>
         <members>copado__User_Story__c.Ready_Promote_Gate_PR_Not_Approved</members>

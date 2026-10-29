@@ -8,5 +8,5 @@
   AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
   ISPICKVAL(Verification_Status__c, "Running")
 )</errorConditionFormula>
-    <errorMessage>Verification is still running. Wait for it to finish, then tick Promote and Deploy again.</errorMessage>
+    <errorMessage>Verification is in progress. Promote is available once verification completes with a Clean result.</errorMessage>
 </ValidationRule>

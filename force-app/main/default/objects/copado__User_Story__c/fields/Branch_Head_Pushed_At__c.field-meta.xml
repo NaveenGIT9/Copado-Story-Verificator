@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Branch_Head_Pushed_At__c</fullName>
+    <description>When Salesforce received the push that set Branch Head SHA. Used to ignore out-of-order webhook deliveries.</description>
+    <externalId>false</externalId>
+    <label>Branch Head Pushed At</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>

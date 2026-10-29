@@ -1,6 +1,6 @@
 # Copado Story Verification Gate
 
-A gate for Copado User Stories. Before anyone can tick **Ready to Promote** or **Promote and Deploy**, the story must be **verified**, and the verification must be **Clean** and **current**.
+A gate for Copado User Stories. Before anyone can check **Ready to Promote** or **Promote and Deploy**, the story must be **verified**, and the verification must be **Clean** and **current**.
 
 A user clicks **Verify** on the story. A popup runs six checks live, shows each result with the reason, and stores the verdict on the story. Validation rules then allow or block the two checkboxes based on that verdict.
 
@@ -11,7 +11,7 @@ A user clicks **Verify** on the story. A popup runs six checks live, shows each 
 | **Unregistered commits** | Every commit on the feature branch (compared with the base branch) is registered in Copado. A commit made outside Copado by the same person, on components that are registered, is only a **warning**. A commit by someone else, or on components that are not registered, **fails**. | Copado Function (git) |
 | **Metadata coverage** | Every component changed in git is registered on the story, so it will actually be deployed. A changed component is registered only by an item of the **same type with exactly its name**. Nothing registered under a related name stands in for it (an object's fields do not cover the object, a class does not cover a trigger of the same name). | Copado Function (git) |
 | **External branch merge** | No other branch was merged into the feature branch since it left its base branch: not an environment branch (for example `dev1`, `uat`), a promotion branch or another story's feature branch (fails). The story's own feature branch is ignored, and merging only the base branch is a warning. | Copado Function (git) |
-| **Pull request approval** | The story's *Pull Requests Approved* box is ticked. Stories with no commits and no metadata are not asked for one (see below). | Apex |
+| **Pull request approval** | The story's *Pull Requests Approved* box is checked. Stories with no commits and no metadata are not asked for one (see below). | Apex |
 | **Pending tests** | *Pending Tests* is 0. | Apex |
 | **Parent story dependencies** | Parent stories (through the base branch or a dependency) are promoted ahead of this story. | Apex |
 
@@ -35,7 +35,7 @@ A story that has **no commit records and no metadata records** (only deployment 
 |---|---|---|
 | none, but there are deployment steps | missing | **Pull Request Approval : No commits** (green). The three git rows show "No feature branch" (green). The story can be promoted. |
 | none, no deployment steps either | missing | **Pull Request Approval : Nothing to promote** (amber warning). It does not block. |
-| none | exists | **Pull Request Approval : No commits** (amber warning, even when the box is ticked, because a branch should not exist without commits). It does not block. |
+| none | exists | **Pull Request Approval : No commits** (amber warning, even when the box is checked, because a branch should not exist without commits). It does not block. |
 | yes | **missing** | **Blocks.** Unregistered Commits shows `No feature branch (feature/US-x not found in Git)`. The other git rows are "Not run". The verdict is Issues. |
 | yes | exists | The normal checks. |
 
@@ -48,24 +48,28 @@ The two *PR Not Approved* validation rules follow the same idea. Each verificati
 3. The job runs the Copado Function, which clones the repository (history only, no file contents) and runs the three git checks.
 4. The job result is written back by the flow `Story_Verification_Completion` (Apex `StoryVerificationComplete`) to the five `Verification_*` fields on the story.
 5. The popup polls progress, shows the checks passed-first, and displays **Time taken** (with a split into *Copado queue* and *checks* when Copado took 15 s or more to start the job).
-6. Twelve validation rules compare the checkbox being ticked with the stored verdict, the *Pull Requests Approved* box and *Pending Tests*.
+6. Fourteen validation rules compare the checkbox being checked with the stored verdict, the *Pull Requests Approved* box and *Pending Tests*.
+7. A GitHub push webhook (`StoryVerificationPushWebhook`) records the latest commit of every `feature/US-*` branch in `Branch_Head_SHA__c`, whatever made the push (GitHub web edit, local `git push` or a Copado commit). Each verification stores the commit it checked in `Verified_Head_SHA__c`. When the two differ on a Clean story, the `Branch_Changed` rules block the checkboxes until the story is verified again (see [Branch push webhook](#branch-push-webhook)).
 
-The rules only run when **Ready to Promote** or **Promote and Deploy** is being ticked, not on every save.
+The rules only run when **Ready to Promote** or **Promote and Deploy** is being checked, not on every save.
 
 ## What is in the package
 
-`manifest/package.xml` lists 37 components (API 63.0):
+`manifest/package.xml` lists 53 components (API 63.0):
 
 | Type | Components |
 |---|---|
-| Apex classes (11) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), and five test classes |
+| Apex classes (14) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), `StoryVerificationPushWebhook` (GitHub push webhook), `StoryBranchPushHandler`, and six test classes |
+| Apex trigger | `StoryBranchPushTrigger` (on `Story_Branch_Push__e`) |
 | Lightning component | `storyVerificationPopup` |
-| Fields (6, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c` |
+| Fields (9, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c`, `Verified_Head_SHA__c`, `Branch_Head_SHA__c`, `Branch_Head_Pushed_At__c` |
+| Platform event | `Story_Branch_Push__e` (`Story_Name__c`, `Head_SHA__c`, `Pushed_At__c`) |
+| Custom metadata type | `Story_Verification_Setting__mdt` (`GitHub_Webhook_Secret__c`); the `Default` record is created by hand in each org, it is not in the repository |
 | Custom permissions (2) | `Bypass_Verification_Gate`, `Create_Story_Metadata` |
 | Flow | `Story_Verification_Completion` |
-| Permission sets (3) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass`, `Copado_Story_Verification_Metadata_Creator` |
+| Permission sets (4) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass`, `Copado_Story_Verification_Metadata_Creator`, `Copado_Story_Verification_Webhook` (Site guest user only) |
 | Quick action | `copado__User_Story__c.Verify_Story_Live` |
-| Validation rules (12) | `Ready_Promote_Gate_*` and `Promote_Deploy_Gate_*`, each with: `Never_Verified`, `Running`, `Issues`, `Stale`, `Pending_Tests`, `PR_Not_Approved` |
+| Validation rules (14) | `Ready_Promote_Gate_*` and `Promote_Deploy_Gate_*`, each with: `Never_Verified`, `Running`, `Issues`, `Stale`, `Branch_Changed`, `Pending_Tests`, `PR_Not_Approved` |
 
 **Not in the package** (they are Copado data records, not metadata): the Copado **Function**, **Job Template** and **Job Step**. They are created by `StoryVerificationSetup.run()` (see Install).
 
@@ -79,7 +83,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 1. **Deploy the metadata**
    ```
-   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --wait 30
+   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --wait 30
    ```
    Add `--dry-run` for a check-only run first.
 2. **Create the Copado records** (Function, Job Template, Job Step). This runs the deployed class `StoryVerificationSetup`:
@@ -90,6 +94,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 3. **Add the Verify action to the page layout.** Add the quick action **Verify** to the User Story page layout. Optionally add `Verification Status`, `Verification Date` and `Verification Details` to the Lightning record page.
 4. **Assign permission sets** (see the next section).
 5. **Check the repository.** The pipeline's Git repository must show as authenticated in Copado.
+6. **Connect the GitHub push webhook** (see [Branch push webhook](#branch-push-webhook)). Without it the two `Branch_Changed` rules never block, and pushes made outside Copado are only caught by the `Stale` rules if a Copado commit follows.
 
 The Function source is `function/index.js`. The setup class `StoryVerificationSetup` (which carries a copy of it) is generated from it, so after editing the Function run:
 ```
@@ -97,16 +102,36 @@ node scripts/build-create-records.js          # regenerate StoryVerificationSetu
 node scripts/build-create-records.js --check  # verify they are up to date
 ```
 
+## Branch push webhook
+
+The `Stale` rules compare the verification date with Copado's *Latest Commit Date*, which only moves on Copado commits. A commit made in the GitHub web editor or pushed from a local clone after a Clean verification is invisible to them. The webhook closes that gap by comparing commits, not dates: GitHub tells Salesforce the new branch head on every push, and the `Branch_Changed` rules block the checkboxes while it differs from the commit the last verification checked. Force-pushes and rewinds are caught too, and author-set commit dates play no part.
+
+**Set-up (once per org):**
+
+1. **Secret.** Generate a long random string. In Setup > Custom Metadata Types > Story Verification Setting > Manage Records, create a record with the name `Default` and put the string in *GitHub Webhook Secret*.
+2. **Site.** Setup > Sites: create (or reuse) a site, for example `storyverification`, active, with any home page. Open *Public Access Settings* to find its guest user and assign it the permission set **Copado Story Verification Webhook** (Setup > Users > the site guest user > Permission Set Assignments). The endpoint is then `https://<site domain>/services/apexrest/storyverification/push`; the site domain is shown on the Sites page (in a sandbox it looks like `https://<org>--<sandbox>.sandbox.my.salesforce-sites.com`, add the site path if the site has one).
+3. **GitHub.** Repository > Settings > Webhooks > Add webhook: *Payload URL* = the endpoint, *Content type* = `application/json`, *Secret* = the same string, *Just the push event*, Active. GitHub sends a ping straight away; *Recent Deliveries* should show `200` with `{"message":"pong"}`.
+4. **Test.** Push a commit to a story's `feature/US-...` branch. The delivery should answer `Recorded US-... at <sha>` and the story's *Branch Head SHA* should show the commit within a few seconds.
+
+**How it behaves:**
+
+- Only `refs/heads/feature/<story number>` pushes are recorded; other branches, branch deletions and tags are acknowledged and ignored. A delivery with a wrong or missing `X-Hub-Signature-256` gets `401`.
+- The webhook only publishes the platform event `Story_Branch_Push__e`; the trigger `StoryBranchPushTrigger` writes the story as the Automated Process user, so the guest user never touches stories. If Copado's own triggers refuse that user, add a `PlatformEventSubscriberConfig` for the trigger that runs it as an integration user with a Copado licence; save errors are written to the debug log.
+- GitHub can deliver out of order, so a push older than the one already stored (by GitHub's `repository.pushed_at`) is ignored.
+- Verify clones the branch after it starts, so when it completes every push recorded before the start is treated as checked and the verified commit becomes the branch head. A push recorded after the start is kept and blocks the story until Verify runs again.
+- GitHub does not retry failed deliveries. If Salesforce was unreachable, *Recent Deliveries* > *Redeliver* sends it again. A missed delivery only means the gate falls back to the `Stale` rules for that push.
+- Stories verified before this was installed have no *Verified Head SHA*, so the first push to them after installation blocks them until they are verified again.
+
 ## Who gets which permission set
 
 | Who | Permission set(s) | What it gives |
 |---|---|---|
 | **Developers and anyone who runs Verify** | **Copado Story Verification User** | Access to the Verify popup's Apex and read access to the five `Verification_*` fields. The gate applies to them. |
-| **Emergency users who may skip the gate** | **Copado Story Verification Bypass** **and** **Copado Story Verification User** | Bypass switches off all 12 validation rules for the user. They still need User to use the Verify button, otherwise the popup says "You do not have access to this story". |
+| **Emergency users who may skip the gate** | **Copado Story Verification Bypass** **and** **Copado Story Verification User** | Bypass switches off all 14 validation rules for the user. They still need User to use the Verify button, otherwise the popup says "You do not have access to this story". |
 | **People who may register missing metadata on stories** | **Copado Story Verification Metadata Creator** **and** **Copado Story Verification User** | Shows the **Create Selected Metadata** button (see below). Without it the "Not registered" list is still shown, with ADD or DELETE beside each component, but cannot be ticked. |
 | **Everyone else** | none | They cannot run Verify, and the gate still blocks their checkboxes. |
 
-Give **Bypass** to as few people as possible. It lets a user tick Ready to Promote and Promote and Deploy with no verification at all.
+Give **Bypass** to as few people as possible. It lets a user check Ready to Promote and Promote and Deploy with no verification at all.
 
 Nobody has edit access to the result fields. The Apex writes them in system mode, so users cannot hand-edit a verdict.
 
@@ -138,17 +163,19 @@ The validation rules need to answer "may this user skip the gate?". A validation
 
 - Every rule starts with `NOT($Permission.Bypass_Verification_Gate)`.
 - The custom permission sits inside the **Bypass** permission set, so holding that set is what switches the rules off.
-- You can also add the same custom permission to your own permission set or permission set group (for example for release managers) without editing any of the 12 rules.
+- You can also add the same custom permission to your own permission set or permission set group (for example for release managers) without editing any of the 14 rules.
 
 ## Using it
 
 1. Open the User Story and click **Verify**.
 2. Read the list of checks and click **Verify** in the popup.
 3. Wait for the result. Passed checks are listed first, failures after. **Show details** and **Hide details** open the reasons. Components that are not registered are listed on a line under the headline.
-4. If the verdict is **Clean**, tick **Ready to Promote** or **Promote and Deploy**.
+4. If the verdict is **Clean**, check **Ready to Promote** or **Promote and Deploy**.
 5. If it is **Issues**, fix the cause and click **Verify again**.
 
-If you try to tick a box without a Clean, current verification, the rule's message tells you what to do (verify first, wait for the run, fix the issues, run Verify again after new commits, approve the pull request, or wait for pending tests).
+To stop a run that is still in progress, click **Cancel** beside **Close**. The story is marked **Failed** with the text "Verification cancelled by <name> at <time>", so it stays blocked until you click **Verify again**. Copado cannot stop a job that is already running, so the job may still finish in Copado, but its result is ignored.
+
+If you try to check a box without a Clean, current verification, the rule's message tells you what to do (verify first, wait for the run, fix the issues, run Verify again after new commits, approve the pull request, or run the tests and make sure they pass).
 
 ## Troubleshooting
 

@@ -86,7 +86,10 @@ private class StoryVerificationServiceTest {
                 Verification_Details__c,
                 Verification_Date__c,
                 Verification_Run_Id__c,
-                Verification_Checks__c
+                Verification_Checks__c,
+                Verified_Head_SHA__c,
+                Branch_Head_SHA__c,
+                Branch_Head_Pushed_At__c
             FROM copado__User_Story__c
             WHERE copado__User_Story_Title__c = :title
             LIMIT 1
@@ -185,7 +188,11 @@ private class StoryVerificationServiceTest {
         System.runAs(admin) {
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
             addCommitAndMetadata(story.Id);
-            update new copado__User_Story__c(Id = story.Id, Verification_Checks__c = '{"checks":[]}');
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Checks__c = '{"checks":[]}',
+                Verified_Head_SHA__c = 'abcdef0123456789abcdef0123456789abcdef01'
+            );
             CapturingStarter stub = new CapturingStarter();
             StoryVerificationService.starter = stub;
 
@@ -199,6 +206,7 @@ private class StoryVerificationServiceTest {
             System.assertNotEquals(null, after.Verification_Date__c);
             System.assertEquals(null, after.Verification_Details__c);
             System.assertEquals(null, after.Verification_Checks__c, 'Checks of the previous run must be cleared at start');
+            System.assertEquals(null, after.Verified_Head_SHA__c, 'The previous verified commit must be cleared at start');
 
             System.assertEquals(1, stub.requests.size());
             copado.CreateExecution.Request req = stub.requests[0];
@@ -1267,6 +1275,78 @@ private class StoryVerificationServiceTest {
             System.assertEquals(1, checks.size());
             System.assertEquals('fail', ((Map<String, Object>) checks[0]).get('status'));
             System.assertEquals(1, ((List<Object>) stored.get('salesforceFindings')).size());
+        }
+    }
+
+    @IsTest
+    static void completeStoresTheVerifiedHeadAndMakesItTheBranchHead() {
+        String sha = 'ABCDEF0123456789abcdef0123456789abcdef01';
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-sha1');
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Branch_Head_SHA__c = '1111111111111111111111111111111111111111',
+                Branch_Head_Pushed_At__c = System.now().addMinutes(-10)
+            );
+            String result = '{"runId":"run-sha1","status":"Clean","details":"ok","checks":[],"headSha":"' + sha + '"}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-sha1', 'Successful', result) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Clean', after.Verification_Status__c);
+            System.assertEquals(sha.toLowerCase(), after.Verified_Head_SHA__c);
+            System.assertEquals(sha.toLowerCase(), after.Branch_Head_SHA__c, 'A push received before the run started was part of the verified clone');
+            System.assertEquals(after.Verification_Date__c, after.Branch_Head_Pushed_At__c);
+        }
+    }
+
+    @IsTest
+    static void completeKeepsAPushReceivedAfterTheRunStarted() {
+        String verified = 'abcdef0123456789abcdef0123456789abcdef01';
+        String pushed = '2222222222222222222222222222222222222222';
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Status__c = 'Running',
+                Verification_Run_Id__c = 'run-sha2',
+                Verification_Date__c = System.now().addMinutes(-5),
+                Branch_Head_SHA__c = pushed,
+                Branch_Head_Pushed_At__c = System.now()
+            );
+            String result = '{"runId":"run-sha2","status":"Clean","details":"ok","checks":[],"headSha":"' + verified + '"}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-sha2', 'Successful', result) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals(verified, after.Verified_Head_SHA__c);
+            System.assertEquals(pushed, after.Branch_Head_SHA__c, 'A push received after the run started may be newer than the clone');
+        }
+    }
+
+    @IsTest
+    static void completeIgnoresAMissingOrMalformedHead() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-sha3');
+            String result = '{"runId":"run-sha3","status":"Clean","details":"ok","checks":[],"headSha":"not-a-sha"}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-sha3', 'Successful', result) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Clean', after.Verification_Status__c);
+            System.assertEquals(null, after.Verified_Head_SHA__c);
+            System.assertEquals(null, after.Branch_Head_SHA__c);
         }
     }
 

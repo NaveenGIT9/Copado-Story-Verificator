@@ -5,6 +5,12 @@
                 <span>{errorText}</span>
             </div>
         </template>
+        <template lwc:if={runningElsewhere}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert" data-id="running-elsewhere">
+                <span class="slds-m-right_small">An earlier verification of this story is still running.</span>
+                <lightning-button label="Cancel" onclick={handleCancel} disabled={cancelling} data-id="cancel-earlier"></lightning-button>
+            </div>
+        </template>
 
         <template lwc:if={metaError}>
             <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_small" role="alert" data-id="meta-error">
@@ -247,8 +253,7 @@
         <template lwc:if={showPreview}>
             <div data-id="preview">
                 <p class="slds-m-bottom_x-small" data-id="preview-intro">
-                    These records will be created under <strong>User Story Metadata</strong> of the story
-                    <strong data-id="preview-story">{previewStoryLabel}</strong>:
+                    These records will be created under <strong>User Story Metadata</strong> of the story&nbsp;<strong data-id="preview-story">{previewStoryLabel}</strong>:
                 </p>
                 <p class="slds-text-color_weak slds-m-bottom_small" data-id="preview-summary">{previewSummary}</p>
                 <template for:each={previewSections} for:item="section">
@@ -294,9 +299,15 @@
                 <lightning-button class="slds-m-right_x-small" label="Back" onclick={handleBack} disabled={busy} data-id="back"></lightning-button>
                 <lightning-button variant="brand" label={insertLabel} onclick={handleInsert} disabled={insertDisabled} data-id="insert"></lightning-button>
             </template>
+            <template lwc:if={canCancel}>
+                <lightning-button class="slds-m-right_x-small" label="Cancel" onclick={handleCancel} disabled={cancelling} data-id="cancel"></lightning-button>
+            </template>
             <lightning-button class="slds-m-right_x-small" label="Close" onclick={handleClose} data-id="close"></lightning-button>
             <template lwc:if={showIntro}>
                 <lightning-button variant="brand" label="Verify" onclick={handleVerify} data-id="verify"></lightning-button>
+            </template>
+            <template lwc:if={showRestart}>
+                <lightning-button variant="brand" label="Verify again" onclick={handleRestart} disabled={cancelling} data-id="restart"></lightning-button>
             </template>
             <template lwc:if={canRetry}>
                 <lightning-button variant="brand" label="Verify again" onclick={handleRetry} data-id="retry"></lightning-button>

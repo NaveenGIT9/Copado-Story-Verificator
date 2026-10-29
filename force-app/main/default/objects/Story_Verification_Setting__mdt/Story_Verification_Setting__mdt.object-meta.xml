@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Story Verification Gate settings. Create one record named Default in each org; it is not part of the repository because it holds the webhook secret.</description>
+    <label>Story Verification Setting</label>
+    <pluralLabel>Story Verification Settings</pluralLabel>
+    <visibility>Protected</visibility>
+</CustomObject>

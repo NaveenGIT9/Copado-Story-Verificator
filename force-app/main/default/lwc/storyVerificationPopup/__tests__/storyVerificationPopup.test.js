@@ -3,6 +3,7 @@ import StoryVerificationPopup from 'c/storyVerificationPopup';
 import { getRecord } from 'lightning/uiRecordApi';
 import start from '@salesforce/apex/StoryVerificationController.start';
 import getProgress from '@salesforce/apex/StoryVerificationController.getProgress';
+import cancelRun from '@salesforce/apex/StoryVerificationController.cancel';
 import previewMetadata from '@salesforce/apex/StoryVerificationMetadataController.preview';
 import createMetadata from '@salesforce/apex/StoryVerificationMetadataController.create';
 
@@ -13,6 +14,11 @@ jest.mock(
 );
 jest.mock(
     '@salesforce/apex/StoryVerificationController.getProgress',
+    () => ({ default: jest.fn() }),
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/StoryVerificationController.cancel',
     () => ({ default: jest.fn() }),
     { virtual: true }
 );
@@ -189,6 +195,7 @@ describe('c-story-verification-popup', () => {
         jest.useFakeTimers();
         start.mockReset();
         getProgress.mockReset();
+        cancelRun.mockReset();
     });
 
     afterEach(() => {
@@ -577,6 +584,207 @@ describe('c-story-verification-popup', () => {
 
         await tick();
         expect(getProgress).toHaveBeenLastCalledWith({ storyId: STORY_ID, runId: 'run-456' });
+    });
+
+    describe('cancel', () => {
+        const cancelledSnapshot = () =>
+            snapshot({ status: 'Failed', runId: null, isCurrentRun: false, isFinished: true, cancelled: true });
+
+        it('is not offered on the confirmation screen', async () => {
+            const element = mount();
+            await flush();
+            expect(byId(element, 'cancel')).toBeNull();
+        });
+
+        it('is offered beside Close while the run is in progress', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+
+            const element = await mountAndVerify();
+
+            expect(byId(element, 'cancel')).not.toBeNull();
+            expect(byId(element, 'cancel').label).toBe('Cancel');
+            expect(byId(element, 'close')).not.toBeNull();
+        });
+
+        it('is not offered when start() returned an error without a running run', async () => {
+            start.mockResolvedValue({ errorMessage: 'Verification is already running' });
+
+            const element = await mountAndVerify();
+
+            expect(byId(element, 'cancel')).toBeNull();
+        });
+
+        const blocked = () => ({ errorMessage: 'Verification is already running', alreadyRunning: true, runId: 'old-run' });
+
+        it('shows a warning with "Cancel it" instead of the red error when an earlier run blocks this start', async () => {
+            start.mockResolvedValue(blocked());
+
+            const element = await mountAndVerify();
+
+            expect(byId(element, 'error')).toBeNull();
+            expect(byId(element, 'running-elsewhere').textContent).toContain('An earlier verification of this story is still running');
+            expect(byId(element, 'cancel-earlier').label).toBe('Cancel');
+            expect(byId(element, 'restart').label).toBe('Verify again');
+            expect(byId(element, 'retry')).toBeNull();
+            expect(byId(element, 'cancel')).toBeNull();
+            expect(byId(element, 'state-spinner')).toBeNull();
+        });
+
+        it('"Cancel it" on the warning cancels the earlier run and then offers Verify again', async () => {
+            start.mockResolvedValueOnce(blocked()).mockResolvedValueOnce(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            cancelRun.mockResolvedValue(cancelledSnapshot());
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel-earlier').click();
+            await flush();
+
+            expect(cancelRun).toHaveBeenCalledWith({ storyId: STORY_ID, runId: 'old-run' });
+            expect(byId(element, 'running-elsewhere')).toBeNull();
+            expect(byId(element, 'restart')).toBeNull();
+            expect(byId(element, 'state').textContent).toContain('Verification cancelled');
+
+            byId(element, 'retry').click();
+            await flush();
+            expect(start).toHaveBeenCalledTimes(2);
+            expect(byId(element, 'cancel')).not.toBeNull();
+        });
+
+        it('Verify again cancels the earlier run and starts a new one straight away', async () => {
+            start.mockResolvedValueOnce(blocked()).mockResolvedValueOnce(snapshot({ runId: 'run-456' }));
+            getProgress.mockResolvedValue(snapshot({ runId: 'run-456' }));
+            cancelRun.mockResolvedValue(cancelledSnapshot());
+
+            const element = await mountAndVerify();
+            byId(element, 'restart').click();
+            await flush();
+
+            expect(cancelRun).toHaveBeenCalledWith({ storyId: STORY_ID, runId: 'old-run' });
+            expect(start).toHaveBeenCalledTimes(2);
+            expect(byId(element, 'running-elsewhere')).toBeNull();
+            expect(byId(element, 'error')).toBeNull();
+            expect(byId(element, 'state-spinner')).not.toBeNull();
+            expect(byId(element, 'cancel')).not.toBeNull();
+
+            await tick();
+            expect(getProgress).toHaveBeenLastCalledWith({ storyId: STORY_ID, runId: 'run-456' });
+        });
+
+        it('shows the error when cancelling the earlier run fails', async () => {
+            start.mockResolvedValue(blocked());
+            cancelRun.mockRejectedValue({ body: { message: 'Cancel failed' } });
+
+            const element = await mountAndVerify();
+            byId(element, 'restart').click();
+            await flush();
+
+            expect(start).toHaveBeenCalledTimes(1);
+            expect(byId(element, 'error').textContent).toBe('Cancel failed');
+            expect(byId(element, 'running-elsewhere')).toBeNull();
+            expect(byId(element, 'retry')).not.toBeNull();
+        });
+
+        it('is not offered once the run has finished', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful' }));
+
+            const element = await mountAndVerify();
+            await tick();
+
+            expect(byId(element, 'cancel')).toBeNull();
+        });
+
+        it('stops polling, cancels this run and offers Verify again', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+            cancelRun.mockResolvedValue(cancelledSnapshot());
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+
+            expect(cancelRun).toHaveBeenCalledWith({ storyId: STORY_ID, runId: RUN_ID });
+            expect(jest.getTimerCount()).toBe(0);
+            expect(byId(element, 'state').textContent).toContain('Verification cancelled');
+            expect(byId(element, 'state').textContent).not.toContain('newer verification run');
+            expect(byId(element, 'state-spinner')).toBeNull();
+            expect(byId(element, 'cancel')).toBeNull();
+            expect(byId(element, 'retry')).not.toBeNull();
+            expect(element.shadowRoot.querySelectorAll('lightning-spinner').length).toBe(0);
+
+            await tick(10000);
+            expect(getProgress).not.toHaveBeenCalled();
+        });
+
+        it('disables the button while the cancel call is running', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            cancelRun.mockReturnValue(new Promise(() => {}));
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+
+            expect(byId(element, 'cancel').disabled).toBe(true);
+        });
+
+        it('shows the result when the run finished just before the click', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            cancelRun.mockResolvedValue(snapshot({ status: 'Clean', isFinished: true, jobStatus: 'Successful', cancelled: false }));
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+
+            expect(byId(element, 'state').textContent).toContain('Verification Finished');
+            expect(byId(element, 'state').textContent).not.toContain('cancelled');
+            expect(byId(element, 'retry')).not.toBeNull();
+        });
+
+        it('shows the error when the cancel call fails', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+            cancelRun.mockRejectedValue({ body: { message: 'You do not have access to this story.' } });
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+
+            expect(byId(element, 'error').textContent).toBe('You do not have access to this story.');
+            expect(byId(element, 'retry')).not.toBeNull();
+        });
+
+        it('is still offered after the popup stops polling', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot());
+
+            const element = await mountAndVerify();
+            for (let i = 0; i < 160; i++) {
+                // eslint-disable-next-line no-await-in-loop
+                await tick();
+            }
+
+            expect(byId(element, 'state').textContent).toBe(TIMEOUT_TEXT);
+            expect(byId(element, 'cancel')).not.toBeNull();
+        });
+
+        it('starts a fresh run with Verify again after a cancel', async () => {
+            start.mockResolvedValueOnce(snapshot()).mockResolvedValueOnce(snapshot({ runId: 'run-456' }));
+            getProgress.mockResolvedValue(snapshot({ runId: 'run-456' }));
+            cancelRun.mockResolvedValue(cancelledSnapshot());
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+            byId(element, 'retry').click();
+            await flush();
+
+            expect(start).toHaveBeenCalledTimes(2);
+            expect(byId(element, 'state').textContent).not.toContain('cancelled');
+            expect(byId(element, 'cancel')).not.toBeNull();
+        });
     });
 
     it('shows the three git checks as pending rows while the job is queued', async () => {
@@ -982,6 +1190,30 @@ describe('c-story-verification-popup', () => {
             expect(byId(element, 'select-all').checked).toBe(false);
             expect(boxes(element).every((box) => !box.checked)).toBe(true);
             expect(byId(element, 'create-selected')).toBeNull();
+        });
+
+        it('hides the Workflow record of an object whose rules or actions are listed, since it is added with them', async () => {
+            const wfRow = {
+                t: 'select',
+                label: 'Not registered',
+                count: 4,
+                groups: [
+                    { kind: 'workflows', type: 'Workflow', items: [{ name: 'Case', action: 'Add' }, { name: 'Lead', action: 'Add' }] },
+                    { kind: 'workflows/rules', type: 'Workflow Rule', items: [{ name: 'Case.Escalate', action: 'Add' }] },
+                    { kind: 'workflows/alerts', type: 'Workflow Alert', items: [{ name: 'Case.Notify', action: 'Add' }] }
+                ]
+            };
+            const checks = [{ ...SELECT_CHECKS[0], rowsJson: JSON.stringify([wfRow]) }];
+            const element = await mountFinished(checks, {
+                canCreateMetadata: true,
+                supportedKinds: ['workflows', 'workflows/alerts', 'workflows/rules']
+            });
+            stepRow(element, 'Metadata Coverage').querySelector('[data-id="group-toggle"]').click();
+            await tick();
+
+            const keys = boxes(element).filter((box) => box.dataset.scope === 'item').map((box) => box.dataset.key);
+            expect(keys).toEqual(['workflows|Lead', 'workflows/rules|Case.Escalate', 'workflows/alerts|Case.Notify']);
+            expect(element.shadowRoot.textContent).toContain('Not registered: 3');
         });
 
         it('disables the boxes of a type that cannot be registered', async () => {

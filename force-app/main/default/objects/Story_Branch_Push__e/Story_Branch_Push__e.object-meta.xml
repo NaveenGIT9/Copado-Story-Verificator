@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Story Verification Gate: a push to a story feature branch, published by the GitHub push webhook (StoryVerificationPushWebhook) and applied to the story by StoryBranchPushTrigger.</description>
+    <eventType>HighVolume</eventType>
+    <label>Story Branch Push</label>
+    <pluralLabel>Story Branch Pushes</pluralLabel>
+    <publishBehavior>PublishImmediately</publishBehavior>
+</CustomObject>

@@ -84,6 +84,10 @@ public with sharing class StoryVerificationController {
         @AuraEnabled
         public Boolean isCurrentRun = true;
         @AuraEnabled
+        public Boolean cancelled = false;
+        @AuraEnabled
+        public Boolean alreadyRunning = false;
+        @AuraEnabled
         public List<String> details = new List<String>();
         @AuraEnabled
         public List<Finding> findings = new List<Finding>();
@@ -296,6 +300,28 @@ public with sharing class StoryVerificationController {
         } catch (StoryVerificationException e) {
             ProgressSnapshot snapshot = new ProgressSnapshot();
             snapshot.errorMessage = e.getMessage();
+            // Hand back the run that blocked this start, so the popup can offer to cancel it.
+            copado__User_Story__c story = loadStory(storyId);
+            if (story.Verification_Status__c == 'Running' && String.isNotBlank(story.Verification_Run_Id__c)) {
+                snapshot.alreadyRunning = true;
+                snapshot.runId = story.Verification_Run_Id__c;
+            }
+            return snapshot;
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw auraError(e.getMessage());
+        }
+    }
+
+    // When the run had already finished or been replaced, the snapshot (cancelled = false) shows that state instead.
+    @AuraEnabled
+    public static ProgressSnapshot cancel(Id storyId, String runId) {
+        try {
+            loadStory(storyId);
+            Boolean cancelled = StoryVerificationService.cancelVerification(storyId, runId);
+            ProgressSnapshot snapshot = buildSnapshot(storyId, runId);
+            snapshot.cancelled = cancelled;
             return snapshot;
         } catch (AuraHandledException e) {
             throw e;

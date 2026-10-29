@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Promote_Deploy_Gate_Branch_Changed</fullName>
+    <active>true</active>
+    <description>Story Verification Gate: blocks Promote and Deploy when the feature branch head (reported by the GitHub push webhook) is not the commit that the last clean verification checked.</description>
+    <errorConditionFormula>AND(
+  NOT($Permission.Bypass_Verification_Gate),
+  AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
+  ISPICKVAL(Verification_Status__c, &quot;Clean&quot;),
+  NOT(ISBLANK(Branch_Head_SHA__c)),
+  Branch_Head_SHA__c &lt;&gt; Verified_Head_SHA__c
+)</errorConditionFormula>
+    <errorMessage>The feature branch has changed since the last verification. Run Verify again before Promote.</errorMessage>
+</ValidationRule>

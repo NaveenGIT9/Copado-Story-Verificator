@@ -152,6 +152,8 @@ private class StoryVerificationControllerTest {
 
             System.assertEquals('Verification is already running', second.errorMessage);
             System.assertEquals(1, stub.requests.size(), 'No second job may be started');
+            System.assertEquals(true, second.alreadyRunning);
+            System.assertEquals(story().Verification_Run_Id__c, second.runId, 'The blocking run is handed back so it can be cancelled');
         }
     }
 
@@ -473,6 +475,101 @@ private class StoryVerificationControllerTest {
             System.assertEquals(false, snapshot.isCurrentRun);
             System.assertEquals('newer-run', snapshot.runId);
         }
+    }
+
+    @IsTest
+    static void cancelStopsTheCurrentRun() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Running', 'run-c1', null);
+
+            Test.startTest();
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.cancel(storyId, 'run-c1');
+            Test.stopTest();
+
+            System.assertEquals(true, snapshot.cancelled);
+            System.assertEquals('Failed', snapshot.status);
+            copado__User_Story__c after = [
+                SELECT Verification_Status__c, Verification_Run_Id__c, Verification_Details__c, Verification_Checks__c
+                FROM copado__User_Story__c
+                WHERE Id = :storyId
+            ];
+            System.assertEquals('Failed', after.Verification_Status__c, 'A cancelled story must stay blocked');
+            System.assertEquals(null, after.Verification_Run_Id__c);
+            System.assertEquals(null, after.Verification_Checks__c);
+            System.assert(after.Verification_Details__c.startsWith('Verification cancelled by '), after.Verification_Details__c);
+        }
+    }
+
+    @IsTest
+    static void cancelIgnoresAReplacedRun() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Running', 'newer-run', null);
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.cancel(storyId, 'older-run');
+
+            System.assertEquals(false, snapshot.cancelled);
+            System.assertEquals(false, snapshot.isCurrentRun);
+            System.assertEquals('Running', story().Verification_Status__c);
+            System.assertEquals('newer-run', story().Verification_Run_Id__c, 'The newer run must keep going');
+        }
+    }
+
+    @IsTest
+    static void cancelLeavesAFinishedRunAlone() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Clean', 'run-c3', 'All good');
+
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.cancel(storyId, 'run-c3');
+
+            System.assertEquals(false, snapshot.cancelled);
+            System.assertEquals(true, snapshot.isFinished);
+            System.assertEquals('Clean', story().Verification_Status__c);
+            System.assertEquals('run-c3', story().Verification_Run_Id__c);
+        }
+    }
+
+    @IsTest
+    static void lateJobResultAfterCancelIsIgnored() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Running', 'run-c4', null);
+            StoryVerificationController.cancel(storyId, 'run-c4');
+
+            StoryVerificationService.JobOutcome late = new StoryVerificationService.JobOutcome();
+            late.storyId = storyId;
+            late.templateName = StoryVerificationService.TEMPLATE_NAME;
+            late.status = 'Successful';
+            late.dataJson = JSON.serialize(new Map<String, Object>{ 'runId' => 'run-c4' });
+            late.resultJson = JSON.serialize(
+                new Map<String, Object>{ 'status' => 'Clean', 'runId' => 'run-c4', 'details' => 'All good' }
+            );
+            StoryVerificationService.applyOutcomes(new List<StoryVerificationService.JobOutcome>{ late });
+
+            System.assertEquals('Failed', story().Verification_Status__c, 'A cancelled run must not turn Clean later');
+        }
+    }
+
+    @IsTest
+    static void cancelRefusesAnUnreadableStory() {
+        Id storyId = story().Id;
+        setState(storyId, 'Running', 'run-c5', null);
+        User user = newUser('Standard User', false);
+        System.runAs(user) {
+            try {
+                StoryVerificationController.cancel(storyId, 'run-c5');
+                System.assert(false, 'cancel must throw for a story the user cannot read');
+            } catch (AuraHandledException e) {
+                System.assertEquals('You do not have access to this story.', e.getMessage());
+            }
+        }
+        System.assertEquals('Running', story().Verification_Status__c, 'cancel must not touch an unreadable story');
     }
 
     @IsTest
