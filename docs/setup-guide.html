@@ -268,11 +268,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     <tr><td class="n">1</td><td>Open a story with commits and check <b>Ready to Promote</b> without verifying.</td><td>Blocked: "This User Story has not been verified."</td></tr>
     <tr><td class="n">2</td><td>Click <b>Verify</b> → <b>Verify</b> in the popup.</td><td>Six checks run live; verdict <b>Clean</b> or <b>Issues</b> with reasons.</td></tr>
     <tr><td class="n">3</td><td>On a Clean story, check <b>Ready to Promote</b>.</td><td>Saves (if PR approved and Pending Tests = 0).</td></tr>
-    <tr><td class="n">4</td><td>Untick it, then commit a change directly on GitHub to <code>feature/US-…</code>.</td><td>GitHub delivery <code>200</code> "Recorded US-… at &lt;sha&gt;"; story's <b>Branch Head SHA</b> updates within seconds.</td></tr>
+    <tr><td class="n">4</td><td>Uncheck it, then commit a change directly on GitHub to <code>feature/US-…</code>.</td><td>GitHub delivery <code>200</code> "Recorded US-… at &lt;sha&gt;"; story's <b>Branch Head SHA</b> updates within seconds.</td></tr>
     <tr><td class="n">5</td><td>Check <b>Ready to Promote</b>, then <b>Promote and Deploy</b>.</td><td>Both blocked: "The feature branch has changed since the last verification."</td></tr>
     <tr><td class="n">6</td><td>Verify again, then check Ready to Promote.</td><td>Saves: verified SHA now equals branch head.</td></tr>
+    <tr><td class="n">7</td><td>With <b>Ready to Promote</b> still checked, commit another change directly on GitHub to the same branch, then refresh the story.</td><td><b>Ready to Promote</b> and <b>Promote and Deploy</b> are both unchecked automatically.</td></tr>
   </table></div>
-  <div class="note ok">When all six behave as expected, the gate is live.</div>
+  <div class="note ok">When all seven behave as expected, the gate is live.</div>
 </section>
 
 <section class="card">
@@ -293,7 +294,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     <tr><td><code>Repository not authenticated</code></td><td>Re-authenticate the Git repository in Copado, then rerun step 2.</td></tr>
     <tr><td>Stuck on "Waiting for Copado to start the job"</td><td>Copado's own queue; varies from seconds to a few minutes. To give up, click <b>Cancel</b> beside Close: the story is marked Failed ("Verification cancelled by …") and stays blocked until it is verified again. The Copado job may still finish, but its result is ignored.</td></tr>
     <tr><td>Webhook 200 but Branch Head SHA does not update</td><td>Only <code>feature/US-…</code> branches are recorded. If Copado triggers reject the Automated Process user, add a <code>PlatformEventSubscriberConfig</code> for <code>StoryBranchPushTrigger</code> running as an integration user with a Copado licence; errors are in the debug log.</td></tr>
-    <tr><td>"Pending tests" message</td><td>The story's <b>Pending Tests</b> is above 0. Finish or remove those tests; Verify does not clear it.</td></tr>
+    <tr><td>Ready to Promote stays checked after a direct GitHub commit</td><td>Same cause as the row above, or another validation rule or trigger refused the uncheck (the error is in the debug log). The new branch head is still saved, so a re-check stays blocked until Verify runs again.</td></tr>
+    <tr><td>"All tests on this User Story must pass before Promote."</td><td>The story's <b>Pending Tests</b> is above 0. Run the tests and make sure they pass; Verify does not clear it.</td></tr>
   </table></div>
 </section>
 

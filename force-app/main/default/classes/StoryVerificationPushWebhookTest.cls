@@ -206,4 +206,58 @@ private class StoryVerificationPushWebhookTest {
             System.assertEquals(stored, after.Branch_Head_Pushed_At__c);
         }
     }
+
+    private static copado__User_Story__c promoted(Boolean readyToPromote, Boolean promoteAndDeploy) {
+        return new copado__User_Story__c(
+            Id = story().Id,
+            Branch_Head_SHA__c = SHA_A,
+            Verified_Head_SHA__c = SHA_A,
+            copado__Promote_Change__c = readyToPromote,
+            copado__Promote_and_Deploy__c = promoteAndDeploy
+        );
+    }
+
+    @IsTest
+    static void aNewCommitUnchecksReadyToPromoteAndPromoteAndDeploy() {
+        System.runAs(newAdmin()) {
+            Story_Branch_Push__e push = new Story_Branch_Push__e(Head_SHA__c = SHA_B, Pushed_At__c = System.now());
+
+            copado__User_Story__c both = StoryBranchPushHandler.headUpdate(promoted(true, true), push);
+            copado__User_Story__c readyOnly = StoryBranchPushHandler.headUpdate(promoted(true, false), push);
+            copado__User_Story__c deployOnly = StoryBranchPushHandler.headUpdate(promoted(false, true), push);
+
+            for (copado__User_Story__c upd : new List<copado__User_Story__c>{ both, readyOnly, deployOnly }) {
+                System.assertEquals(SHA_B, upd.Branch_Head_SHA__c);
+                System.assertEquals(false, upd.copado__Promote_Change__c);
+                System.assertEquals(false, upd.copado__Promote_and_Deploy__c);
+            }
+        }
+    }
+
+    @IsTest
+    static void uncheckedBoxesAndTheVerifiedCommitAreLeftAlone() {
+        System.runAs(newAdmin()) {
+            copado__User_Story__c notPromoted = StoryBranchPushHandler.headUpdate(
+                promoted(false, false),
+                new Story_Branch_Push__e(Head_SHA__c = SHA_B, Pushed_At__c = System.now())
+            );
+            System.assertEquals(SHA_B, notPromoted.Branch_Head_SHA__c);
+            System.assertEquals(false, notPromoted.isSet('copado__Promote_Change__c'));
+            System.assertEquals(false, notPromoted.isSet('copado__Promote_and_Deploy__c'));
+
+            copado__User_Story__c verifiedHead = promoted(true, true);
+            verifiedHead.Branch_Head_SHA__c = SHA_B;
+            copado__User_Story__c lateDelivery = StoryBranchPushHandler.headUpdate(
+                verifiedHead,
+                new Story_Branch_Push__e(Head_SHA__c = SHA_A, Pushed_At__c = System.now())
+            );
+            System.assertEquals(SHA_A, lateDelivery.Branch_Head_SHA__c);
+            System.assertEquals(false, lateDelivery.isSet('copado__Promote_Change__c'));
+
+            System.assertEquals(
+                null,
+                StoryBranchPushHandler.headUpdate(promoted(true, true), new Story_Branch_Push__e(Head_SHA__c = SHA_A, Pushed_At__c = System.now()))
+            );
+        }
+    }
 }

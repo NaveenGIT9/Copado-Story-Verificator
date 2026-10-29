@@ -49,7 +49,7 @@ The two *PR Not Approved* validation rules follow the same idea. Each verificati
 4. The job result is written back by the flow `Story_Verification_Completion` (Apex `StoryVerificationComplete`) to the five `Verification_*` fields on the story.
 5. The popup polls progress, shows the checks passed-first, and displays **Time taken** (with a split into *Copado queue* and *checks* when Copado took 15 s or more to start the job).
 6. Fourteen validation rules compare the checkbox being checked with the stored verdict, the *Pull Requests Approved* box and *Pending Tests*.
-7. A GitHub push webhook (`StoryVerificationPushWebhook`) records the latest commit of every `feature/US-*` branch in `Branch_Head_SHA__c`, whatever made the push (GitHub web edit, local `git push` or a Copado commit). Each verification stores the commit it checked in `Verified_Head_SHA__c`. When the two differ on a Clean story, the `Branch_Changed` rules block the checkboxes until the story is verified again (see [Branch push webhook](#branch-push-webhook)).
+7. A GitHub push webhook (`StoryVerificationPushWebhook`) records the latest commit of every `feature/US-*` branch in `Branch_Head_SHA__c`, whatever made the push (GitHub web edit, local `git push` or a Copado commit). Each verification stores the commit it checked in `Verified_Head_SHA__c`. When the two differ on a Clean story, the `Branch_Changed` rules block the checkboxes until the story is verified again (see [Branch push webhook](#branch-push-webhook)). If **Ready to Promote** or **Promote and Deploy** is already checked when a new commit arrives, the push unchecks both.
 
 The rules only run when **Ready to Promote** or **Promote and Deploy** is being checked, not on every save.
 
@@ -119,6 +119,7 @@ The `Stale` rules compare the verification date with Copado's *Latest Commit Dat
 - The webhook only publishes the platform event `Story_Branch_Push__e`; the trigger `StoryBranchPushTrigger` writes the story as the Automated Process user, so the guest user never touches stories. If Copado's own triggers refuse that user, add a `PlatformEventSubscriberConfig` for the trigger that runs it as an integration user with a Copado licence; save errors are written to the debug log.
 - GitHub can deliver out of order, so a push older than the one already stored (by GitHub's `repository.pushed_at`) is ignored.
 - Verify clones the branch after it starts, so when it completes every push recorded before the start is treated as checked and the verified commit becomes the branch head. A push recorded after the start is kept and blocks the story until Verify runs again.
+- A push of any commit other than the verified one unchecks **Ready to Promote** and **Promote and Deploy** when they are checked. If another rule or trigger refuses the uncheck, the branch head is still saved, so the gate still blocks a re-check.
 - GitHub does not retry failed deliveries. If Salesforce was unreachable, *Recent Deliveries* > *Redeliver* sends it again. A missed delivery only means the gate falls back to the `Stale` rules for that push.
 - Stories verified before this was installed have no *Verified Head SHA*, so the first push to them after installation blocks them until they are verified again.
 
