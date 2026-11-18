@@ -736,6 +736,18 @@ function isAncestor(a, b) {
     return tryRun("git", ["merge-base", "--is-ancestor", a, b]) !== null;
 }
 
+// A merge whose incoming side is only this story's own registered, non-merge commits is a pull of the story's own branch
+// (local work joined with a Copado commit), not a foreign merge, even when that commit has since been promoted into an
+// environment branch. A shallow history or an unregistered commit makes this false, so the merge is still reported.
+function isOwnStorySync(r, ctx) {
+    const out = tryRun("git", ["rev-list", "--parents", r.parents[1], "^" + r.parents[0], "^origin/" + ctx.base]);
+    if (out === null) return false;
+    const brought = out.split("\n").map((l) => l.trim().split(/\s+/)).filter((p) => p[0]);
+    if (brought.length === 0 || brought.some((p) => p.length > 2)) return false;
+    const reg = ctx.cfg.registered.filter((s) => s.length >= 7);
+    return brought.every((p) => reg.some((s) => p[0].toLowerCase().startsWith(s)));
+}
+
 // The branch a merge commit brought in, read from its message: "Merge branch 'x'", "Merge remote-tracking branch 'origin/x'" and
 // GitHub's "Merge pull request #12 from org/x". null when the message does not name it.
 const MERGE_SUBJECTS = [/^Merge (?:remote-tracking )?branch '(?:origin\/)?([^']+)'/i, /^Merge pull request #\d+ from [^/\s]+\/(\S+)/i];
@@ -789,6 +801,7 @@ function checkOrgMerge(ctx) {
     rows.forEach((r) => {
         if (r.parents.length < 2) return;
         let name = mergedBranchName(r.subject);
+        if (name === null && isOwnStorySync(r, ctx)) return;
         if (name === null) {
             const entries = Array.from(ctx.envOk.entries());
             for (let j = 0; j < entries.length; j++) {
@@ -860,9 +873,15 @@ function checkUnregistered(ctx) {
     registeredAuthorEmails(cfg.registered).forEach((e) => regEmails.add(e));
     const unreg = extra.filter((c) => !isReg(c.sha));
     const analysed = unreg.slice(0, MAX_ANALYSE);
+    // A component a commit touched but a later commit put back is unchanged at the branch head: nothing to deploy, so it need not
+    // be registered. null (diff failed) = every touched component counts.
+    const netOut = analysed.length ? tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]) : null;
+    const netChanged = netOut === null ? null : new Set(componentsOf(netOut.split("\0").filter(Boolean)).map((x) => x.api.toLowerCase()));
     const details = analysed.map((c) => {
         const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "--no-renames", "-z", c.sha]);
         const comps = componentsOf(out === null ? [] : out.split("\0").filter(Boolean));
+        const notReg = comps.filter((x) => !ctx.isCovered(x.api, x.kind));
+        const noNet = netChanged ? notReg.filter((x) => !netChanged.has(x.api.toLowerCase())) : [];
         const sl = c.sha.toLowerCase();
         const nc = cfg.nonComplete.find((n) => n.sha.length >= 7 && (sl.startsWith(n.sha) || n.sha.startsWith(sl)));
         return {
@@ -873,12 +892,14 @@ function checkUnregistered(ctx) {
             subject: c.subject,
             auto: AUTO_PREFIXES.some((p) => c.subject.startsWith(p)),
             status: nc ? nc.status : null,
-            uncovered: comps.filter((x) => !ctx.isCovered(x.api, x.kind)).map((x) => x.api)
+            uncovered: notReg.filter((x) => noNet.indexOf(x) < 0).map((x) => x.api),
+            noNet: noNet.map((x) => x.api)
         };
     });
     const lines = details.slice(0, 50).map((d) => {
         let line = d.sha10 + " " + d.author + " \"" + d.subject + "\"";
         if (d.uncovered.length > 0) line += " " + DASH + " uncovered: " + capList(d.uncovered, 30);
+        if (d.noNet.length > 0) line += " " + DASH + " no net change: " + capList(d.noNet, 30);
         if (d.auto) line += " (Copado auto-commit, exempt)";
         if (d.status) line += " [Copado status: " + d.status + "]";
         return line;
