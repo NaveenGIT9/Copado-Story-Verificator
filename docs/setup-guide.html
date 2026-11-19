@@ -890,7 +890,13 @@ node scripts/build-create-records.js --check</pre>
               <div class="act">
                 <h3>Redeploy the package</h3>
                 <p>Run the deploy in <a href="#step-1">step 1</a>.</p>
-                <div class="callout warn"><strong>Upgrading from the 14-rule version?</strong> Older installs had separate <code>Ready_Promote_Gate_*</code> and <code>Promote_Deploy_Gate_*</code> rules. Add <code>--post-destructive-changes manifest/destructiveChanges.xml</code> to the deploy once. The old rules are then deleted in the same deploy that adds the new 7, so the gate is never off. On a fresh install, leave the flag out.</div>
+                <div class="callout warn">
+                  <div class="ico">!</div>
+                  <div class="body">
+                    <div class="label">Upgrading from the older rule set</div>
+                    <p>Older installs had separate <code>Ready_Promote_Gate_*</code> and <code>Promote_Deploy_Gate_*</code> rules. Add <code>--post-destructive-changes manifest/destructiveChanges.xml</code> to the deploy once. The old rules are then deleted in the same deploy that adds the new 7, so the gate is never off. On a fresh install, leave the flag out.</p>
+                  </div>
+                </div>
               </div>
             </li>
             <li>
