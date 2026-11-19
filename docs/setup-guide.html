@@ -26,6 +26,8 @@
     --info-bg: #edf2fd;
     --info-line: #c4d4f6;
     --bad: #b42318;
+    --bad-bg: #fdeceb;
+    --bad-line: #f4c2bd;
     --code-bg: #f1f3f7;
     --code-fg: #1d2736;
     --tag: #1f5bd8;
@@ -38,7 +40,7 @@
       --bg: #0f141c; --surface: #161d28; --sunken: #1c2532; --fg: #e7ecf3; --fg-soft: #c3ccd9; --muted: #8d99ab;
       --line: #263142; --line-strong: #344256; --accent: #6f9cff; --accent-soft: #1c2a47; --accent-fg: #0d1320;
       --ok: #5fd39a; --ok-bg: #12291f; --ok-line: #1f4d37; --warn: #f2bd62; --warn-bg: #2b2112; --warn-line: #5a4320;
-      --info: #8fb1ff; --info-bg: #17223a; --info-line: #2a3d66; --bad: #ff8a80;
+      --info: #8fb1ff; --info-bg: #17223a; --info-line: #2a3d66; --bad: #ff8a80; --bad-bg: #2e1715; --bad-line: #5c2a26;
       --code-bg: #111821; --code-fg: #dbe3ee; --tag: #8fb1ff; --ph: #ffb37a; --ph-bg: #3a2414;
       --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .2);
       color-scheme: dark;
@@ -48,7 +50,7 @@
     --bg: #0f141c; --surface: #161d28; --sunken: #1c2532; --fg: #e7ecf3; --fg-soft: #c3ccd9; --muted: #8d99ab;
     --line: #263142; --line-strong: #344256; --accent: #6f9cff; --accent-soft: #1c2a47; --accent-fg: #0d1320;
     --ok: #5fd39a; --ok-bg: #12291f; --ok-line: #1f4d37; --warn: #f2bd62; --warn-bg: #2b2112; --warn-line: #5a4320;
-    --info: #8fb1ff; --info-bg: #17223a; --info-line: #2a3d66; --bad: #ff8a80;
+    --info: #8fb1ff; --info-bg: #17223a; --info-line: #2a3d66; --bad: #ff8a80; --bad-bg: #2e1715; --bad-line: #5c2a26;
     --code-bg: #111821; --code-fg: #dbe3ee; --tag: #8fb1ff; --ph: #ffb37a; --ph-bg: #3a2414;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .2);
     color-scheme: dark;
@@ -250,6 +252,36 @@
   .callout.info .ico { background: var(--info); color: var(--surface); }
   .callout.info .label { color: var(--info); }
 
+  .keyfact {
+    border: 2px solid var(--accent); background: var(--accent-soft); border-radius: 14px;
+    padding: 24px 26px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .keyfact .label { font-weight: 700; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .keyfact h3 { font-size: 1.3rem; font-weight: 700; }
+  .keyfact p { color: var(--fg-soft); max-width: 65ch; }
+  @media (max-width: 560px) { .keyfact { padding: 20px 18px; } }
+
+  .pill {
+    display: inline-block; font-size: .78rem; font-weight: 600; padding: 2px 10px; border-radius: 99px;
+    border: 1px solid; white-space: nowrap; margin-right: 4px;
+  }
+  .pill.yes { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-line); }
+  .pill.no { color: var(--bad); background: var(--bad-bg); border-color: var(--bad-line); }
+  table.matrix td:first-child { white-space: nowrap; }
+  .note { font-size: .9rem; color: var(--muted); }
+
+  .ps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .ps {
+    background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c);
+    border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  }
+  .ps-who { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--c); }
+  .ps h4 { margin: 0; font-size: 1.02rem; font-weight: 600; line-height: 1.3; }
+  .ps dl { margin: 0; display: grid; gap: 2px; font-size: .9rem; }
+  .ps dt { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-top: 6px; }
+  .ps dd { margin: 0; color: var(--fg-soft); }
+  .ps dd code { overflow-wrap: normal; }
+
   .done-row {
     display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     border-top: 1px dashed var(--line-strong); padding-top: 20px;
@@ -330,6 +362,7 @@
       <div class="toc-label">Reference</div>
       <ol>
         <li><a href="#before">Before you start</a></li>
+        <li><a href="#access">Who needs which permission</a></li>
         <li><a href="#upgrading">Upgrading later</a></li>
         <li><a href="#switch">Turn the gate off org-wide</a></li>
         <li><a href="#troubleshooting">Troubleshooting</a></li>
@@ -776,18 +809,70 @@
           </div>
         </div>
         <p class="why">Give each group only the access it needs.</p>
+
+        <div class="keyfact" id="access">
+          <div class="label">Read this first</div>
+          <h3>The 7 validation rules block every user, with or without a permission set.</h3>
+          <p>A permission set does not turn the gate on. The gate is always on for everyone who edits a story. Only <strong>Copado Story Verification Bypass</strong> (custom permission <code>Bypass_Verification_Gate</code>) lets a user skip it.</p>
+          <p><strong>Copado Story Verification User</strong> is what lets a user <em>clear</em> the block by running <span class="ui">Verify</span>. Give it to everyone who checks <span class="ui">Ready to Promote</span> or <span class="ui">Promote and Deploy</span>: developers, DevOps engineers and release managers. Without it they are blocked and cannot fix it themselves.</p>
+        </div>
+
         <div class="card">
+          <h3 class="sub">Who is blocked, and who can unblock</h3>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Who</th><th>Permission sets</th><th>What it allows</th></tr></thead>
+            <table class="matrix">
+              <thead><tr><th>User has</th><th>Blocked by the 7 rules?</th><th>Can run Verify?</th><th>Can create missing metadata?</th></tr></thead>
               <tbody>
-                <tr><td><strong>Developers</strong></td><td>Copado Story Verification User</td><td>Run Verify and see results.</td></tr>
-                <tr><td><strong>Metadata registrars</strong></td><td>Copado Story Verification Metadata Creator<br>+ Copado Story Verification User</td><td>Also register missing metadata from the popup.</td></tr>
-                <tr><td><strong>Emergency users</strong></td><td>Copado Story Verification Bypass<br>+ Copado Story Verification User</td><td>All 7 validation rules are skipped.</td></tr>
-                <tr><td><strong>Site guest user</strong></td><td>Copado Story Verification Webhook</td><td>Already done in 4b.</td></tr>
+                <tr><td><strong>No permission set</strong></td><td><span class="pill no">Blocked</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+                <tr><td><strong>User</strong></td><td><span class="pill no">Blocked</span> until the story is verified and Clean</td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td></tr>
+                <tr><td><strong>User + Metadata Creator</strong></td><td><span class="pill no">Blocked</span> until the story is verified and Clean</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
+                <tr><td><strong>User + Bypass</strong></td><td><span class="pill yes">Skipped</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td></tr>
               </tbody>
             </table>
           </div>
+          <p class="note">The rules read the verification fields at the system level, so they block users who cannot see those fields too. When the <a href="#switch">org-wide switch</a> is on, nobody is blocked.</p>
+        </div>
+
+        <div class="ps-grid">
+          <div class="ps" style="--c: var(--accent)">
+            <div class="ps-who">Everyone who promotes</div>
+            <h4>Copado Story Verification User</h4>
+            <dl>
+              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>User</code></dd>
+              <dt>Custom permission</dt><dd>None</dd>
+              <dt>Gives</dt><dd>The Verify button and popup, and read-only access to the verification fields.</dd>
+            </dl>
+          </div>
+          <div class="ps" style="--c: var(--ok)">
+            <div class="ps-who">Optional, with User</div>
+            <h4>Copado Story Verification Metadata Creator</h4>
+            <dl>
+              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>Metadata_<wbr>Creator</code></dd>
+              <dt>Custom permission</dt><dd><code>Create_Story_Metadata</code></dd>
+              <dt>Gives</dt><dd>The <span class="ui">Create Selected Metadata</span> button, which registers missing components on the story.</dd>
+            </dl>
+          </div>
+          <div class="ps" style="--c: var(--bad)">
+            <div class="ps-who">Emergency users only</div>
+            <h4>Copado Story Verification Bypass</h4>
+            <dl>
+              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>Bypass</code></dd>
+              <dt>Custom permission</dt><dd><code>Bypass_Verification_Gate</code></dd>
+              <dt>Gives</dt><dd>Skips all 7 validation rules. Keep this to a handful of people.</dd>
+            </dl>
+          </div>
+          <div class="ps" style="--c: var(--muted)">
+            <div class="ps-who">Site guest user only</div>
+            <h4>Copado Story Verification Webhook</h4>
+            <dl>
+              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>Webhook</code></dd>
+              <dt>Custom permission</dt><dd>None</dd>
+              <dt>Gives</dt><dd>Lets GitHub push events reach Salesforce. Already assigned in <a href="#step-4">step 4b</a>. Never give it to people.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="card">
           <ol class="actions">
             <li>
               <div class="act">
