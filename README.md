@@ -70,7 +70,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 | Flow | `Story_Verification_Completion` |
 | Permission sets (4) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass`, `Copado_Story_Verification_Metadata_Creator`, `Copado_Story_Verification_Webhook` (Site guest user only) |
 | Quick action | `copado__User_Story__c.Verify_Story_Live` |
-| Validation rules (14) | `Ready_Promote_Gate_*` and `Promote_Deploy_Gate_*`, each with: `Never_Verified`, `Running`, `Issues`, `Stale`, `Branch_Changed`, `Pending_Tests`, `PR_Not_Approved` |
+| Validation rules (7) | `Story_Not_Verified`, `Story_Verification_Running`, `Story_Verification_Issues`, `New_Commits_After_Verification`, `Branch_Changed_After_Verification`, `Tests_Pending`, `PR_Not_Approved`. Each one blocks both Ready to Promote and Promote and Deploy |
 
 **Not in the package** (they are Copado data records, not metadata): the Copado **Function**, **Job Template** and **Job Step**. They are created by `StoryVerificationSetup.run()` (see Install).
 
@@ -87,6 +87,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
    sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30
    ```
    Add `--dry-run` for a check-only run first.
+   If you are upgrading from the 14-rule version (`Ready_Promote_Gate_*` / `Promote_Deploy_Gate_*`), also add `--post-destructive-changes manifest/destructiveChanges.xml` once. This deletes the old rules in the same deploy.
 2. **Create the Copado records** (Function, Job Template, Job Step). This runs the deployed class `StoryVerificationSetup`:
    ```
    sf apex run --file scripts/create-copado-records.apex --target-org <alias>
@@ -129,7 +130,7 @@ The `Stale` rules compare the verification date with Copado's *Latest Commit Dat
 | Who | Permission set(s) | What it gives |
 |---|---|---|
 | **Developers and anyone who runs Verify** | **Copado Story Verification User** | Access to the Verify popup's Apex and read access to the five `Verification_*` fields. The gate applies to them. |
-| **Emergency users who may skip the gate** | **Copado Story Verification Bypass** **and** **Copado Story Verification User** | Bypass switches off all 14 validation rules for the user. They still need User to use the Verify button, otherwise the popup says "You do not have access to this story". |
+| **Emergency users who may skip the gate** | **Copado Story Verification Bypass** **and** **Copado Story Verification User** | Bypass switches off all 7 validation rules for the user. They still need User to use the Verify button, otherwise the popup says "You do not have access to this story". |
 | **People who may register missing metadata on stories** | **Copado Story Verification Metadata Creator** **and** **Copado Story Verification User** | Shows the **Create Selected Metadata** button (see below). Without it the "Not registered" list is still shown, with ADD or DELETE beside each component, but cannot be ticked. |
 | **Everyone else** | none | They cannot run Verify, and the gate still blocks their checkboxes. |
 
@@ -165,7 +166,7 @@ The validation rules need to answer "may this user skip the gate?". A validation
 
 - Every rule starts with `NOT($Permission.Bypass_Verification_Gate)`.
 - The custom permission sits inside the **Bypass** permission set, so holding that set is what switches the rules off.
-- You can also add the same custom permission to your own permission set or permission set group (for example for release managers) without editing any of the 14 rules.
+- You can also add the same custom permission to your own permission set or permission set group (for example for release managers) without editing any of the 7 rules.
 
 ## Switching the gate off for everyone
 
@@ -176,7 +177,7 @@ The custom setting **Story Verification Control** (`Story_Verification_Control__
 
 While it is ticked:
 
-- None of the 14 validation rules block, for anyone, so Ready to Promote and Promote and Deploy can be checked freely.
+- None of the 7 validation rules block, for anyone, so Ready to Promote and Promote and Deploy can be checked freely.
 - A push no longer unchecks those two boxes. The branch head is still recorded, so the gate is up to date the moment it is switched back on.
 - **Verify still works.** The popup shows a grey banner saying the gate is off and that results are for information only.
 

@@ -346,7 +346,7 @@
         <div class="facts">
           <div class="fact"><b>8</b><span>steps</span></div>
           <div class="fact"><b>~30 min</b><span>total time</span></div>
-          <div class="fact"><b>57</b><span>components deployed</span></div>
+          <div class="fact"><b>50</b><span>components deployed</span></div>
           <div class="fact"><b>API 63.0</b><span>Salesforce version</span></div>
         </div>
       </header>
@@ -362,7 +362,7 @@
             <p>Sits on the User Story. It runs six checks on the feature branch through a Copado Function and records the result as Clean or Issues.</p>
           </div>
           <div class="part">
-            <h3>14 validation rules</h3>
+            <h3>7 validation rules</h3>
             <p>Block <span class="ui">Ready to Promote</span> and <span class="ui">Promote and Deploy</span> until the story is verified and Clean, its pull request is approved and its tests pass. One org-wide <a href="#switch">switch</a> turns them all off.</p>
           </div>
           <div class="part">
@@ -419,7 +419,7 @@
             <div class="tags"><span class="tag where">Command line</span><span class="tag">About 5 minutes</span></div>
           </div>
         </div>
-        <p class="why">Deploys all 57 components in <code>manifest/package.xml</code> (Apex, the trigger, the popup, fields, the on/off custom setting, permission sets and the 14 validation rules) and runs the seven test classes.</p>
+        <p class="why">Deploys all 50 components in <code>manifest/package.xml</code> (Apex, the trigger, the popup, fields, the on/off custom setting, permission sets and the 7 validation rules) and runs the seven test classes.</p>
         <div class="card">
           <ol class="actions">
             <li>
@@ -447,7 +447,7 @@
             <div class="ico">✓</div>
             <div class="body">
               <div class="label">You should see</div>
-              <p><strong>Status: Succeeded</strong>, 57 components deployed and all seven test classes passing.</p>
+              <p><strong>Status: Succeeded</strong>, 50 components deployed and all seven test classes passing.</p>
             </div>
           </div>
           <div class="callout warn">
@@ -783,7 +783,7 @@
               <tbody>
                 <tr><td><strong>Developers</strong></td><td>Copado Story Verification User</td><td>Run Verify and see results.</td></tr>
                 <tr><td><strong>Metadata registrars</strong></td><td>Copado Story Verification Metadata Creator<br>+ Copado Story Verification User</td><td>Also register missing metadata from the popup.</td></tr>
-                <tr><td><strong>Emergency users</strong></td><td>Copado Story Verification Bypass<br>+ Copado Story Verification User</td><td>All 14 validation rules are skipped.</td></tr>
+                <tr><td><strong>Emergency users</strong></td><td>Copado Story Verification Bypass<br>+ Copado Story Verification User</td><td>All 7 validation rules are skipped.</td></tr>
                 <tr><td><strong>Site guest user</strong></td><td>Copado Story Verification Webhook</td><td>Already done in 4b.</td></tr>
               </tbody>
             </table>
@@ -890,6 +890,7 @@ node scripts/build-create-records.js --check</pre>
               <div class="act">
                 <h3>Redeploy the package</h3>
                 <p>Run the deploy in <a href="#step-1">step 1</a>.</p>
+                <div class="callout warn"><strong>Upgrading from the 14-rule version?</strong> Older installs had separate <code>Ready_Promote_Gate_*</code> and <code>Promote_Deploy_Gate_*</code> rules. Add <code>--post-destructive-changes manifest/destructiveChanges.xml</code> to the deploy once. The old rules are then deleted in the same deploy that adds the new 7, so the gate is never off. On a fresh install, leave the flag out.</div>
               </div>
             </li>
             <li>
@@ -939,7 +940,7 @@ upsert c;</pre>
             <table>
               <thead><tr><th>Part</th><th>Gate on (unticked)</th><th>Gate off (ticked)</th></tr></thead>
               <tbody>
-                <tr><td>14 validation rules</td><td>Block unverified, stale or Issues stories</td><td>Never block, for anyone</td></tr>
+                <tr><td>7 validation rules</td><td>Block unverified, stale or Issues stories</td><td>Never block, for anyone</td></tr>
                 <tr><td>New push to the feature branch</td><td>Unchecks Ready to Promote and Promote and Deploy</td><td>Leaves both boxes alone; the branch head is still recorded</td></tr>
                 <tr><td>Verify button</td><td>Runs; the verdict gates promotion</td><td>Runs; a grey banner says results are for information only</td></tr>
               </tbody>
@@ -1023,8 +1024,8 @@ upsert c;</pre>
               <tr><td>Flow</td><td>1</td><td><code>Story_Verification_Completion</code>, after-save on Job Execution</td></tr>
               <tr><td>PermissionSet</td><td>4</td><td>User, Metadata Creator, Bypass, Webhook</td></tr>
               <tr><td>QuickAction</td><td>1</td><td><code>Verify_Story_Live</code></td></tr>
-              <tr><td>ValidationRule</td><td>14</td><td>7 for Ready to Promote, 7 for Promote and Deploy</td></tr>
-              <tr><td><strong>Total</strong></td><td><strong>57</strong></td><td></td></tr>
+              <tr><td>ValidationRule</td><td>7</td><td>Each one blocks both Ready to Promote and Promote and Deploy</td></tr>
+              <tr><td><strong>Total</strong></td><td><strong>50</strong></td><td></td></tr>
             </tbody>
           </table>
         </div>
@@ -1120,20 +1121,13 @@ upsert c;</pre>
         &lt;name&gt;QuickAction&lt;/name&gt;
     &lt;/types&gt;
     &lt;types&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_Branch_Changed&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_Issues&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_Never_Verified&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_PR_Not_Approved&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_Pending_Tests&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_Running&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Promote_Deploy_Gate_Stale&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_Branch_Changed&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_Issues&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_Never_Verified&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_PR_Not_Approved&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_Pending_Tests&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_Running&lt;/members&gt;
-        &lt;members&gt;copado__User_Story__c.Ready_Promote_Gate_Stale&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Branch_Changed_After_Verification&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.New_Commits_After_Verification&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.PR_Not_Approved&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Story_Not_Verified&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Story_Verification_Issues&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Story_Verification_Running&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Tests_Pending&lt;/members&gt;
         &lt;name&gt;ValidationRule&lt;/name&gt;
     &lt;/types&gt;
     &lt;version&gt;63.0&lt;/version&gt;

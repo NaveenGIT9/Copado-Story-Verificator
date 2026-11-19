@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Promote_Deploy_Gate_Branch_Changed</fullName>
+    <fullName>Branch_Changed_After_Verification</fullName>
     <active>true</active>
-    <description>Story Verification Gate: blocks Promote and Deploy when the feature branch head (reported by the GitHub push webhook) is not the commit that the last clean verification checked.</description>
+    <description>Story Verification Gate: blocks Ready to Promote and Promote and Deploy when the feature branch head (reported by the GitHub push webhook) is not the commit that the last clean verification checked.</description>
     <errorConditionFormula>AND(
   NOT($Permission.Bypass_Verification_Gate),
   NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
-  AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
+  OR(
+    AND(copado__Promote_Change__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_Change__c))),
+    AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c)))
+  ),
   ISPICKVAL(Verification_Status__c, &quot;Clean&quot;),
   NOT(ISBLANK(Branch_Head_SHA__c)),
   Branch_Head_SHA__c &lt;&gt; Verified_Head_SHA__c
