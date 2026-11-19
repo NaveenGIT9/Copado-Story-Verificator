@@ -12,6 +12,10 @@
         <apexClass>StoryVerificationService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>StoryVerificationSwitch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <description>Lets users run the Verify quick action on a story and read the verification fields (read-only).</description>
     <fieldPermissions>
         <editable>false</editable>

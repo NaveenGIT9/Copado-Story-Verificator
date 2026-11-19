@@ -7,6 +7,7 @@ import getProgress from '@salesforce/apex/StoryVerificationController.getProgres
 import cancelRun from '@salesforce/apex/StoryVerificationController.cancel';
 import previewMetadata from '@salesforce/apex/StoryVerificationMetadataController.preview';
 import createMetadata from '@salesforce/apex/StoryVerificationMetadataController.create';
+import isGateDisabled from '@salesforce/apex/StoryVerificationSwitch.isGateDisabled';
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_MS = 5 * 60 * 1000;
@@ -139,6 +140,14 @@ export default class StoryVerificationPopup extends LightningElement {
         } else if (error) {
             this.storyName = undefined;
         }
+    }
+
+    // True when Story_Verification_Control__c switches the gate off: Verify still runs, but nothing is blocked.
+    gateDisabled = false;
+
+    @wire(isGateDisabled)
+    wiredGateSwitch({ data }) {
+        this.gateDisabled = data === true;
     }
 
     snapshot;

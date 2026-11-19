@@ -1,6 +1,7 @@
 // Applies Story_Branch_Push__e events to the stories: the newest push per story becomes Branch_Head_SHA__c. Deliveries can arrive
 // out of order, so a push older than the one already stored (or than the last verification start) is ignored.
-// A push of a commit other than the verified one also unchecks Ready to Promote and Promote and Deploy.
+// A push of a commit other than the verified one also unchecks Ready to Promote and Promote and Deploy, unless the gate is switched off
+// (Story_Verification_Control__c); the head is still stored so the gate is up to date when it is switched back on.
 public without sharing class StoryBranchPushHandler {
     public static void apply(List<Story_Branch_Push__e> events) {
         Map<String, Story_Branch_Push__e> latestByStory = new Map<String, Story_Branch_Push__e>();
@@ -73,7 +74,7 @@ public without sharing class StoryBranchPushHandler {
             Branch_Head_Pushed_At__c = push.Pushed_At__c
         );
         Boolean unverified = push.Head_SHA__c != story.Verified_Head_SHA__c;
-        if (unverified && (story.copado__Promote_Change__c == true || story.copado__Promote_and_Deploy__c == true)) {
+        if (unverified && !StoryVerificationSwitch.isDisabled() && (story.copado__Promote_Change__c == true || story.copado__Promote_and_Deploy__c == true)) {
             upd.copado__Promote_Change__c = false;
             upd.copado__Promote_and_Deploy__c = false;
         }

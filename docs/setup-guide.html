@@ -331,6 +331,7 @@
       <ol>
         <li><a href="#before">Before you start</a></li>
         <li><a href="#upgrading">Upgrading later</a></li>
+        <li><a href="#switch">Turn the gate off org-wide</a></li>
         <li><a href="#troubleshooting">Troubleshooting</a></li>
         <li><a href="#package">What package.xml deploys</a></li>
       </ol>
@@ -345,7 +346,7 @@
         <div class="facts">
           <div class="fact"><b>8</b><span>steps</span></div>
           <div class="fact"><b>~30 min</b><span>total time</span></div>
-          <div class="fact"><b>53</b><span>components deployed</span></div>
+          <div class="fact"><b>57</b><span>components deployed</span></div>
           <div class="fact"><b>API 63.0</b><span>Salesforce version</span></div>
         </div>
       </header>
@@ -362,7 +363,7 @@
           </div>
           <div class="part">
             <h3>14 validation rules</h3>
-            <p>Block <span class="ui">Ready to Promote</span> and <span class="ui">Promote and Deploy</span> until the story is verified and Clean, its pull request is approved and its tests pass.</p>
+            <p>Block <span class="ui">Ready to Promote</span> and <span class="ui">Promote and Deploy</span> until the story is verified and Clean, its pull request is approved and its tests pass. One org-wide <a href="#switch">switch</a> turns them all off.</p>
           </div>
           <div class="part">
             <h3>GitHub webhook</h3>
@@ -418,7 +419,7 @@
             <div class="tags"><span class="tag where">Command line</span><span class="tag">About 5 minutes</span></div>
           </div>
         </div>
-        <p class="why">Deploys all 53 components in <code>manifest/package.xml</code> (Apex, the trigger, the popup, fields, permission sets and the 14 validation rules) and runs the six test classes.</p>
+        <p class="why">Deploys all 57 components in <code>manifest/package.xml</code> (Apex, the trigger, the popup, fields, the on/off custom setting, permission sets and the 14 validation rules) and runs the seven test classes.</p>
         <div class="card">
           <ol class="actions">
             <li>
@@ -426,7 +427,7 @@
                 <h3>Run a dry run first</h3>
                 <p>This validates everything and runs the tests without changing the org.</p>
                 <div class="code">
-                  <pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --dry-run --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --wait 30</pre>
+                  <pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --dry-run --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30</pre>
                   <button class="copy" type="button">Copy</button>
                 </div>
               </div>
@@ -436,7 +437,7 @@
                 <h3>Deploy for real</h3>
                 <p>When the dry run succeeds, run the same command without <code>--dry-run</code>.</p>
                 <div class="code">
-                  <pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --wait 30</pre>
+                  <pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30</pre>
                   <button class="copy" type="button">Copy</button>
                 </div>
               </div>
@@ -446,7 +447,7 @@
             <div class="ico">✓</div>
             <div class="body">
               <div class="label">You should see</div>
-              <p><strong>Status: Succeeded</strong>, 53 components deployed and all six test classes passing.</p>
+              <p><strong>Status: Succeeded</strong>, 57 components deployed and all seven test classes passing.</p>
             </div>
           </div>
           <div class="callout warn">
@@ -901,6 +902,66 @@ node scripts/build-create-records.js --check</pre>
         </div>
       </section>
 
+      <section id="switch">
+        <div class="section-head">
+          <div class="kicker">Operations</div>
+          <h2>Turn the gate off org-wide</h2>
+          <p>The custom setting <strong>Story Verification Control</strong> (<code>Story_Verification_Control__c</code>) switches the whole gate off for everyone, with no deploy. It is deployed unticked, so a fresh install has the gate on.</p>
+        </div>
+        <div class="card">
+          <ol class="actions">
+            <li>
+              <div class="act">
+                <h3>Open the custom setting</h3>
+                <p>Setup &gt; Quick Find <span class="ui">Custom Settings</span> &gt; <span class="ui">Story Verification Control</span> &gt; <span class="ui">Manage</span>.</p>
+              </div>
+            </li>
+            <li>
+              <div class="act">
+                <h3>Set the organization default</h3>
+                <p>Click the <span class="ui">New</span> (or <span class="ui">Edit</span>) button next to <span class="ui">Default Organization Level Value</span> at the top, tick <span class="ui">Disable Story Verification</span> and save.</p>
+              </div>
+            </li>
+            <li>
+              <div class="act">
+                <h3>Or from Execute Anonymous</h3>
+                <p>Use <code>false</code> to switch the gate back on.</p>
+                <div class="code">
+                  <pre>Story_Verification_Control__c c = Story_Verification_Control__c.getOrgDefaults();
+c.Disable_Story_Verification__c = true;
+upsert c;</pre>
+                  <button class="copy" type="button">Copy</button>
+                </div>
+              </div>
+            </li>
+          </ol>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Part</th><th>Gate on (unticked)</th><th>Gate off (ticked)</th></tr></thead>
+              <tbody>
+                <tr><td>14 validation rules</td><td>Block unverified, stale or Issues stories</td><td>Never block, for anyone</td></tr>
+                <tr><td>New push to the feature branch</td><td>Unchecks Ready to Promote and Promote and Deploy</td><td>Leaves both boxes alone; the branch head is still recorded</td></tr>
+                <tr><td>Verify button</td><td>Runs; the verdict gates promotion</td><td>Runs; a grey banner says results are for information only</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warn">
+            <div class="ico">!</div>
+            <div class="body">
+              <div class="label">Use the top New button</div>
+              <p>The lower <span class="ui">New</span> on the Manage page creates a value for one profile or user and asks for a <span class="ui">Location</span>. For the whole org, use the button next to <span class="ui">Default Organization Level Value</span>.</p>
+            </div>
+          </div>
+          <div class="callout info">
+            <div class="ico">i</div>
+            <div class="body">
+              <div class="label">Switching back on</div>
+              <p>Untick the box or delete the default value. Because pushes kept being recorded while it was off, a story with commits newer than its last verification is blocked straight away until Verify runs again.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="troubleshooting">
         <div class="section-head">
           <div class="kicker">Help</div>
@@ -936,6 +997,10 @@ node scripts/build-create-records.js --check</pre>
             <div class="sym"><span>"All tests on this User Story must pass before Promote."</span></div>
             <p>Pending Tests is above 0. Run the story's tests and make sure they pass.</p>
           </div>
+          <div class="fault">
+            <div class="sym"><span>Nothing blocks and the popup says the gate is turned off org-wide</span></div>
+            <p><span class="ui">Disable Story Verification</span> is ticked in the Story Verification Control custom setting. Untick it to turn the gate back on (see <a href="#switch">Turn the gate off org-wide</a>).</p>
+          </div>
         </div>
       </section>
 
@@ -943,23 +1008,23 @@ node scripts/build-create-records.js --check</pre>
         <div class="section-head">
           <div class="kicker">Reference</div>
           <h2>What package.xml deploys</h2>
-          <p><code>manifest/package.xml</code> was checked on 29 Oct 2026 and contains every component the gate needs.</p>
+          <p><code>manifest/package.xml</code> was checked on 19 Nov 2026 and contains every component the gate needs.</p>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Type</th><th>Count</th><th>Notes</th></tr></thead>
             <tbody>
-              <tr><td>ApexClass</td><td>14</td><td>8 classes and 6 test classes</td></tr>
+              <tr><td>ApexClass</td><td>16</td><td>9 classes and 7 test classes</td></tr>
               <tr><td>ApexTrigger</td><td>1</td><td><code>StoryBranchPushTrigger</code></td></tr>
               <tr><td>LightningComponentBundle</td><td>1</td><td><code>storyVerificationPopup</code></td></tr>
-              <tr><td>CustomObject</td><td>2</td><td>Platform event and custom metadata type</td></tr>
-              <tr><td>CustomField</td><td>13</td><td>9 on User Story, 3 on the event, 1 on the metadata type</td></tr>
+              <tr><td>CustomObject</td><td>3</td><td>Platform event, custom metadata type and the <code>Story_Verification_Control__c</code> on/off custom setting</td></tr>
+              <tr><td>CustomField</td><td>14</td><td>9 on User Story, 3 on the event, 1 on the metadata type, 1 on the custom setting</td></tr>
               <tr><td>CustomPermission</td><td>2</td><td>Bypass and metadata creation</td></tr>
               <tr><td>Flow</td><td>1</td><td><code>Story_Verification_Completion</code>, after-save on Job Execution</td></tr>
               <tr><td>PermissionSet</td><td>4</td><td>User, Metadata Creator, Bypass, Webhook</td></tr>
               <tr><td>QuickAction</td><td>1</td><td><code>Verify_Story_Live</code></td></tr>
               <tr><td>ValidationRule</td><td>14</td><td>7 for Ready to Promote, 7 for Promote and Deploy</td></tr>
-              <tr><td><strong>Total</strong></td><td><strong>53</strong></td><td></td></tr>
+              <tr><td><strong>Total</strong></td><td><strong>57</strong></td><td></td></tr>
             </tbody>
           </table>
         </div>
@@ -999,6 +1064,8 @@ node scripts/build-create-records.js --check</pre>
         &lt;members&gt;StoryVerificationServiceTest&lt;/members&gt;
         &lt;members&gt;StoryVerificationSetup&lt;/members&gt;
         &lt;members&gt;StoryVerificationSetupTest&lt;/members&gt;
+        &lt;members&gt;StoryVerificationSwitch&lt;/members&gt;
+        &lt;members&gt;StoryVerificationSwitchTest&lt;/members&gt;
         &lt;name&gt;ApexClass&lt;/name&gt;
     &lt;/types&gt;
     &lt;types&gt;
@@ -1011,6 +1078,7 @@ node scripts/build-create-records.js --check</pre>
     &lt;/types&gt;
     &lt;types&gt;
         &lt;members&gt;Story_Branch_Push__e&lt;/members&gt;
+        &lt;members&gt;Story_Verification_Control__c&lt;/members&gt;
         &lt;members&gt;Story_Verification_Setting__mdt&lt;/members&gt;
         &lt;name&gt;CustomObject&lt;/name&gt;
     &lt;/types&gt;
@@ -1018,6 +1086,7 @@ node scripts/build-create-records.js --check</pre>
         &lt;members&gt;Story_Branch_Push__e.Head_SHA__c&lt;/members&gt;
         &lt;members&gt;Story_Branch_Push__e.Pushed_At__c&lt;/members&gt;
         &lt;members&gt;Story_Branch_Push__e.Story_Name__c&lt;/members&gt;
+        &lt;members&gt;Story_Verification_Control__c.Disable_Story_Verification__c&lt;/members&gt;
         &lt;members&gt;Story_Verification_Setting__mdt.GitHub_Webhook_Secret__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Branch_Head_Pushed_At__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Branch_Head_SHA__c&lt;/members&gt;

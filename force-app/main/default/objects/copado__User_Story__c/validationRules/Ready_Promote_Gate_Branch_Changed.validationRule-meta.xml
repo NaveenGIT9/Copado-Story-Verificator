@@ -5,6 +5,7 @@
     <description>Story Verification Gate: blocks Ready to Promote when the feature branch head (reported by the GitHub push webhook) is not the commit that the last clean verification checked.</description>
     <errorConditionFormula>AND(
   NOT($Permission.Bypass_Verification_Gate),
+  NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
   AND(copado__Promote_Change__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_Change__c))),
   ISPICKVAL(Verification_Status__c, &quot;Clean&quot;),
   NOT(ISBLANK(Branch_Head_SHA__c)),

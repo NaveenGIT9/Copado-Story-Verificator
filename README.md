@@ -59,7 +59,8 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 | Type | Components |
 |---|---|
-| Apex classes (14) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), `StoryVerificationPushWebhook` (GitHub push webhook), `StoryBranchPushHandler`, and six test classes |
+| Apex classes (16) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), `StoryVerificationPushWebhook` (GitHub push webhook), `StoryBranchPushHandler`, `StoryVerificationSwitch` (reads the on/off switch), and seven test classes |
+| Custom setting | `Story_Verification_Control__c` (hierarchy, `Disable_Story_Verification__c`): the org-wide on/off switch |
 | Apex trigger | `StoryBranchPushTrigger` (on `Story_Branch_Push__e`) |
 | Lightning component | `storyVerificationPopup` |
 | Fields (9, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c`, `Verified_Head_SHA__c`, `Branch_Head_SHA__c`, `Branch_Head_Pushed_At__c` |
@@ -83,7 +84,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 1. **Deploy the metadata**
    ```
-   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --wait 30
+   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30
    ```
    Add `--dry-run` for a check-only run first.
 2. **Create the Copado records** (Function, Job Template, Job Step). This runs the deployed class `StoryVerificationSetup`:
@@ -165,6 +166,21 @@ The validation rules need to answer "may this user skip the gate?". A validation
 - Every rule starts with `NOT($Permission.Bypass_Verification_Gate)`.
 - The custom permission sits inside the **Bypass** permission set, so holding that set is what switches the rules off.
 - You can also add the same custom permission to your own permission set or permission set group (for example for release managers) without editing any of the 14 rules.
+
+## Switching the gate off for everyone
+
+The custom setting **Story Verification Control** (`Story_Verification_Control__c`) is an on/off switch for the whole org, with no deploy needed:
+
+1. Setup > Custom Settings > **Story Verification Control** > **Manage**.
+2. **New** (or **Edit**) at the *Default Organization Level Value*, tick **Disable Story Verification**, and save.
+
+While it is ticked:
+
+- None of the 14 validation rules block, for anyone, so Ready to Promote and Promote and Deploy can be checked freely.
+- A push no longer unchecks those two boxes. The branch head is still recorded, so the gate is up to date the moment it is switched back on.
+- **Verify still works.** The popup shows a grey banner saying the gate is off and that results are for information only.
+
+Untick it (or delete the default value) to switch the gate back on. Because it is a hierarchy setting, a value can also be set for one profile or one user, but the org default is the intended switch.
 
 ## Using it
 

@@ -15,6 +15,8 @@
         <members>StoryVerificationServiceTest</members>
         <members>StoryVerificationSetup</members>
         <members>StoryVerificationSetupTest</members>
+        <members>StoryVerificationSwitch</members>
+        <members>StoryVerificationSwitchTest</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -27,6 +29,7 @@
     </types>
     <types>
         <members>Story_Branch_Push__e</members>
+        <members>Story_Verification_Control__c</members>
         <members>Story_Verification_Setting__mdt</members>
         <name>CustomObject</name>
     </types>
@@ -34,6 +37,7 @@
         <members>Story_Branch_Push__e.Head_SHA__c</members>
         <members>Story_Branch_Push__e.Pushed_At__c</members>
         <members>Story_Branch_Push__e.Story_Name__c</members>
+        <members>Story_Verification_Control__c.Disable_Story_Verification__c</members>
         <members>Story_Verification_Setting__mdt.GitHub_Webhook_Secret__c</members>
         <members>copado__User_Story__c.Branch_Head_Pushed_At__c</members>
         <members>copado__User_Story__c.Branch_Head_SHA__c</members>

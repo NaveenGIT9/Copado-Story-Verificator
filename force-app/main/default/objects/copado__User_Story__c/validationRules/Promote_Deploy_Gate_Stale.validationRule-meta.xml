@@ -5,6 +5,7 @@
     <description>Story Verification Gate: blocks Promote and Deploy when there are commits newer than the last clean verification.</description>
     <errorConditionFormula>AND(
   NOT($Permission.Bypass_Verification_Gate),
+  NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
   AND(copado__Promote_and_Deploy__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c))),
   AND(ISPICKVAL(Verification_Status__c, "Clean"), OR(ISBLANK(Verification_Date__c), AND(NOT(ISBLANK(copado__Latest_Commit_Date__c)), Verification_Date__c &lt; copado__Latest_Commit_Date__c)))
 )</errorConditionFormula>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Disable_Story_Verification__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>When ticked, the Story Verification Gate validation rules do not block, and a new push no longer unchecks Ready to Promote or Promote and Deploy. Verify still runs for information.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Tick to switch the Story Verification Gate off. Verify keeps working but nothing is blocked.</inlineHelpText>
+    <label>Disable Story Verification</label>
+    <type>Checkbox</type>
+</CustomField>

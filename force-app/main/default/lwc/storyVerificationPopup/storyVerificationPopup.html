@@ -1,5 +1,10 @@
 <template>
     <lightning-quick-action-panel header="Verify story">
+        <template lwc:if={gateDisabled}>
+            <div class="slds-notify slds-notify_alert slds-alert_offline slds-m-bottom_small" role="status" data-id="gate-disabled">
+                <span>Story verification gate is turned off org-wide. Results are for information only and will not block promotion.</span>
+            </div>
+        </template>
         <template lwc:if={errorText}>
             <div class="slds-notify slds-notify_alert slds-theme_error slds-m-bottom_small" role="alert" data-id="error">
                 <span>{errorText}</span>

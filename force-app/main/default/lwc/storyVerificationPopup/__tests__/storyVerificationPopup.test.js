@@ -6,6 +6,7 @@ import getProgress from '@salesforce/apex/StoryVerificationController.getProgres
 import cancelRun from '@salesforce/apex/StoryVerificationController.cancel';
 import previewMetadata from '@salesforce/apex/StoryVerificationMetadataController.preview';
 import createMetadata from '@salesforce/apex/StoryVerificationMetadataController.create';
+import isGateDisabled from '@salesforce/apex/StoryVerificationSwitch.isGateDisabled';
 
 jest.mock(
     '@salesforce/apex/StoryVerificationController.start',
@@ -30,6 +31,14 @@ jest.mock(
 jest.mock(
     '@salesforce/apex/StoryVerificationMetadataController.create',
     () => ({ default: jest.fn() }),
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/StoryVerificationSwitch.isGateDisabled',
+    () => {
+        const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
+        return { default: createApexTestWireAdapter(jest.fn()) };
+    },
     { virtual: true }
 );
 
@@ -204,6 +213,31 @@ describe('c-story-verification-popup', () => {
         }
         jest.clearAllTimers();
         jest.useRealTimers();
+    });
+
+    describe('gate switch banner', () => {
+        it('shows the banner when the gate is switched off org-wide', async () => {
+            const element = mount();
+            isGateDisabled.emit(true);
+            await flush();
+
+            expect(byId(element, 'gate-disabled').textContent).toContain('turned off org-wide');
+            expect(byId(element, 'verify')).not.toBeNull();
+        });
+
+        it('shows no banner while the gate is on or the switch cannot be read', async () => {
+            const element = mount();
+            await flush();
+            expect(byId(element, 'gate-disabled')).toBeNull();
+
+            isGateDisabled.emit(false);
+            await flush();
+            expect(byId(element, 'gate-disabled')).toBeNull();
+
+            isGateDisabled.error();
+            await flush();
+            expect(byId(element, 'gate-disabled')).toBeNull();
+        });
     });
 
     describe('confirmation screen', () => {

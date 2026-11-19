@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customSettingsType>Hierarchy</customSettingsType>
+    <description>Story Verification Gate on/off switch. Tick Disable Story Verification in the organization default to stop the 14 validation rules from blocking Ready to Promote and Promote and Deploy for everyone; the Verify button still runs and shows its result.</description>
+    <enableFeeds>false</enableFeeds>
+    <label>Story Verification Control</label>
+    <visibility>Public</visibility>
+</CustomObject>
