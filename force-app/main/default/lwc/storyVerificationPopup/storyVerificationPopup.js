@@ -994,7 +994,8 @@ export default class StoryVerificationPopup extends LightningElement {
                 author: String(row.author || ''),
                 subject: String(row.subject || ''),
                 hasNote: !!row.note,
-                note: row.note ? '(' + row.note + ')' : ''
+                note: row.note ? '(' + row.note + ')' : '',
+                noteClass: row.amended ? 'c-note c-note-amended' : 'c-note'
             };
         }
         if (row.t === 'names') {

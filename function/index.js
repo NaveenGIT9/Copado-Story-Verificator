@@ -15,6 +15,7 @@ const ELL = "…";
 const DASH = "—";
 const MAX_JSON = 90000;
 const MAX_ANALYSE = 500;
+const MAX_AMEND_LOOKUPS = 30;
 const CALL_TIMEOUT_MS = 240000; // no single git call may hang the whole run
 const LIST_TIMEOUT_MS = 60000; // listing branches takes seconds; a call that hangs is retried once
 const CLONE_TIMEOUT_MS = 120000;
@@ -849,15 +850,78 @@ function registeredAuthorEmails(shas) {
     return out === null ? [] : out.split("\n").map((l) => l.trim().toLowerCase()).filter(Boolean);
 }
 
+// Each file a commit changed as "status path resulting-blob", sorted; equal for two commits that leave the same files behind. Needs only
+// trees, so it works in the history-only clone. null when the commit cannot be read.
+function resultingFiles(sha) {
+    const out = tryRun("git", ["diff-tree", "-r", "--no-commit-id", "--no-renames", sha]);
+    if (out === null) return null;
+    return out
+        .split("\n")
+        .map((l) => /^:\S+ \S+ \S+ (\S+) (\S+)\t(.*)$/.exec(l))
+        .filter(Boolean)
+        .map((m) => m[2] + " " + m[3] + " " + m[1])
+        .sort()
+        .join("\n");
+}
+
+// Registered commit ids that are not in the feature branch history: an amend or a rebase leaves the commit Copado recorded behind and
+// puts a new one with a new id on the branch.
+function registeredOffBranch(cfg, extra) {
+    const onBranch = new Set(extra.map((c) => c.sha.toLowerCase()));
+    return uniq(cfg.registered.filter((r) => /^[0-9a-f]{40}$/.test(r) && !onBranch.has(r) && !isAncestor(r, "HEAD"))).slice(0, MAX_AMEND_LOOKUPS);
+}
+
+// Author email|time and resulting files of commits that are usually not in the clone. They are fetched by id into a separate scratch
+// repository: a --depth fetch into the main clone could move its shallow boundary and cut the feature branch history short.
+// Returns Map sha -> { key, files }; a commit that cannot be fetched is left out.
+function readOffBranchCommits(shas) {
+    const found = new Map();
+    if (shas.length === 0) return found;
+    const home = process.cwd();
+    try {
+        process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), "sva-")));
+        run("git", ["init", "--quiet"]);
+        const fetchAll = (list) =>
+            ["--depth 2 --filter=blob:none", "--depth 2"].some((opts) => {
+                try {
+                    gitG("git fetch --quiet " + opts + " origin " + list.join(" "), CLONE_TIMEOUT_MS);
+                    return true;
+                } catch (e) {
+                    console.log("Amended-commit lookup (" + opts + ") failed: " + errMsg(e));
+                    return false;
+                }
+            });
+        // One unknown id fails the whole fetch, so then each id is fetched on its own.
+        if (!fetchAll(shas) && shas.length > 1) shas.slice(0, 10).forEach((s) => fetchAll([s]));
+        shas.forEach((s) => {
+            const meta = (tryRun("git", ["log", "-1", "--format=%ae|%at", s]) || "").trim().toLowerCase();
+            if (meta) found.set(s, { key: meta, files: resultingFiles(s) });
+        });
+    } catch (e) {
+        console.log("Amended-commit lookup failed: " + errMsg(e));
+    } finally {
+        process.chdir(home);
+    }
+    return found;
+}
+
 function checkUnregistered(ctx) {
     const id = "unregistered-commits";
     const cfg = ctx.cfg;
-    const raw = run("git", ["log", "--format=%H%x00%an%x00%ae%x00%ce%x00%s", "origin/" + ctx.base + "..HEAD"]);
+    const raw = run("git", ["log", "--format=%H%x00%an%x00%ae%x00%ce%x00%at%x00%cn%x00%s", "origin/" + ctx.base + "..HEAD"]);
     const extra = raw
         .split("\n")
         .map((l) => l.split("\0"))
         .filter((p) => p[0].trim().length >= 40)
-        .map((p) => ({ sha: p[0].trim(), name: str(p[1]), email: str(p[2]).toLowerCase(), committer: str(p[3]).toLowerCase(), subject: str(p[4]) }));
+        .map((p) => ({
+            sha: p[0].trim(),
+            name: str(p[1]),
+            email: str(p[2]).toLowerCase(),
+            committer: str(p[3]).toLowerCase(),
+            authorTime: str(p[4]).trim(),
+            committerName: str(p[5]),
+            subject: str(p[6])
+        }));
     if (extra.length === 0) {
         if (cfg.noWork) return mk(id, "warn", "No commits on the story, but the feature branch exists in Git", []);
         return mk(id, "fail", "No commits beyond " + ctx.base + " " + DASH + " nothing to promote", []);
@@ -877,6 +941,14 @@ function checkUnregistered(ctx) {
     // be registered. null (diff failed) = every touched component counts.
     const netOut = analysed.length ? tryRun("git", ["diff", "--name-only", "--no-renames", "-z", "origin/" + ctx.base + "...HEAD"]) : null;
     const netChanged = netOut === null ? null : new Set(componentsOf(netOut.split("\0").filter(Boolean)).map((x) => x.api.toLowerCase()));
+    // An amend or a rebase changes the commit id but keeps the author email and author time, so a commit outside Copado with the same
+    // author and time as a registered commit that is no longer on the branch is that commit rewritten. Each registered commit pairs once.
+    const needLookup = analysed.some((c) => !AUTO_PREFIXES.some((p) => c.subject.startsWith(p)));
+    const offBranch = needLookup ? readOffBranchCommits(registeredOffBranch(cfg, extra)) : new Map();
+    const byAuthorKey = new Map();
+    offBranch.forEach((v, sha) => {
+        if (!byAuthorKey.has(v.key)) byAuthorKey.set(v.key, { sha: sha, files: v.files });
+    });
     const details = analysed.map((c) => {
         const out = tryRun("git", ["diff-tree", "--no-commit-id", "-r", "--name-only", "--no-renames", "-z", c.sha]);
         const comps = componentsOf(out === null ? [] : out.split("\0").filter(Boolean));
@@ -884,23 +956,44 @@ function checkUnregistered(ctx) {
         const noNet = netChanged ? notReg.filter((x) => !netChanged.has(x.api.toLowerCase())) : [];
         const sl = c.sha.toLowerCase();
         const nc = cfg.nonComplete.find((n) => n.sha.length >= 7 && (sl.startsWith(n.sha) || n.sha.startsWith(sl)));
+        const auto = AUTO_PREFIXES.some((p) => c.subject.startsWith(p));
+        const authorKey = c.email + "|" + c.authorTime;
+        const original = !auto && c.email && c.authorTime ? byAuthorKey.get(authorKey) : undefined;
+        if (original) byAuthorKey.delete(authorKey);
+        const uncovered = notReg.filter((x) => noNet.indexOf(x) < 0).map((x) => x.api);
+        let amended = null;
+        if (original) {
+            const mine = resultingFiles(c.sha);
+            amended = {
+                from: original.sha.slice(0, 10),
+                same: original.files !== null && mine !== null ? original.files === mine : null,
+                by: c.committerName || c.committer,
+                exempt: uncovered.length === 0
+            };
+        }
         return {
             sha10: c.sha.slice(0, 10),
             fullSha: c.sha,
             author: c.name || c.email || "unknown",
             email: c.email,
             subject: c.subject,
-            auto: AUTO_PREFIXES.some((p) => c.subject.startsWith(p)),
+            auto: auto,
+            amended: amended,
             status: nc ? nc.status : null,
-            uncovered: notReg.filter((x) => noNet.indexOf(x) < 0).map((x) => x.api),
+            uncovered: uncovered,
             noNet: noNet.map((x) => x.api)
         };
     });
+    const amendNote = (a) =>
+        "amended from " + a.from + " (registered in Copado)" +
+        (a.same === null ? "" : a.same ? ", same change" : ", change edited") +
+        ", rewritten by " + a.by + (a.exempt ? ", exempt" : "");
     const lines = details.slice(0, 50).map((d) => {
         let line = d.sha10 + " " + d.author + " \"" + d.subject + "\"";
         if (d.uncovered.length > 0) line += " " + DASH + " uncovered: " + capList(d.uncovered, 30);
         if (d.noNet.length > 0) line += " " + DASH + " no net change: " + capList(d.noNet, 30);
         if (d.auto) line += " (Copado auto-commit, exempt)";
+        if (d.amended) line += " (" + amendNote(d.amended) + ")";
         if (d.status) line += " [Copado status: " + d.status + "]";
         return line;
     });
@@ -911,7 +1004,8 @@ function checkUnregistered(ctx) {
         full: d.fullSha,
         author: d.author,
         subject: d.subject,
-        note: d.auto ? "Copado auto-commit, exempt" : d.status ? "Copado status: " + d.status : ""
+        note: d.auto ? "Copado auto-commit, exempt" : d.amended ? amendNote(d.amended) : d.status ? "Copado status: " + d.status : "",
+        amended: !!d.amended
     }));
     if (details.length > 50) {
         lines.push("+" + (details.length - 50) + " more");
@@ -923,12 +1017,15 @@ function checkUnregistered(ctx) {
         rows.push({ t: "text", text: cutOff });
         return mk(id, "fail", unreg.length + " commits outside Copado " + DASH + " too many to analyse", lines, rows);
     }
-    const effective = details.filter((d) => !d.auto);
+    const effective = details.filter((d) => !d.auto && !(d.amended && d.amended.exempt));
     const hard = details.filter((d) => d.status && d.status.toLowerCase() !== "failed");
     const uncoveredCommits = effective.filter((d) => d.uncovered.length > 0);
     const authors = uniq(effective.filter((d) => d.email && !regEmails.has(d.email)).map((d) => d.author));
     if (effective.length === 0) {
-        const note = unreg.length === 0 ? "all registered" : unreg.length + " Copado auto-commit(s) exempt, rest registered";
+        const nAuto = details.filter((d) => d.auto).length;
+        const nAmended = details.length - nAuto;
+        const exempt = [nAuto ? nAuto + " Copado auto-commit(s)" : "", nAmended ? nAmended + " amended commit(s)" : ""].filter(Boolean).join(" and ");
+        const note = unreg.length === 0 ? "all registered" : exempt + " exempt, rest registered";
         return mk(id, "pass", extra.length + " commit(s), " + note, lines, rows);
     }
     if (hard.length > 0) {

@@ -119,7 +119,7 @@
                                             <span class="c-author" data-id="c-author">{checkLine.author}</span>
                                             <span class="c-subject" data-id="c-subject">{checkLine.subject}</span>
                                             <template lwc:if={checkLine.hasNote}>
-                                                <span class="c-note" data-id="c-note">{checkLine.note}</span>
+                                                <span class={checkLine.noteClass} data-id="c-note">{checkLine.note}</span>
                                             </template>
                                         </template>
                                         <template lwc:elseif={checkLine.isDanger}>

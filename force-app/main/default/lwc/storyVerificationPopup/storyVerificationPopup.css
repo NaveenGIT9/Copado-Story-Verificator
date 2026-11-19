@@ -85,6 +85,12 @@
     margin-left: 0.35rem;
 }
 
+.c-note-amended {
+    color: #0d9488;
+    font-style: normal;
+    font-weight: 600;
+}
+
 /* The "their changes won't deploy" warning. */
 .check-lines li.danger-line {
     color: #ba0517;

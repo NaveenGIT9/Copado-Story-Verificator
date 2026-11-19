@@ -937,6 +937,30 @@ describe('c-story-verification-popup', () => {
         expect(li.textContent).not.toContain('plain version');
     });
 
+    it('marks an amended commit note apart from the other notes', async () => {
+        const amendedNote = 'amended from 1d29916523 (registered in Copado), same change, rewritten by Charan, exempt';
+        const checks = [
+            {
+                id: 'unregistered-commits',
+                title: 'Unregistered Commits',
+                status: 'fail',
+                summary: '3 commit(s) outside Copado, 1 of them change unregistered components',
+                lines: ['plain version'],
+                rowsJson: JSON.stringify([
+                    { t: 'commit', sha: '9a31179c67', author: 'Dev', subject: 'Bar', note: amendedNote, amended: true },
+                    { t: 'commit', sha: '41603ec289', author: 'Copado', subject: 'Updated sourceApiVersion from 66.0', note: 'Copado auto-commit, exempt' }
+                ])
+            }
+        ];
+        const element = await mountFinished(checks);
+
+        const notes = stepRow(element, 'Unregistered Commits').querySelectorAll('[data-id="c-note"]');
+        expect(notes.length).toBe(2);
+        expect(notes[0].textContent).toBe('(' + amendedNote + ')');
+        expect(notes[0].classList.contains('c-note-amended')).toBe(true);
+        expect(notes[1].classList.contains('c-note-amended')).toBe(false);
+    });
+
     describe('commit links', () => {
         const FULL = 'be25d73457aa0f11223344556677889900aabbcc';
         const commitChecks = [
