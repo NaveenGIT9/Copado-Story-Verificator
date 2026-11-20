@@ -91,7 +91,7 @@
     font-weight: 600;
 }
 
-/* The "their changes won't deploy" warning. */
+/* The "Copado only deploys registered metadata" warning. */
 .check-lines li.danger-line {
     color: #ba0517;
     font-weight: 600;
@@ -163,20 +163,239 @@
     color: #ba0517;
 }
 
-/* The selection boxes of the "Not registered" list. */
-.select-box {
-    accent-color: #0b5cab;
-    margin-right: 0.5rem;
-    vertical-align: middle;
+/* The "Not registered" picker: a Select all switch, a card per metadata type with a box, and a switch per component.
+   Teal for type names and controls, ink for names, grey for counts; a switched-on row turns sage green. */
+.pick-head {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    white-space: normal;
 }
 
-.select-all {
+.pick-head .group-toggle {
+    color: var(--sv-teal);
+}
+
+.pick-chevron {
+    --slds-c-icon-color-foreground-default: var(--sv-teal);
+}
+
+.pick-label {
+    color: var(--sv-teal);
+    font-weight: 700;
+}
+
+.pick-sum,
+.pick-count,
+.pick-type-count {
+    color: #5a6d74;
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.pick-sum {
+    margin-left: auto;
+}
+
+.pick-sum b,
+.pick-count b {
+    color: #14262c;
+}
+
+.select-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    white-space: normal;
+}
+
+.pick-all,
+.pick-type-head,
+.pick-row {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.pick-all-label {
+    color: #14262c;
     font-weight: 600;
-    margin: 0.25rem 0 0.25rem 0;
 }
 
-.group-items li.type-heading .select-box + span {
-    vertical-align: middle;
+.pick-type {
+    background: #fff;
+    border: 1px solid #e1eaec;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.pick-type-head {
+    background: #f7fafb;
+    border-bottom: 1px solid #eef3f4;
+    padding: 0.45rem 0.75rem;
+}
+
+.pick-type-name {
+    color: var(--sv-teal);
+    font-weight: 700;
+}
+
+.pick-type-count {
+    margin-left: auto;
+}
+
+.pick-rows li + li .pick-row {
+    border-top: 1px solid #f1f5f6;
+}
+
+/* Name | fixed action column, so every Add / Delete starts on one line | switch. */
+.pick-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3.6rem auto;
+    column-gap: 0.75rem;
+    padding: 0.45rem 0.75rem;
+    transition: background 0.2s;
+}
+
+.pick-row.is-picked {
+    background: #e3eedf;
+}
+
+.pick-type.is-disabled,
+.pick-row.is-disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.pick-name {
+    color: #14262c;
+    font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pick-action {
+    background: #e2eff1;
+    border-radius: 999px;
+    color: var(--sv-teal);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    justify-self: start;
+    line-height: 1.125rem;
+    padding: 0 0.5625rem;
+}
+
+.pick-row.is-picked .pick-action {
+    background: #fff;
+}
+
+/* The controls are real checkboxes restyled, so keyboard, labels and the partly-ticked state keep working. */
+.select-box {
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    display: inline-grid;
+    flex: none;
+    margin: 0;
+    place-items: center;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.select-box:focus-visible {
+    outline: 2px solid var(--sv-teal);
+    outline-offset: 2px;
+}
+
+.select-box:disabled {
+    cursor: default;
+}
+
+.pick-switch {
+    background: #c4d3d6;
+    border: 0;
+    border-radius: 999px;
+    height: 1.0625rem;
+    width: 1.875rem;
+}
+
+.pick-switch::after {
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    content: '';
+    height: 0.8125rem;
+    left: 2px;
+    position: absolute;
+    top: 2px;
+    transition: transform 0.2s;
+    width: 0.8125rem;
+}
+
+.pick-switch:checked {
+    background: var(--sv-teal-grad);
+}
+
+.pick-switch:checked::after {
+    transform: translateX(0.8125rem);
+}
+
+.pick-switch_lg {
+    height: 1.25rem;
+    width: 2.25rem;
+}
+
+.pick-switch_lg::after {
+    height: 1rem;
+    width: 1rem;
+}
+
+.pick-switch_lg:checked::after {
+    transform: translateX(1rem);
+}
+
+.pick-switch_lg:indeterminate {
+    background: linear-gradient(90deg, #7fa3ab, #93b9c1);
+}
+
+.pick-switch_lg:indeterminate::after {
+    transform: translateX(0.5rem);
+}
+
+.pick-check {
+    background: #fff;
+    border: 1.6px solid #9fb6bb;
+    border-radius: 4px;
+    height: 1rem;
+    width: 1rem;
+}
+
+.pick-check:checked,
+.pick-check:indeterminate {
+    background: var(--sv-teal-grad);
+    border-color: #2e5f6a;
+}
+
+.pick-check:checked::after {
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    content: '';
+    height: 0.5rem;
+    transform: translateY(-1px) rotate(45deg);
+    width: 0.25rem;
+}
+
+.pick-check:indeterminate::after {
+    background: #fff;
+    border-radius: 1px;
+    content: '';
+    height: 2px;
+    width: 0.5rem;
 }
 
 /* The preview screen: what Insert would create, grouped by metadata type. */
@@ -248,71 +467,85 @@
     white-space: pre-line;
 }
 
-/* ---- Timeline: the checks as nodes on a vertical line. ---- */
+/* ---- Chat thread: the checks as message bubbles on a soft teal pane, the result icon at the start of each bubble. ---- */
+:host {
+    --sv-teal: #2e5f6a;
+    --sv-teal-grad: linear-gradient(90deg, #2e5f6a, #3d7f8c);
+    --sv-ok: #1a9e6b;
+    --sv-bad: #d8414b;
+    --sv-warn: #dd7a01;
+    --sv-wait: #98a2b3;
+    --slds-c-button-brand-color-background: #2e5f6a;
+    --slds-c-button-brand-color-border: #2e5f6a;
+    --slds-c-button-brand-color-background-hover: #244b54;
+    --slds-c-button-brand-color-border-hover: #244b54;
+    --slds-c-button-brand-color-background-active: #1d3e45;
+}
+
 .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
     list-style: none;
-    margin-left: 0.25rem;
+    margin: 0;
     padding: 0;
 }
 
 .tl-item {
-    padding: 0.1rem 0 1.1rem 2.2rem;
+    align-self: flex-start;
+    animation: sv-rise 0.35s ease-out both;
+    background: #fff;
+    border-radius: 0.25rem 1rem 1rem 1rem;
+    box-shadow: 0 1px 3px rgba(20, 38, 44, 0.08);
+    max-width: 100%;
+    padding: 0.45rem 0.75rem 0.45rem 2.4rem;
     position: relative;
 }
 
-/* The line that joins a node to the next one. */
-.tl-item::before {
-    background: #e3e7ee;
-    bottom: -0.1rem;
-    content: '';
-    left: 0.6rem;
-    position: absolute;
-    top: 1.4rem;
-    width: 2px;
+.tl-item:nth-child(2) { animation-delay: 0.06s; }
+.tl-item:nth-child(3) { animation-delay: 0.12s; }
+.tl-item:nth-child(4) { animation-delay: 0.18s; }
+.tl-item:nth-child(5) { animation-delay: 0.24s; }
+.tl-item:nth-child(6) { animation-delay: 0.3s; }
+.tl-item:nth-child(n + 7) { animation-delay: 0.36s; }
+
+/* A bubble with details takes the full width so the details have room. */
+.tl-item:has(.check-lines) {
+    align-self: stretch;
 }
 
-.tl-item:last-child::before {
-    display: none;
-}
-
-/* The node: a solid coloured disc. A running spinner has no disc, like the spinner at the top. */
-.tl-item .step-icon,
-.tl-item .spinner-holder {
+/* The result icon: a solid disc with a white mark, drawn here so it always shows on the colour. */
+.tl-item .step-icon {
     align-items: center;
-    box-shadow: 0 0 0 4px #fff;
+    background: var(--sv-wait);
+    border-radius: 50%;
+    display: inline-flex;
     height: 1.25rem;
     justify-content: center;
-    left: 0;
+    left: 0.65rem;
     margin: 0;
     position: absolute;
-    top: 0.1rem;
+    top: 0.5rem;
     width: 1.25rem;
 }
 
-.tl-item .spinner-holder {
-    background: #fff;
-}
-
-.tl-item .step-icon {
-    background: #98a2b3;
-    border-radius: 50%;
-}
-
-/* The mark inside the disc is drawn here, in white, so it always shows on the colour. The icon element stays for screen readers' sake in the DOM. */
 .tl-item .step-icon lightning-icon {
     display: none;
 }
 
 .tl-ok .step-icon {
-    background: #1f8a4c;
+    background: var(--sv-ok);
+    animation: sv-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 
 .tl-bad .step-icon {
-    background: #c23934;
+    background: var(--sv-bad);
+    animation: sv-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 
 .tl-warn .step-icon {
-    background: #d98200;
+    background: var(--sv-warn);
+    animation: sv-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 
 /* passed: a check mark */
@@ -366,17 +599,58 @@
     width: 0.5rem;
 }
 
-/* What opens under a check: a quiet panel, so the details belong to the node above them. */
-.tl-item .check-lines {
-    background: #fcfcfd;
-    border: 1px solid #e3e7ee;
-    border-radius: 0.5rem;
-    margin: 0.5rem 0 0;
-    padding: 0.5rem 0.9rem;
+/* A running check: no disc, three teal dots orbiting where the result icon will land. */
+.tl-run .step-icon {
+    background: transparent;
 }
 
-.tl-bad .check-lines {
-    border-color: #f4d3d1;
+.tl-run .step-text {
+    color: #5a6d74;
+}
+
+.orbit {
+    animation: sv-spin 1.1s linear infinite;
+    display: block;
+    height: 1.25rem;
+    position: relative;
+    width: 1.25rem;
+}
+
+.orbit i {
+    background: var(--sv-teal);
+    border-radius: 50%;
+    height: 0.3rem;
+    left: 50%;
+    margin-left: -0.15rem;
+    position: absolute;
+    top: 0;
+    transform-origin: 0.15rem 0.625rem;
+    width: 0.3rem;
+}
+
+.orbit i:nth-child(2) {
+    opacity: 0.6;
+    transform: rotate(-40deg);
+}
+
+.orbit i:nth-child(3) {
+    opacity: 0.3;
+    transform: rotate(-80deg);
+}
+
+/* The orbit beside the status line while the run is going. */
+.state-orbit {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+/* What opens under a check: a quiet grey panel inside the bubble. */
+.tl-item .check-lines {
+    background: #f4f7f8;
+    border: 1px solid #e6edef;
+    border-radius: 0.75rem;
+    margin: 0.5rem 0 0.15rem -1.65rem;
+    padding: 0.55rem 0.85rem;
 }
 
 .tl-item .check-lines li.commit-line {
@@ -391,22 +665,101 @@
     margin-top: 0.75rem;
 }
 
-/* The story number and its base branch, under the title. */
-/* Top right of the panel, with the first lines of the popup beside it. */
+.danger-icon {
+    --slds-c-icon-color-foreground-default: #f2b705;
+}
+
+.danger-action {
+    margin-left: 2rem;
+}
+
+/* Show / Hide details: a teal link instead of a grey button. */
+.tl-item [data-id='toggle'] {
+    color: var(--sv-teal);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+@keyframes sv-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes sv-pop {
+    from {
+        transform: scale(0) rotate(-30deg);
+    }
+    to {
+        transform: none;
+    }
+}
+
+@keyframes sv-rise {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* The orbit is left out on purpose: Windows with animations off (common on VDI) reports reduced motion, and a frozen loader looks stuck. */
+@media (prefers-reduced-motion: reduce) {
+    .tl-item,
+    .tl-item .step-icon,
+    .state-mark {
+        animation: none;
+    }
+}
+
+/* ---- The panel: our own teal header (the platform header is left empty), a soft teal body, and a white footer. ----
+   The negative margins cancel the padding the quick action panel puts around its content and footer, so the colours reach the edges. */
+.sv {
+    background: #eef4f5;
+    margin: -1rem;
+}
+
+.sv-head {
+    align-items: center;
+    background: var(--sv-teal-grad);
+    border-radius: 0.25rem 0.25rem 0 0;
+    color: #fff;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    justify-content: space-between;
+    padding: 0.9rem 1.25rem;
+}
+
+.sv-heading {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
 .story-info {
-    float: right;
-    margin: 0 0 0.5rem 1rem;
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
     text-align: right;
 }
 
 .story-name {
-    color: #181818;
+    color: #fff;
     font-size: 0.875rem;
     font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .story-base {
-    color: #444;
+    color: #d6ecef;
     font-size: 0.75rem;
 }
 
@@ -414,15 +767,209 @@
     font-weight: 600;
 }
 
+.sv-head .step-colon {
+    color: #d6ecef;
+}
+
 .story-base-value {
-    color: #0b5cab;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    color: #fff;
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
     margin-left: 0.2rem;
+    padding: 0 0.5rem;
+}
+
+.sv-body {
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.sv-body > .slds-notify {
+    border-radius: 0.75rem;
+}
+
+/* The status pill above the checks. Its icon slot has the same size and left offset as the check icons (.65rem in, 1.25rem wide)
+   and its text starts where theirs does (2.4rem in), so the orbit, the icons and the text form one column. */
+.sv-status {
+    align-items: center;
+    background: #d9e9ec;
+    border-radius: 0.875rem;
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.875rem;
+    padding: 0.55rem 0.875rem 0.55rem 0.65rem;
+}
+
+.state-slot {
+    display: inline-flex;
+    flex-shrink: 0;
+    height: 1.25rem;
+    position: relative;
+    width: 1.25rem;
+}
+
+.sv-status [data-id='state'] {
+    color: #1d3e45;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.sv-status .state-key,
+.sv-status .step-colon {
+    color: #1d3e45;
+    font-weight: 700;
+}
+
+/* The verdict mark that replaces the orbit when the run finishes: the same disc as the check icons. */
+.state-mark {
+    animation: sv-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+    border-radius: 50%;
+    height: 1.25rem;
+    position: relative;
+    width: 1.25rem;
+}
+
+.mark-ok {
+    background: var(--sv-ok);
+}
+
+.mark-bad {
+    background: var(--sv-bad);
+}
+
+.mark-ok::after {
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    content: '';
+    height: 0.55rem;
+    left: 50%;
+    position: absolute;
+    top: 46%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    width: 0.3rem;
+}
+
+.mark-bad::before,
+.mark-bad::after {
+    background: #fff;
+    border-radius: 1px;
+    content: '';
+    height: 2px;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    width: 0.6rem;
+}
+
+.mark-bad::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.mark-bad::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.sv-status .slds-text-color_error {
+    color: var(--sv-bad);
+}
+
+.sv-status .slds-text-color_success {
+    color: var(--sv-ok);
+}
+
+/* The intro (before Verify), the preview and the done screens sit in one white bubble like the checks. */
+.sv-intro,
+[data-id='preview'],
+[data-id='done'],
+.failure-text {
+    background: #fff;
+    border-radius: 0.25rem 1rem 1rem 1rem;
+    box-shadow: 0 1px 3px rgba(20, 38, 44, 0.08);
+    padding: 0.85rem 1rem;
+}
+
+.failure-text {
+    color: var(--sv-bad);
+    font-weight: 600;
+    margin-top: 0.6rem;
+}
+
+.intro-text {
+    color: #14262c;
+    margin-bottom: 0.5rem;
+}
+
+.intro-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    list-style: none;
+    margin: 0;
+}
+
+.intro-list li {
+    color: #3c4f56;
+    padding-left: 1.1rem;
+    position: relative;
+}
+
+.intro-list li::before {
+    background: var(--sv-teal);
+    border-radius: 50%;
+    content: '';
+    height: 0.4rem;
+    left: 0.2rem;
+    position: absolute;
+    top: 0.45rem;
+    width: 0.4rem;
+}
+
+/* Footer: time taken on the left, buttons on the right. */
+.sv-btn {
+    background: var(--sv-teal-grad);
+    border: 1px solid #2e5f6a;
+    color: #fff;
+    padding: 0 1rem;
+}
+
+.sv-btn:hover,
+.sv-btn:focus {
+    background: linear-gradient(90deg, #244b54, #2e6873);
+    color: #fff;
+}
+
+.sv-btn:active {
+    background: #1d3e45;
+}
+
+.sv-btn:disabled {
+    background: #c9c7c5;
+    border-color: #c9c7c5;
+    color: #fff;
+}
+
+.sv-foot {
+    align-items: center;
+    background: #fff;
+    border-radius: 0 0 0.25rem 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin: -0.75rem -1rem;
+    padding: 0.75rem 1.25rem;
+}
+
+.sv-time {
+    color: #5a6d74;
+    font-size: 0.75rem;
+    margin-right: auto;
 }
 
 /* Parent story finding: the sentence in parts. The plain words are black like the other rows, the parent is a teal link, the
-   environments are teal names in capitals (display only), and only the action is red, in the size and weight of "Their changes
-   won't deploy to target". */
+   environments are teal names in capitals (display only), and only the action is red, in the size and weight of the
+   "Copado only deploys registered metadata" warning. */
 .part-bad,
 .part-ok,
 .part-warn {

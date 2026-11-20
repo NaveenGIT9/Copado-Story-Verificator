@@ -822,6 +822,9 @@ export default class StoryVerificationPopup extends LightningElement {
             if (this.isFinished) {
                 return { ...row, ...CHECK_VISUALS.skipped, text: title + ': no result was reported' };
             }
+            if (this.isActive) {
+                return { ...row, isSpinner: true, altText: 'Running', text: title + ': checking…' };
+            }
             return { ...row, iconName: 'utility:clock', iconVariant: undefined, altText: 'Pending', text: title + ': pending' };
         }
         const issueCount = findings.filter((f) => f.severity === 'issue').length;
@@ -885,7 +888,7 @@ export default class StoryVerificationPopup extends LightningElement {
             }));
         }
         const items = rows.map((row, index) => this.detailItem('check-' + id + '-' + index, row || {}));
-        // The Create Selected Metadata button sits on the "won't deploy" line, once something is ticked.
+        // The Create Selected Metadata button sits on the "only deploys registered metadata" line, once something is ticked.
         if (items.some((item) => item.isSelect) && this.selectedKeys.length > 0) {
             const warning = items.find((item) => item.isDanger);
             if (warning) {
@@ -905,12 +908,12 @@ export default class StoryVerificationPopup extends LightningElement {
         return base + (base.endsWith('/') ? '' : '/') + fullSha;
     }
 
-    // The "Not registered" list: a toggle with a "Select all" box, a box per metadata type and a box per component, each
-    // component with the action it needs (ADD / DELETE). Without the permission the boxes are not shown, only the actions.
+    // The "Not registered" list: a toggle with a "Select all" switch, a card per metadata type with its own box, and a
+    // switch per component beside the action it needs (Add / Delete). Without the permission only the actions show.
     selectItem(key, row) {
         const open = !!this.openGroups[key];
         const canSelect = this.canSelectMetadata;
-        const entries = [];
+        const cards = [];
         let selectable = 0;
         let ticked = 0;
         const allGroups = Array.isArray(row.groups) ? row.groups : [];
@@ -922,43 +925,41 @@ export default class StoryVerificationPopup extends LightningElement {
             const supported = this.isSupportedKind(group.kind);
             const keys = items.map((item) => group.kind + '|' + item.name);
             const groupTicked = supported ? keys.filter((k) => this.selected[k]).length : 0;
-            entries.push({
-                key: key + '-g' + gi,
-                isHeading: true,
-                text: String(group.type || 'Other'),
-                cssClass: 'type-heading',
-                showBox: canSelect,
-                scope: 'group',
-                kind: group.kind,
-                checked: supported && keys.length > 0 && groupTicked === keys.length,
-                indeterminate: String(groupTicked > 0 && groupTicked < keys.length),
-                disabled: !supported,
-                title: supported ? '' : 'This type cannot be registered from here yet',
-                ariaLabel: 'Select all ' + String(group.type || '')
-            });
-            items.forEach((item, i) => {
+            const title = supported ? '' : 'This type cannot be registered from here yet';
+            const entries = items.map((item, i) => {
                 const itemKey = group.kind + '|' + item.name;
                 const isTicked = supported && !!this.selected[itemKey];
                 if (supported) {
                     selectable += 1;
                     ticked += isTicked ? 1 : 0;
                 }
-                entries.push({
+                return {
                     key: key + '-g' + gi + '-i' + i,
-                    isHeading: false,
                     text: String(item.name),
-                    cssClass: 'component-name',
+                    rowClass: 'pick-row' + (isTicked ? ' is-picked' : '') + (supported ? '' : ' is-disabled'),
                     showBox: canSelect,
                     scope: 'item',
                     itemKey,
                     checked: isTicked,
-                    indeterminate: 'false',
                     disabled: !supported,
-                    title: supported ? '' : 'This type cannot be registered from here yet',
+                    title,
                     ariaLabel: 'Select ' + String(item.name),
-                    action: item.action === 'Delete' ? 'DELETE' : 'ADD',
-                    actionClass: item.action === 'Delete' ? 'action-badge action-delete' : 'action-badge action-add'
-                });
+                    action: item.action === 'Delete' ? 'Delete' : 'Add'
+                };
+            });
+            cards.push({
+                key: key + '-g' + gi,
+                text: String(group.type || 'Other'),
+                cardClass: 'pick-type' + (supported ? '' : ' is-disabled'),
+                showBox: canSelect,
+                kind: group.kind,
+                checked: supported && keys.length > 0 && groupTicked === keys.length,
+                indeterminate: String(groupTicked > 0 && groupTicked < keys.length),
+                disabled: !supported,
+                title,
+                ariaLabel: 'Select all ' + String(group.type || ''),
+                countText: canSelect ? groupTicked + '/' + keys.length : String(keys.length),
+                entries
             });
         });
         return {
@@ -966,7 +967,7 @@ export default class StoryVerificationPopup extends LightningElement {
             isSelect: true,
             groupKey: key,
             label: (row.label || 'Components') + ': ' + (row.count === undefined ? selectable : row.count - hidden),
-            labelClass: 'tone-warn',
+            labelClass: 'pick-label',
             open,
             ariaExpanded: String(open),
             chevron: open ? 'utility:chevrondown' : 'utility:chevronright',
@@ -974,7 +975,9 @@ export default class StoryVerificationPopup extends LightningElement {
             showAll: canSelect && selectable > 0,
             allChecked: selectable > 0 && ticked === selectable,
             allIndeterminate: String(ticked > 0 && ticked < selectable),
-            entries
+            ticked,
+            selectable,
+            cards
         };
     }
 
@@ -1074,10 +1077,15 @@ export default class StoryVerificationPopup extends LightningElement {
         if (this.isFinished) {
             return { ...row, ...CHECK_VISUALS.skipped, text: title + ': no result was reported' };
         }
-        if (this.snapshot && this.jobStatus === 'In Progress' && this.isActive) {
-            return { ...row, isSpinner: true, altText: 'Running', text: title + ': running' };
+        // Every check starts the moment Verify is clicked; each row resolves on its own as its result comes in.
+        if (this.isActive) {
+            return { ...row, isSpinner: true, altText: 'Running', text: title + ': checking…' };
         }
         return { ...row, iconName: 'utility:clock', iconVariant: undefined, altText: 'Pending', text: title + ': pending' };
+    }
+
+    get showTimeTaken() {
+        return this.showRun && this.isFinished;
     }
 
     // "Time taken: 17 s" or "Time taken: 2 min 23 s"; empty until the run has finished.
@@ -1128,8 +1136,9 @@ export default class StoryVerificationPopup extends LightningElement {
         if (doneJob) {
             return { ...step, iconName: 'utility:check', iconVariant: 'success', altText: 'Done', text: step.text + ': done' };
         }
-        if (this.snapshot && this.jobStatus === 'In Progress' && this.isActive) {
-            return { ...step, isSpinner: true, altText: 'Running', text: step.text + ': running' };
+        if (this.isActive) {
+            const phase = this.snapshot && this.jobStatus === 'In Progress' ? 'running' : 'queued';
+            return { ...step, isSpinner: true, altText: 'Running', text: step.text + ': ' + phase };
         }
         return { ...step, iconName: 'utility:clock', altText: 'Pending', text: step.text + ': pending' };
     }
@@ -1154,6 +1163,10 @@ export default class StoryVerificationPopup extends LightningElement {
 
     get stateValue() {
         return this.showsVerdict ? String(this.snapshot.status) : this.stateText;
+    }
+
+    get stateMarkClass() {
+        return 'state-mark ' + (this.status === 'Clean' ? 'mark-ok' : 'mark-bad');
     }
 
     get stateValueClass() {

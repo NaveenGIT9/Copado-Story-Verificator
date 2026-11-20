@@ -146,7 +146,7 @@ There is no CLI command to remove an assignment. Delete the `PermissionSetAssign
 
 The "Not registered" list under Metadata Coverage shows the components that changed in git but are not in the story's metadata, so they would not deploy. Each one shows the action it needs in Copado: **ADD**, or **DELETE** when the component is gone from the final version of the feature branch (every one of its files was removed, and nothing of it is left).
 
-For users with the **Metadata Creator** permission set the list has tick boxes: **Select all**, one box per metadata type and one per component. Once something is ticked, a **Create Selected Metadata** button appears under the "won't deploy" line.
+For users with the **Metadata Creator** permission set the list has tick boxes: **Select all**, one box per metadata type and one per component. Once something is ticked, a **Create Selected Metadata** button appears next to the "Copado only deploys registered metadata" line.
 
 1. Clicking the button opens a **preview** inside the popup: the story, and the User Story Metadata records that would be created, grouped by metadata type, with their action and file path. Records that already exist are marked and skipped.
 2. **Insert** creates them. **Back** returns to the checks with the ticks kept.

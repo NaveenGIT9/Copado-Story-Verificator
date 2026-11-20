@@ -274,7 +274,7 @@ describe('c-story-verification-popup', () => {
 
             const list = byId(element, 'intro-list');
             expect(list.tagName).toBe('UL');
-            expect(list.classList.contains('slds-list_dotted')).toBe(true);
+            expect(list.classList.contains('intro-list')).toBe(true);
             const items = Array.from(element.shadowRoot.querySelectorAll('[data-id="intro-item"]')).map(
                 (li) => li.textContent
             );
@@ -286,8 +286,8 @@ describe('c-story-verification-popup', () => {
             await flush();
 
             expect(byId(element, 'verify')).not.toBeNull();
-            expect(byId(element, 'verify').variant).toBe('brand');
-            expect(byId(element, 'verify').label).toBe('Verify');
+            expect(byId(element, 'verify').classList.contains('sv-btn')).toBe(true);
+            expect(byId(element, 'verify').textContent).toBe('Verify');
             expect(byId(element, 'close')).not.toBeNull();
             expect(byId(element, 'retry')).toBeNull();
             expect(byId(element, 'state')).toBeNull();
@@ -405,14 +405,14 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'state').textContent).toContain('job queued in Copado');
         expect(byId(element, 'state-spinner')).not.toBeNull();
         const steps = stepTexts(element);
-        expect(stepTitles(element)[6]).toBe('Copado Job: pending');
-        expect(steps[0]).toContain('Unregistered Commits: pending');
-        expect(steps[1]).toContain('Metadata Coverage: pending');
-        expect(steps[2]).toContain('Pull Request Approval: pending');
-        expect(steps[3]).toContain('Pending Tests: pending');
-        expect(steps[4]).toContain('Parent Story Dependencies: pending');
-        expect(steps[5]).toContain('External Branch Merge: pending');
-        expect(steps[6]).toContain('Copado Job: pending');
+        expect(stepTitles(element)[6]).toBe('Copado Job: queued');
+        expect(steps[0]).toContain('Unregistered Commits: checking…');
+        expect(steps[1]).toContain('Metadata Coverage: checking…');
+        expect(steps[2]).toContain('Pull Request Approval: checking…');
+        expect(steps[3]).toContain('Pending Tests: checking…');
+        expect(steps[4]).toContain('Parent Story Dependencies: checking…');
+        expect(steps[5]).toContain('External Branch Merge: checking…');
+        expect(steps[6]).toContain('Copado Job: queued');
         expect(steps[7]).toContain('Registered Commits: 1');
         expect(steps[8]).toContain('No metadata selected');
         expect(byId(element, 'state').textContent).not.toContain('finished');
@@ -485,12 +485,12 @@ describe('c-story-verification-popup', () => {
     });
 
     describe('job row wording', () => {
-        it('reads "Copado Job: pending" when queued', async () => {
+        it('reads "Copado Job: queued" when queued', async () => {
             start.mockResolvedValue(snapshot());
             getProgress.mockResolvedValue(snapshot());
             const element = await mountAndVerify();
 
-            expect(stepTitles(element)[6]).toBe('Copado Job: pending');
+            expect(stepTitles(element)[6]).toBe('Copado Job: queued');
         });
 
         it('reads "Copado Job: running" while the job is in progress', async () => {
@@ -659,7 +659,7 @@ describe('c-story-verification-popup', () => {
             expect(byId(element, 'error')).toBeNull();
             expect(byId(element, 'running-elsewhere').textContent).toContain('An earlier verification of this story is still running');
             expect(byId(element, 'cancel-earlier').label).toBe('Cancel');
-            expect(byId(element, 'restart').label).toBe('Verify again');
+            expect(byId(element, 'restart').textContent).toBe('Verify again');
             expect(byId(element, 'retry')).toBeNull();
             expect(byId(element, 'cancel')).toBeNull();
             expect(byId(element, 'state-spinner')).toBeNull();
@@ -821,7 +821,7 @@ describe('c-story-verification-popup', () => {
         });
     });
 
-    it('shows the three git checks as pending rows while the job is queued', async () => {
+    it('shows every check running from the moment Verify is clicked, while the job is still queued', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot());
 
@@ -830,14 +830,15 @@ describe('c-story-verification-popup', () => {
         ['Unregistered Commits', 'Metadata Coverage', 'External Branch Merge'].forEach((title) => {
             const row = stepRow(element, title);
             expect(row).toBeDefined();
-            expect(row.textContent).toContain(title + ': pending');
-            expect(row.querySelector('lightning-icon').iconName).toBe('utility:clock');
+            expect(row.textContent).toContain(title + ': checking…');
+            expect(row.querySelector('[data-id="step-orbit"]')).not.toBeNull();
+            expect(row.querySelector('lightning-icon')).toBeNull();
             expect(row.querySelector('[data-id="toggle"]')).toBeNull();
         });
         expect(element.shadowRoot.textContent).not.toContain('phase B');
     });
 
-    it('shows a spinner on the git check rows while the job is in progress', async () => {
+    it('shows the orbit on the git check rows while the job is in progress', async () => {
         start.mockResolvedValue(snapshot());
         getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
 
@@ -845,8 +846,8 @@ describe('c-story-verification-popup', () => {
         await tick();
 
         const row = stepRow(element, 'Metadata Coverage');
-        expect(row.textContent).toContain('Metadata Coverage: running');
-        expect(row.querySelector('lightning-spinner')).not.toBeNull();
+        expect(row.textContent).toContain('Metadata Coverage: checking…');
+        expect(row.querySelector('[data-id="step-orbit"]')).not.toBeNull();
         expect(row.querySelector('lightning-icon')).toBeNull();
     });
 
@@ -1017,7 +1018,7 @@ describe('c-story-verification-popup', () => {
                 lines: [],
                 rowsJson: JSON.stringify([
                     { t: 'names', label: 'Not registered', items: ['Foo.cls'], more: 0 },
-                    { t: 'danger', text: "Their changes won't deploy to target - add them to the story in Copado." }
+                    { t: 'danger', text: "Copado only deploys registered metadata. Add these to the story." }
                 ])
             }
         ];
@@ -1028,8 +1029,8 @@ describe('c-story-verification-popup', () => {
         expect(items[0].classList.contains('component-names')).toBe(true);
         expect(items[1].classList.contains('danger-line')).toBe(true);
         expect(items[1].querySelector('lightning-icon').iconName).toBe('utility:warning');
-        expect(items[1].querySelector('lightning-icon').variant).toBe('error');
-        expect(items[1].querySelector('[data-id="danger-text"]').textContent).toContain("won't deploy");
+        expect(items[1].querySelector('lightning-icon').classList.contains('danger-icon')).toBe(true);
+        expect(items[1].querySelector('[data-id="danger-text"]').textContent).toContain('only deploys registered metadata');
     });
 
     it('collapses the unchanged registered components into a count and lists them one per line when opened', async () => {
@@ -1206,7 +1207,7 @@ describe('c-story-verification-popup', () => {
                 status: 'fail',
                 summary: '3 of 4 changed components not registered under story metadata',
                 lines: [],
-                rowsJson: JSON.stringify([SELECT_ROW, { t: 'danger', text: "Their changes won't deploy to target - add them to the story in Copado." }])
+                rowsJson: JSON.stringify([SELECT_ROW, { t: 'danger', text: "Copado only deploys registered metadata. Add these to the story." }])
             }
         ];
         const PREVIEW = {
@@ -1231,11 +1232,11 @@ describe('c-story-verification-popup', () => {
         const itemBox = (element, name) => boxes(element).find((box) => box.dataset.key === 'classes|' + name);
         const groupBox = (element, kind) => boxes(element).find((box) => box.dataset.scope === 'group' && box.dataset.kind === kind);
 
-        it('shows ADD and DELETE beside every component, and no boxes or button without the permission', async () => {
+        it('shows Add and Delete beside every component, and no boxes or button without the permission', async () => {
             const element = await mountSelect({ canCreateMetadata: false });
 
             const badges = Array.from(element.shadowRoot.querySelectorAll('[data-id="action-badge"]')).map((b) => b.textContent);
-            expect(badges).toEqual(['ADD', 'DELETE', 'ADD']);
+            expect(badges).toEqual(['Add', 'Delete', 'Add']);
             expect(boxes(element)).toHaveLength(0);
             expect(byId(element, 'select-all')).toBeNull();
             expect(byId(element, 'create-selected')).toBeNull();
@@ -1288,8 +1289,11 @@ describe('c-story-verification-popup', () => {
             itemBox(element, 'ChatterUtil').click();
             await tick();
             expect(byId(element, 'create-selected')).not.toBeNull();
-            expect(byId(element, 'create-selected').label).toBe('Create Selected Metadata');
+            expect(byId(element, 'create-selected').textContent).toBe('Create Selected Metadata');
             expect(itemBox(element, 'ChatterUtil').checked).toBe(true);
+            expect(itemBox(element, 'ChatterUtil').closest('label').classList.contains('is-picked')).toBe(true);
+            expect(itemBox(element, 'OldHelper').closest('label').classList.contains('is-picked')).toBe(false);
+            expect(byId(element, 'select-summary').textContent).toBe('1 of 2 selected');
             expect(groupBox(element, 'classes').indeterminate).toBe(true);
             expect(byId(element, 'select-all').indeterminate).toBe(true);
 
@@ -1338,7 +1342,7 @@ describe('c-story-verification-popup', () => {
             expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="preview-type"]')).map((p) => p.textContent)).toEqual(['Apex Class']);
             expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="preview-name"]')).map((p) => p.textContent)).toEqual(['ChatterUtil', 'OldHelper']);
             expect(Array.from(element.shadowRoot.querySelectorAll('[data-id="preview-action"]')).map((p) => p.textContent)).toEqual(['Add', 'Delete']);
-            expect(byId(element, 'insert').label).toBe('Insert (2)');
+            expect(byId(element, 'insert').textContent).toBe('Insert (2)');
             expect(byId(element, 'insert').disabled).toBe(false);
             expect(byId(element, 'retry')).toBeNull();
         });
@@ -1470,7 +1474,7 @@ describe('c-story-verification-popup', () => {
                 title: 'Metadata Coverage',
                 status: 'fail',
                 summary: '1 of 2 changed components not registered',
-                lines: ['Not registered: Account.Foo__c', "Their changes won't deploy to target - add them to the story in Copado."]
+                lines: ['Not registered: Account.Foo__c', "Copado only deploys registered metadata. Add these to the story."]
             }
         ];
         const element = await mountFinished(checks);
@@ -1594,12 +1598,12 @@ describe('c-story-verification-popup', () => {
         expect(byId(element, 'failure').className).toContain('failure-text');
     });
 
-    it('shows how long a finished run took, at the bottom right', async () => {
+    it('shows how long a finished run took, in the footer beside the buttons', async () => {
         const element = await mountFinished(CHECKS);
 
         const timeTaken = byId(element, 'time-taken');
         expect(timeTaken.textContent).toMatch(/^Time taken: \d+ s$/);
-        expect(timeTaken.className).toContain('slds-text-align_right');
+        expect(timeTaken.className).toContain('sv-time');
     });
 
     it('shows the time taken in minutes and seconds for a long run', async () => {
@@ -1723,8 +1727,8 @@ describe('c-story-verification-popup', () => {
                 expect(titles[index].startsWith(prefix)).toBe(true);
             });
             // Git checks still running, grouped Apex rows already known.
-            expect(titles[0]).toBe('Unregistered Commits: running');
-            expect(titles[5]).toBe('External Branch Merge: running');
+            expect(titles[0]).toBe('Unregistered Commits: checking…');
+            expect(titles[5]).toBe('External Branch Merge: checking…');
         });
 
         it('puts passed checks first and failed checks last once the run has finished', async () => {
@@ -1978,19 +1982,19 @@ describe('c-story-verification-popup', () => {
             );
         });
 
-        it('shows the grouped rows as pending when no findings have arrived yet', async () => {
+        it('shows the grouped rows as checking when no findings have arrived yet', async () => {
             start.mockResolvedValue(snapshot({ findings: [] }));
             getProgress.mockResolvedValue(snapshot({ findings: [] }));
 
             const element = await mountAndVerify();
 
             expect(stepTitles(element).slice(0, 6)).toEqual([
-                'Unregistered Commits: pending',
-                'Metadata Coverage: pending',
-                'Pull Request Approval: pending',
-                'Pending Tests: pending',
-                'Parent Story Dependencies: pending',
-                'External Branch Merge: pending'
+                'Unregistered Commits: checking…',
+                'Metadata Coverage: checking…',
+                'Pull Request Approval: checking…',
+                'Pending Tests: checking…',
+                'Parent Story Dependencies: checking…',
+                'External Branch Merge: checking…'
             ]);
         });
     });

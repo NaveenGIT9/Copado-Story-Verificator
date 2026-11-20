@@ -1061,7 +1061,7 @@ function checkMetadata(ctx) {
     const comps = expandMatchingRules(expandWorkflows(expandLabels(componentsFromChanges(parseNameStatus(raw)), ctx.base), ctx.base), ctx.base);
     const uncoveredComps = comps.filter((c) => !ctx.isCovered(c.api, c.kind));
     const uncovered = uncoveredComps.map((c) => c.api);
-    const WONT_DEPLOY = "Their changes won't deploy to target - add them to the story in Copado.";
+    const WONT_DEPLOY = "Copado only deploys registered metadata. Add these to the story.";
     const lines = [];
     const rows = [];
     if (uncovered.length > 0) {
