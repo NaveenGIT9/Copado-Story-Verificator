@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Components the bypass change adds. Deleted after the backup is redeployed. -->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>StoryBypass</members>
+        <members>StoryBypassController</members>
+        <members>StoryBypassTest</members>
+        <members>StoryPromotionGuard</members>
+        <members>StoryPromotionGuardTest</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>StoryBypassTrigger</members>
+        <members>StoryPromotionGuardTrigger</members>
+        <name>ApexTrigger</name>
+    </types>
+    <types>
+        <members>copado__User_Story__c.Bypass_Reason__c</members>
+        <members>copado__User_Story__c.Bypass_Verification__c</members>
+        <members>copado__User_Story__c.Bypassed_At__c</members>
+        <members>copado__User_Story__c.Bypassed_By__c</members>
+        <name>CustomField</name>
+    </types>
+    <types>
+        <members>storyBypassBanner</members>
+        <name>LightningComponentBundle</name>
+    </types>
+    <types>
+        <members>copado__User_Story__c.Bypass_Reason_Required</members>
+        <members>copado__User_Story__c.Bypass_Only_When_Issues</members>
+        <members>copado__User_Story__c.Bypass_Release_Engineer_Only</members>
+        <members>copado__User_Story__c.Bypassed_No_Promote_And_Deploy</members>
+        <members>copado__User_Story__c.Bypassed_Promote_Release_Engineer_Only</members>
+        <name>ValidationRule</name>
+    </types>
+    <version>63.0</version>
+</Package>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypass_Release_Engineer_Only</fullName>
+    <active>true</active>
+    <description>Only a release engineer (custom permission Bypass_Verification_Gate) may check Bypass Verification. Backs up the field-level security on the field.</description>
+    <errorConditionFormula>AND(
+  NOT($Permission.Bypass_Verification_Gate),
+  Bypass_Verification__c,
+  OR(ISNEW(), ISCHANGED(Bypass_Verification__c))
+)</errorConditionFormula>
+    <errorDisplayField>Bypass_Verification__c</errorDisplayField>
+    <errorMessage>Only a release engineer can check Bypass Verification.</errorMessage>
+</ValidationRule>

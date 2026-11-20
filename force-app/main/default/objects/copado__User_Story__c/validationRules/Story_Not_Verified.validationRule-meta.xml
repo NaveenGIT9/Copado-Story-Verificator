@@ -4,7 +4,6 @@
     <active>true</active>
     <description>Story Verification Gate: blocks Ready to Promote and Promote and Deploy when the story has never been verified.</description>
     <errorConditionFormula>AND(
-  NOT($Permission.Bypass_Verification_Gate),
   NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
   OR(
     AND(copado__Promote_Change__c = TRUE, OR(ISNEW(), ISCHANGED(copado__Promote_Change__c))),

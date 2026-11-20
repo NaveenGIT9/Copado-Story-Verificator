@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypassed_Promote_Release_Engineer_Only</fullName>
+    <active>true</active>
+    <description>Story Verification Gate: on a bypassed story that still has issues, only a release engineer (custom permission Bypass_Verification_Gate) may check Ready to Promote.</description>
+    <errorConditionFormula>AND(
+  NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
+  NOT($Permission.Bypass_Verification_Gate),
+  copado__Promote_Change__c = TRUE,
+  OR(ISNEW(), ISCHANGED(copado__Promote_Change__c)),
+  ISPICKVAL(Verification_Status__c, "Issues"),
+  Bypass_Verification__c
+)</errorConditionFormula>
+    <errorDisplayField>copado__Promote_Change__c</errorDisplayField>
+    <errorMessage>Verification for this story was bypassed, but it still has issues. Only a release engineer can check Ready to Promote.</errorMessage>
+</ValidationRule>

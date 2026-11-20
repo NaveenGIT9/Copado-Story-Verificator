@@ -2,6 +2,11 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
         <members>StoryBranchPushHandler</members>
+        <members>StoryBypass</members>
+        <members>StoryBypassController</members>
+        <members>StoryBypassTest</members>
+        <members>StoryPromotionGuard</members>
+        <members>StoryPromotionGuardTest</members>
         <members>StoryVerificationComplete</members>
         <members>StoryVerificationCompleteTest</members>
         <members>StoryVerificationController</members>
@@ -21,9 +26,12 @@
     </types>
     <types>
         <members>StoryBranchPushTrigger</members>
+        <members>StoryBypassTrigger</members>
+        <members>StoryPromotionGuardTrigger</members>
         <name>ApexTrigger</name>
     </types>
     <types>
+        <members>storyBypassBanner</members>
         <members>storyVerificationPopup</members>
         <name>LightningComponentBundle</name>
     </types>
@@ -41,6 +49,10 @@
         <members>Story_Verification_Setting__mdt.GitHub_Webhook_Secret__c</members>
         <members>copado__User_Story__c.Branch_Head_Pushed_At__c</members>
         <members>copado__User_Story__c.Branch_Head_SHA__c</members>
+        <members>copado__User_Story__c.Bypass_Reason__c</members>
+        <members>copado__User_Story__c.Bypass_Verification__c</members>
+        <members>copado__User_Story__c.Bypassed_At__c</members>
+        <members>copado__User_Story__c.Bypassed_By__c</members>
         <members>copado__User_Story__c.Verification_Checks__c</members>
         <members>copado__User_Story__c.Verification_Date__c</members>
         <members>copado__User_Story__c.Verification_Details__c</members>
@@ -72,6 +84,11 @@
     </types>
     <types>
         <members>copado__User_Story__c.Branch_Changed_After_Verification</members>
+        <members>copado__User_Story__c.Bypass_Reason_Required</members>
+        <members>copado__User_Story__c.Bypass_Only_When_Issues</members>
+        <members>copado__User_Story__c.Bypass_Release_Engineer_Only</members>
+        <members>copado__User_Story__c.Bypassed_No_Promote_And_Deploy</members>
+        <members>copado__User_Story__c.Bypassed_Promote_Release_Engineer_Only</members>
         <members>copado__User_Story__c.New_Commits_After_Verification</members>
         <members>copado__User_Story__c.PR_Not_Approved</members>
         <members>copado__User_Story__c.Story_Not_Verified</members>

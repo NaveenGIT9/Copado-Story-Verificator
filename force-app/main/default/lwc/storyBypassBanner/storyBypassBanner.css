@@ -1,0 +1,36 @@
+.bypass-banner {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-left: 4px solid #dd7a01;
+    background: #fef1e3;
+    color: #3e1f00;
+}
+
+.bypass-icon {
+    --slds-c-icon-color-foreground-default: #dd7a01;
+    flex-shrink: 0;
+}
+
+.bypass-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.bypass-title {
+    font-weight: 700;
+}
+
+.bypass-key {
+    font-weight: 600;
+}
+
+.bypass-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style: disc;
+}

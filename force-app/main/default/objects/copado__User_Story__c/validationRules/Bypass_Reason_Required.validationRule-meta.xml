@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypass_Reason_Required</fullName>
+    <active>true</active>
+    <description>A reason is required whenever Bypass Verification is checked.</description>
+    <errorConditionFormula>AND(
+  Bypass_Verification__c,
+  ISBLANK(Bypass_Reason__c)
+)</errorConditionFormula>
+    <errorDisplayField>Bypass_Reason__c</errorDisplayField>
+    <errorMessage>Enter a Bypass Reason to bypass verification for this story.</errorMessage>
+</ValidationRule>

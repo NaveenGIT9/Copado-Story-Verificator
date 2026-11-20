@@ -1,10 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>StoryBypassController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <customPermissions>
         <enabled>true</enabled>
         <name>Bypass_Verification_Gate</name>
     </customPermissions>
-    <description>Bypasses the Story Verification Gate validation rules. Assign only to emergency users.</description>
+    <description>Release engineers: may check Bypass Verification on a story whose verification found issues, and then check Ready to Promote on it or add it to a promotion. Skips no other verification rule.</description>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>copado__User_Story__c.Bypass_Verification__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>copado__User_Story__c.Bypass_Reason__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>copado__User_Story__c.Bypassed_By__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>copado__User_Story__c.Bypassed_At__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>
-    <label>Copado Story Verification Bypass</label>
+    <label>Copado Story Verification Release Engineer</label>
 </PermissionSet>

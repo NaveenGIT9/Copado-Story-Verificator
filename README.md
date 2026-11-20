@@ -8,7 +8,7 @@ A user clicks **Verify** on the story. A popup runs six checks live, shows each 
 
 | Check | Passes when | Where it runs |
 |---|---|---|
-| **Unregistered commits** | Every commit on the feature branch (compared with the base branch) is registered in Copado. A commit made outside Copado by the same person, on components that are registered, is only a **warning**. A commit by someone else, or on components that are not registered, **fails**. A commit that was amended or rebased after Copado registered it (same author email and author time as a registered commit that is no longer on the branch) is shown in teal as **amended**, and is exempt when all its components are registered. | Copado Function (git) |
+| **Unregistered commits** | Every commit on the feature branch (compared with the base branch) is registered in Copado. A commit made outside Copado on components that are registered passes if its author has a Copado-registered commit on the story, and is only a **warning** ("1 commit made outside Copado by &lt;name&gt;") if not. A commit on components that are not registered **fails**. A commit that was amended or rebased after Copado registered it (same author email and author time as a registered commit that is no longer on the branch) is shown in teal as **amended**, and is exempt when all its components are registered. | Copado Function (git) |
 | **Metadata coverage** | Every component changed in git is registered on the story, so it will actually be deployed. A changed component is registered only by an item of the **same type with exactly its name**. Nothing registered under a related name stands in for it (an object's fields do not cover the object, a class does not cover a trigger of the same name). | Copado Function (git) |
 | **External branch merge** | No other branch was merged into the feature branch since it left its base branch: not an environment branch (for example `dev1`, `uat`), a promotion branch or another story's feature branch (fails). The story's own feature branch is ignored, and merging only the base branch is a warning. | Copado Function (git) |
 | **Pull request approval** | The story's *Pull Requests Approved* box is checked. Stories with no commits and no metadata are not asked for one (see below). | Apex |
@@ -55,22 +55,22 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 ## What is in the package
 
-`manifest/package.xml` lists 53 components (API 63.0):
+`manifest/package.xml` lists 67 components (API 63.0):
 
 | Type | Components |
 |---|---|
-| Apex classes (16) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), `StoryVerificationPushWebhook` (GitHub push webhook), `StoryBranchPushHandler`, `StoryVerificationSwitch` (reads the on/off switch), and seven test classes |
+| Apex classes (21) | `StoryVerificationService`, `StoryVerificationController`, `StoryVerificationComplete`, `StoryVerificationException`, `StoryVerificationSetup` (creates the Copado Function, Job Template and Job Step, and holds the Function text), `StoryVerificationMetadataController` (Create Selected Metadata), `StoryVerificationPushWebhook` (GitHub push webhook), `StoryBranchPushHandler`, `StoryVerificationSwitch` (reads the on/off switch), `StoryPromotionGuard` (blocks adding a story with issues to a promotion), `StoryBypass` (stamps and clears Bypass Verification), `StoryBypassController` (promotion banner), and nine test classes |
 | Custom setting | `Story_Verification_Control__c` (hierarchy, `Disable_Story_Verification__c`): the org-wide on/off switch |
-| Apex trigger | `StoryBranchPushTrigger` (on `Story_Branch_Push__e`) |
-| Lightning component | `storyVerificationPopup` |
-| Fields (9, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c`, `Verified_Head_SHA__c`, `Branch_Head_SHA__c`, `Branch_Head_Pushed_At__c` |
+| Apex triggers (3) | `StoryBranchPushTrigger` (on `Story_Branch_Push__e`), `StoryPromotionGuardTrigger` (on `copado__Promoted_User_Story__c`), `StoryBypassTrigger` (on `copado__User_Story__c`) |
+| Lightning components (2) | `storyVerificationPopup`, `storyBypassBanner` (User Story and Promotion record pages) |
+| Fields (13, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c`, `Verified_Head_SHA__c`, `Branch_Head_SHA__c`, `Branch_Head_Pushed_At__c`, `Bypass_Verification__c`, `Bypass_Reason__c`, `Bypassed_By__c`, `Bypassed_At__c` |
 | Platform event | `Story_Branch_Push__e` (`Story_Name__c`, `Head_SHA__c`, `Pushed_At__c`) |
 | Custom metadata type | `Story_Verification_Setting__mdt` (`GitHub_Webhook_Secret__c`); the `Default` record is created by hand in each org, it is not in the repository |
 | Custom permissions (2) | `Bypass_Verification_Gate`, `Create_Story_Metadata` |
 | Flow | `Story_Verification_Completion` |
-| Permission sets (4) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass`, `Copado_Story_Verification_Metadata_Creator`, `Copado_Story_Verification_Webhook` (Site guest user only) |
+| Permission sets (4) | `Copado_Story_Verification_User`, `Copado_Story_Verification_Bypass` (label *Copado Story Verification Release Engineer*), `Copado_Story_Verification_Metadata_Creator`, `Copado_Story_Verification_Webhook` (Site guest user only) |
 | Quick action | `copado__User_Story__c.Verify_Story_Live` |
-| Validation rules (7) | `Story_Not_Verified`, `Story_Verification_Running`, `Story_Verification_Issues`, `New_Commits_After_Verification`, `Branch_Changed_After_Verification`, `Tests_Pending`, `PR_Not_Approved`. Each one blocks both Ready to Promote and Promote and Deploy |
+| Validation rules (12) | Gate (7): `Story_Not_Verified`, `Story_Verification_Running`, `Story_Verification_Issues`, `New_Commits_After_Verification`, `Branch_Changed_After_Verification`, `Tests_Pending`, `PR_Not_Approved`. Each one blocks both Ready to Promote and Promote and Deploy. Bypass (5): `Bypass_Release_Engineer_Only`, `Bypass_Only_When_Issues`, `Bypass_Reason_Required`, `Bypassed_Promote_Release_Engineer_Only`, `Bypassed_No_Promote_And_Deploy` |
 
 **Not in the package** (they are Copado data records, not metadata): the Copado **Function**, **Job Template** and **Job Step**. They are created by `StoryVerificationSetup.run()` (see Install).
 
@@ -84,7 +84,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 
 1. **Deploy the metadata**
    ```
-   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30
+   sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --tests StoryPromotionGuardTest --tests StoryBypassTest --wait 30
    ```
    Add `--dry-run` for a check-only run first.
    If you are upgrading from the 14-rule version (`Ready_Promote_Gate_*` / `Promote_Deploy_Gate_*`), also add `--post-destructive-changes manifest/destructiveChanges.xml` once. This deletes the old rules in the same deploy.
@@ -130,11 +130,9 @@ The `Stale` rules compare the verification date with Copado's *Latest Commit Dat
 | Who | Permission set(s) | What it gives |
 |---|---|---|
 | **Developers and anyone who runs Verify** | **Copado Story Verification User** | Access to the Verify popup's Apex and read access to the five `Verification_*` fields. The gate applies to them. |
-| **Emergency users who may skip the gate** | **Copado Story Verification Bypass** **and** **Copado Story Verification User** | Bypass switches off all 7 validation rules for the user. They still need User to use the Verify button, otherwise the popup says "You do not have access to this story". |
+| **Release engineers** | **Copado Story Verification Release Engineer** (API name `Copado_Story_Verification_Bypass`) **and** **Copado Story Verification User** | Edit access to Bypass Verification and Bypass Reason, and the `Bypass_Verification_Gate` custom permission. It switches off **no** rule: see [Bypassing verification](#bypassing-verification). |
 | **People who may register missing metadata on stories** | **Copado Story Verification Metadata Creator** **and** **Copado Story Verification User** | Shows the **Create Selected Metadata** button (see below). Without it the "Not registered" list is still shown, with ADD or DELETE beside each component, but cannot be ticked. |
 | **Everyone else** | none | They cannot run Verify, and the gate still blocks their checkboxes. |
-
-Give **Bypass** to as few people as possible. It lets a user check Ready to Promote and Promote and Deploy with no verification at all.
 
 Nobody has edit access to the result fields. The Apex writes them in system mode, so users cannot hand-edit a verdict.
 
@@ -160,13 +158,34 @@ Safety: the browser only says which components were ticked. The records are rebu
 
 **Custom labels:** git keeps every label in one file, `CustomLabels.labels-meta.xml`. The check reads that file on the base branch and on the feature branch and lists only the labels that were added or changed (ADD) or removed (DELETE), each as its own `CustomLabel` component. A label registered on the story as `CustomLabel` covers itself, and the whole file registered as `CustomLabels` covers every label in it. If the file cannot be read, the file itself is listed as one component, as before, and cannot be ticked.
 
+## Blocking stories with issues from promotions
+
+`StoryPromotionGuardTrigger` refuses to add a story whose **Verification Status** is `Issues` to any promotion, from the UI, the API or any Copado screen. (Copado does not let an existing promotion line be repointed to another story.) The message tells the user to open the story, click Verify, fix the issues and add it again once it is Clean. The only exception is a bypassed story added by a release engineer (next section). The org-wide switch turns this off too.
+
+## Bypassing verification
+
+For an emergency a release engineer can let one story through while its verification still has issues:
+
+1. On the story, check **Bypass Verification** and enter a **Bypass Reason**. Only a release engineer can check it, only while the status is `Issues`, and the reason is required. **Bypassed By** and **Bypassed At** are filled in automatically.
+2. An orange banner (`storyBypassBanner`) appears on the story showing who bypassed it, when and why. A Promotion page lists the bypassed stories it contains in the same banner.
+3. While the story is bypassed and still has issues:
+   - Only a release engineer can check **Ready to Promote**. After the save a Yes/No prompt asks whether to proceed; **No** unchecks the box again.
+   - Only a release engineer can add it to a promotion. Developers are still refused.
+   - **Promote and Deploy** is refused for everyone, because the deployment would start before any prompt. Check Ready to Promote and deploy from the promotion.
+4. The bypass stays for any promotion until a verification comes back **Clean**, which unchecks Bypass Verification automatically. Running or Failed results keep it. The reason is kept as a record of the last bypass.
+
+Every other gate rule still applies to everyone, release engineers included.
+
+**Boxes that are already checked:** the gate rules only stop a box being checked. So when a verification finds `Issues`, `StoryBypassTrigger` also unchecks the boxes that are already checked:
+
+- **A story that isn't bypassed:** both Ready to Promote and Promote and Deploy are unchecked.
+- **A bypassed story:** Ready to Promote stays checked, because the bypass accepted the issues. Promote and Deploy is unchecked.
+
+A `Failed` result (the run itself broke, or was cancelled) leaves both boxes alone. A story that is already in a promotion stays in it; only the boxes change.
+
 ## Why there is a custom permission
 
-The validation rules need to answer "may this user skip the gate?". A validation rule formula cannot test whether a user holds a particular permission set, but it can test a **custom permission** with `$Permission.Bypass_Verification_Gate`. So:
-
-- Every rule starts with `NOT($Permission.Bypass_Verification_Gate)`.
-- The custom permission sits inside the **Bypass** permission set, so holding that set is what switches the rules off.
-- You can also add the same custom permission to your own permission set or permission set group (for example for release managers) without editing any of the 7 rules.
+A validation rule formula cannot test whether a user holds a particular permission set, but it can test a **custom permission** with `$Permission.Bypass_Verification_Gate`. The custom permission (label *Story Verification Release Engineer*) marks a release engineer for the bypass rules and `StoryPromotionGuard`. It sits in the Release Engineer permission set; you can add it to your own permission set or group instead. It does not appear in the 7 gate rules.
 
 ## Switching the gate off for everyone
 
@@ -178,7 +197,7 @@ The custom setting **Story Verification Control** (`Story_Verification_Control__
 While it is ticked:
 
 - None of the 7 validation rules block, for anyone, so Ready to Promote and Promote and Deploy can be checked freely.
-- A push no longer unchecks those two boxes. The branch head is still recorded, so the gate is up to date the moment it is switched back on.
+- Neither a push nor an `Issues` verification unchecks those two boxes. The branch head is still recorded, so the gate is up to date the moment it is switched back on.
 - **Verify still works.** The popup shows a grey banner saying the gate is off and that results are for information only.
 
 Untick it (or delete the default value) to switch the gate back on. Because it is a hierarchy setting, a value can also be set for one profile or one user, but the org default is the intended switch.
@@ -204,7 +223,7 @@ If you try to check a box without a Clean, current verification, the rule's mess
 | `Repository not authenticated` | Copado could not log in to the repository. Check the Git repository's authentication, and rerun the setup script so the Function has the `repositoryId` parameter. |
 | `Could not clone the repository` or `…list the repository branches` | Read the end of the message. It shows git's own reason. Check the pipeline's repository and the feature branch name. |
 | Verify stays on `Accepted by Backend. Scheduling.` | That is Copado's own job start-up wait, not the checks. The popup shows it as `Waiting for Copado to start the job`. It varies from seconds to a few minutes. A larger Function worker size (M) was tried in one org and looked faster, but this is unproven. |
-| `Commit … is not a registered committer` | The unregistered commit's author email differs from every registered commit's author email. Register the commit through Copado, or confirm it by hand. |
+| `1 commit made outside Copado by <name>` (warning) | A commit pushed straight to Git by someone with no Copado-registered commit on this story. Its components are registered, so it deploys and the story stays Clean. Check that the commit belongs to the story. |
 | Deploy tests fail with a required-field or validation error on `copado__User_Story__c` | The org has extra validation rules (for example a mandatory `Jira_Key__c`). The tests fill `Jira_Key__c` when the field exists. For other rules, extend the test data in the three test classes. |
 
 ## Repository layout

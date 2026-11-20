@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Existing components the bypass change modifies. Retrieve these from RBKPIPEQA BEFORE deploying the change. -->
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Bypass_Verification_Gate</members>
+        <name>CustomPermission</name>
+    </types>
+    <types>
+        <members>Copado_Story_Verification_Bypass</members>
+        <members>Copado_Story_Verification_User</members>
+        <name>PermissionSet</name>
+    </types>
+    <types>
+        <members>copado__User_Story__c.Branch_Changed_After_Verification</members>
+        <members>copado__User_Story__c.New_Commits_After_Verification</members>
+        <members>copado__User_Story__c.PR_Not_Approved</members>
+        <members>copado__User_Story__c.Story_Not_Verified</members>
+        <members>copado__User_Story__c.Story_Verification_Issues</members>
+        <members>copado__User_Story__c.Story_Verification_Running</members>
+        <members>copado__User_Story__c.Tests_Pending</members>
+        <name>ValidationRule</name>
+    </types>
+    <version>63.0</version>
+</Package>

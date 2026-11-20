@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypassed_No_Promote_And_Deploy</fullName>
+    <active>true</active>
+    <description>Story Verification Gate: Promote and Deploy starts a deployment with no chance to confirm, so it is never allowed on a bypassed story that still has issues.</description>
+    <errorConditionFormula>AND(
+  NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
+  copado__Promote_and_Deploy__c = TRUE,
+  OR(ISNEW(), ISCHANGED(copado__Promote_and_Deploy__c)),
+  ISPICKVAL(Verification_Status__c, "Issues"),
+  Bypass_Verification__c
+)</errorConditionFormula>
+    <errorDisplayField>copado__Promote_and_Deploy__c</errorDisplayField>
+    <errorMessage>Verification for this story was bypassed, but it still has issues. Promote and Deploy is not allowed. Check Ready to Promote instead and deploy from the promotion.</errorMessage>
+</ValidationRule>

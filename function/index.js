@@ -1044,16 +1044,13 @@ function checkUnregistered(ctx) {
             rows
         );
     }
+    // Components are registered, so these commits deploy: a different author is only a warning, the same author passes.
+    const commitsWord = (n) => n + (n === 1 ? " commit" : " commits");
     if (authors.length > 0) {
-        return mk(id, "fail", "Commit by " + authors.join(", ") + " is not a registered committer " + DASH + " verify manually", lines, rows);
+        const byOthers = effective.filter((d) => d.email && !regEmails.has(d.email)).length;
+        return mk(id, "warn", commitsWord(byOthers) + " made outside Copado by " + authors.join(", "), lines, rows);
     }
-    return mk(
-        id,
-        "warn",
-        effective.length + " commit(s) outside Copado; components registered, same author",
-        lines,
-        rows
-    );
+    return mk(id, "pass", commitsWord(effective.length) + " made outside Copado", lines, rows);
 }
 
 function checkMetadata(ctx) {

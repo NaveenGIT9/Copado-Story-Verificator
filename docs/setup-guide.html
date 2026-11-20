@@ -1,1148 +1,1459 @@
-<title>Story Verification Setup</title>
+<title>Story Verification Gate</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@500;600;700;800&display=swap">
 <style>
   :root {
-    --bg: #f6f7f9;
+    --bg: #f7f6fb;
     --surface: #ffffff;
-    --sunken: #eef1f5;
-    --fg: #17202e;
-    --fg-soft: #3a4558;
-    --muted: #667186;
-    --line: #dfe4ec;
-    --line-strong: #c8d0dc;
-    --accent: #1f5bd8;
-    --accent-soft: #e8eefc;
+    --sunken: #f1eff8;
+    --raised: #fbfaff;
+    --fg: #16131f;
+    --fg-soft: #433e54;
+    --muted: #767089;
+    --line: #e7e4f0;
+    --line-strong: #d4cfe2;
+    --accent: #6b47ec;
+    --accent-ink: #5532d6;
+    --accent-soft: #efeafe;
     --accent-fg: #ffffff;
-    --ok: #18794e;
-    --ok-bg: #e9f6ef;
-    --ok-line: #b5e0c8;
-    --warn: #8a5300;
-    --warn-bg: #fdf3e2;
-    --warn-line: #f0d29c;
-    --info: #1f5bd8;
-    --info-bg: #edf2fd;
-    --info-line: #c4d4f6;
-    --bad: #b42318;
-    --bad-bg: #fdeceb;
-    --bad-line: #f4c2bd;
-    --code-bg: #f1f3f7;
-    --code-fg: #1d2736;
-    --tag: #1f5bd8;
-    --ph: #9a3b00;
-    --ph-bg: #fdeedd;
-    --shadow: 0 1px 2px rgba(23, 32, 46, .05), 0 4px 16px rgba(23, 32, 46, .04);
+    --teal: #0b8f8d;
+    --teal-soft: #e3f6f5;
+    --ok: #12804c;
+    --ok-soft: #e6f6ee;
+    --ok-line: #b9e3cc;
+    --warn: #9a5800;
+    --warn-soft: #fdf3e1;
+    --warn-line: #f0d39e;
+    --bad: #c42b2b;
+    --bad-soft: #fdecec;
+    --bad-line: #f3c3c3;
+    --orange: #cf4a0c;
+    --orange-soft: #fff0e6;
+    --orange-line: #fbc8a5;
+    --grey: #6a6680;
+    --grey-soft: #f0eff4;
+    --code-bg: #151221;
+    --code-fg: #e6e1f5;
+    --code-muted: #8f88a8;
+    --code-tag: #b9a6ff;
+    --glow-1: rgba(107, 71, 236, .16);
+    --glow-2: rgba(11, 143, 141, .13);
+    --shadow: 0 1px 2px rgba(22, 19, 31, .04), 0 8px 24px rgba(22, 19, 31, .05);
+    --shadow-lift: 0 2px 4px rgba(22, 19, 31, .05), 0 14px 34px rgba(22, 19, 31, .08);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0f141c; --surface: #161d28; --sunken: #1c2532; --fg: #e7ecf3; --fg-soft: #c3ccd9; --muted: #8d99ab;
-      --line: #263142; --line-strong: #344256; --accent: #6f9cff; --accent-soft: #1c2a47; --accent-fg: #0d1320;
-      --ok: #5fd39a; --ok-bg: #12291f; --ok-line: #1f4d37; --warn: #f2bd62; --warn-bg: #2b2112; --warn-line: #5a4320;
-      --info: #8fb1ff; --info-bg: #17223a; --info-line: #2a3d66; --bad: #ff8a80; --bad-bg: #2e1715; --bad-line: #5c2a26;
-      --code-bg: #111821; --code-fg: #dbe3ee; --tag: #8fb1ff; --ph: #ffb37a; --ph-bg: #3a2414;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .2);
+      --bg: #0d0b14; --surface: #16131f; --sunken: #1e1a2a; --raised: #1a1625;
+      --fg: #efecf7; --fg-soft: #cbc6da; --muted: #948ea8; --line: #29243a; --line-strong: #3a3450;
+      --accent: #a28aff; --accent-ink: #b8a6ff; --accent-soft: #261f42; --accent-fg: #120e20;
+      --teal: #3fd3cb; --teal-soft: #11302f;
+      --ok: #5fd69c; --ok-soft: #10281d; --ok-line: #1f4b36;
+      --warn: #f3c066; --warn-soft: #2a2011; --warn-line: #5a4320;
+      --bad: #ff8d86; --bad-soft: #2e1616; --bad-line: #5b2a28;
+      --orange: #ffa66e; --orange-soft: #2e1b10; --orange-line: #69391b;
+      --grey: #a29db6; --grey-soft: #221e2d;
+      --code-bg: #0a0910; --code-fg: #e6e1f5; --code-muted: #8f88a8; --code-tag: #b9a6ff;
+      --glow-1: rgba(162, 138, 255, .18); --glow-2: rgba(63, 211, 203, .10);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .25);
+      --shadow-lift: 0 2px 4px rgba(0, 0, 0, .4), 0 14px 34px rgba(0, 0, 0, .35);
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #0f141c; --surface: #161d28; --sunken: #1c2532; --fg: #e7ecf3; --fg-soft: #c3ccd9; --muted: #8d99ab;
-    --line: #263142; --line-strong: #344256; --accent: #6f9cff; --accent-soft: #1c2a47; --accent-fg: #0d1320;
-    --ok: #5fd39a; --ok-bg: #12291f; --ok-line: #1f4d37; --warn: #f2bd62; --warn-bg: #2b2112; --warn-line: #5a4320;
-    --info: #8fb1ff; --info-bg: #17223a; --info-line: #2a3d66; --bad: #ff8a80; --bad-bg: #2e1715; --bad-line: #5c2a26;
-    --code-bg: #111821; --code-fg: #dbe3ee; --tag: #8fb1ff; --ph: #ffb37a; --ph-bg: #3a2414;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .2);
+    --bg: #0d0b14; --surface: #16131f; --sunken: #1e1a2a; --raised: #1a1625;
+    --fg: #efecf7; --fg-soft: #cbc6da; --muted: #948ea8; --line: #29243a; --line-strong: #3a3450;
+    --accent: #a28aff; --accent-ink: #b8a6ff; --accent-soft: #261f42; --accent-fg: #120e20;
+    --teal: #3fd3cb; --teal-soft: #11302f;
+    --ok: #5fd69c; --ok-soft: #10281d; --ok-line: #1f4b36;
+    --warn: #f3c066; --warn-soft: #2a2011; --warn-line: #5a4320;
+    --bad: #ff8d86; --bad-soft: #2e1616; --bad-line: #5b2a28;
+    --orange: #ffa66e; --orange-soft: #2e1b10; --orange-line: #69391b;
+    --grey: #a29db6; --grey-soft: #221e2d;
+    --code-bg: #0a0910; --code-fg: #e6e1f5; --code-muted: #8f88a8; --code-tag: #b9a6ff;
+    --glow-1: rgba(162, 138, 255, .18); --glow-2: rgba(63, 211, 203, .10);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .25);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, .4), 0 14px 34px rgba(0, 0, 0, .35);
     color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  html { scroll-behavior: smooth; scroll-padding-top: 84px; }
   body {
     background: var(--bg);
     color: var(--fg);
-    font: 16px/1.65 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 15.5px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   body::before {
     content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
-    z-index: 10; background: var(--surface);
+    z-index: 30; background: var(--surface);
   }
-  h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.25; }
+  h1, h2, h3, h4 { font-family: "Sora", "Inter", system-ui, sans-serif; text-wrap: balance; margin: 0; line-height: 1.2; letter-spacing: -.015em; }
   p { margin: 0; }
-  a { color: var(--accent); }
-  code, kbd, pre { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; }
+  a { color: var(--accent-ink); text-underline-offset: 2px; }
+  code, pre, kbd { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
   :not(pre) > code {
-    font-size: .875em; background: var(--sunken); border: 1px solid var(--line);
-    padding: .08em .4em; border-radius: 5px; overflow-wrap: anywhere;
+    font-size: .84em; background: var(--sunken); border: 1px solid var(--line);
+    padding: .1em .42em; border-radius: 6px; overflow-wrap: anywhere; color: var(--fg);
   }
   strong { font-weight: 600; color: var(--fg); }
-  .ui { font-weight: 600; color: var(--fg); }
-  .path { color: var(--fg); font-weight: 500; }
-  .path .sep { color: var(--muted); padding: 0 .3em; font-weight: 400; }
-
-  .bar {
-    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
-    background: var(--surface); border-bottom: 1px solid var(--line);
+  .ui { font-weight: 600; color: var(--fg); background: var(--accent-soft); border-radius: 5px; padding: 0 .3em; white-space: nowrap; }
+  .path { font-weight: 500; color: var(--fg); }
+  .path i { font-style: normal; color: var(--muted); padding: 0 .35em; }
+  .msg { font-style: italic; color: var(--fg); }
+  .muted { color: var(--muted); }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  .gutter {
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
-  .bar-inner {
-    max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 16px;
-    padding-block: 10px; flex-wrap: wrap;
-  }
-  .bar-title { font-weight: 600; font-size: .9rem; }
-  .bar-track { flex: 1 1 160px; height: 6px; background: var(--sunken); border-radius: 99px; overflow: hidden; min-width: 120px; }
-  .bar-fill { height: 100%; width: 0; background: var(--ok); border-radius: 99px; transition: width .3s ease; }
-  .bar-count { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .btn-ghost {
-    font: inherit; font-size: .82rem; color: var(--muted); background: none; border: 1px solid var(--line);
-    border-radius: 6px; padding: 3px 10px; cursor: pointer;
-  }
-  .btn-ghost:hover { color: var(--fg); border-color: var(--line-strong); }
 
-  .page {
-    padding-left: max(16px, env(safe-area-inset-left, 0px));
-    padding-right: max(16px, env(safe-area-inset-right, 0px));
-    padding-block: 56px 120px;
+  /* ---------- hero ---------- */
+  .hero {
+    background:
+      radial-gradient(900px 420px at 8% -10%, var(--glow-1), transparent 60%),
+      radial-gradient(700px 380px at 95% 10%, var(--glow-2), transparent 60%),
+      var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding-block: 40px 36px;
   }
-  .layout { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 56px; }
-  @media (min-width: 1080px) {
-    .layout { grid-template-columns: 230px minmax(0, 1fr); }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: "Sora", sans-serif; font-weight: 700; font-size: .95rem; }
+  .mark {
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--teal)); color: var(--accent-fg); font-size: .9rem;
   }
-  main { min-width: 0; max-width: 780px; display: flex; flex-direction: column; gap: 96px; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; margin-top: 30px; }
+  @media (min-width: 920px) { .hero-grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: end; } }
+  .hero h1 { font-size: clamp(2rem, 5.2vw, 3.1rem); font-weight: 800; letter-spacing: -.03em; }
+  .hero h1 span {
+    background: linear-gradient(90deg, var(--accent), var(--teal)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .lede { margin-top: 16px; font-size: 1.08rem; color: var(--fg-soft); max-width: 60ch; }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stat {
+    background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(6px);
+  }
+  .stat b { display: block; font-family: "Sora", sans-serif; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .8rem; color: var(--muted); }
+  .audience { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .aud {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg);
+    border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 16px 7px 8px;
+    font-size: .9rem; font-weight: 500; transition: border-color .15s, transform .15s;
+  }
+  .aud:hover { border-color: var(--c); transform: translateY(-1px); }
+  .aud .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: var(--surface); font-size: .72rem; font-weight: 700; }
 
-  .toc { display: none; }
-  @media (min-width: 1080px) {
-    .toc { display: block; position: sticky; top: 76px; align-self: start; font-size: .9rem; }
+  /* ---------- tabs ---------- */
+  .tabs-bar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
   }
-  .toc-label { font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
-  .toc ol { list-style: none; margin: 0 0 24px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-  .toc a {
-    display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg-soft);
-    padding: 6px 8px; border-radius: 6px; line-height: 1.35;
+  .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-block: 10px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: none; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+    color: var(--fg-soft); font-weight: 500; font-size: .92rem; padding: 8px 14px; border-radius: 10px;
+    transition: background .15s, color .15s;
   }
-  .toc a:hover { background: var(--sunken); color: var(--fg); }
-  .toc a.active { background: var(--accent-soft); color: var(--fg); font-weight: 500; }
-  .toc .dot {
-    flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line-strong);
-    display: grid; place-items: center; font-size: .72rem; font-weight: 600; color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .toc a.done .dot { background: var(--ok); border-color: var(--ok); color: var(--surface); }
-  .toc a.done .dot span { display: none; }
-  .toc a.done .dot::after { content: "✓"; font-size: .75rem; }
+  .tab:hover { background: var(--sunken); color: var(--fg); }
+  .tab .n { font-family: "JetBrains Mono", monospace; font-size: .72rem; color: var(--muted); }
+  .tab.active { background: var(--fg); color: var(--bg); }
+  .tab.active .n { color: color-mix(in srgb, var(--bg) 65%, transparent); }
 
-  header.hero { display: flex; flex-direction: column; gap: 20px; }
-  .eyebrow { font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
-  h1 { font-size: clamp(2rem, 5vw, 2.6rem); font-weight: 700; letter-spacing: -.015em; }
-  .lede { font-size: 1.15rem; color: var(--fg-soft); max-width: 62ch; line-height: 1.6; }
-  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
-  .fact {
-    display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line);
-    border-radius: 10px; padding: 10px 16px; min-width: 120px; flex: 1 1 120px;
+  /* ---------- views ---------- */
+  .page { padding-block: 44px 120px; }
+  .view { display: flex; flex-direction: column; gap: 56px; }
+  .view-head { display: flex; flex-direction: column; gap: 10px; max-width: 70ch; }
+  .eyebrow { font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--accent-ink); }
+  .view-head h2 { font-size: clamp(1.7rem, 3.6vw, 2.25rem); font-weight: 700; }
+  .view-head p { color: var(--fg-soft); font-size: 1.04rem; }
+  .block { display: flex; flex-direction: column; gap: 18px; }
+  .block > h3 { font-size: 1.28rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .block > h3::before { content: ""; width: 4px; height: 1.05em; border-radius: 4px; background: linear-gradient(var(--accent), var(--teal)); }
+  .block > p.intro { color: var(--fg-soft); max-width: 70ch; }
+  .next {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    border-top: 1px solid var(--line); padding-top: 24px;
   }
-  .fact b { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .fact span { font-size: .8rem; color: var(--muted); }
+  .next a {
+    display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; background: var(--surface); min-width: 0;
+  }
+  .next a:hover { border-color: var(--accent); }
+  .next a small { color: var(--muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  .next a b { font-weight: 600; }
+  .next a.fwd { margin-left: auto; text-align: right; }
 
-  section { display: flex; flex-direction: column; gap: 24px; }
-  .section-head { display: flex; flex-direction: column; gap: 8px; }
-  .section-head h2 { font-size: 1.65rem; font-weight: 700; letter-spacing: -.01em; }
-  .section-head p { color: var(--fg-soft); max-width: 65ch; }
-  .kicker { font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-
+  /* ---------- generic pieces ---------- */
   .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-    padding: 28px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 20px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 18px; min-width: 0;
   }
-  .card h3.sub { font-size: 1.08rem; font-weight: 600; }
-  @media (max-width: 560px) { .card { padding: 20px 18px; } }
+  @media (max-width: 560px) { .card { padding: 20px 18px; border-radius: 16px; } }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .grid.wide { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .tile {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    display: flex; flex-direction: column; gap: 8px; min-width: 0; transition: box-shadow .2s, transform .2s;
+  }
+  .tile:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+  .tile .ic {
+    width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; font-family: "Sora", sans-serif;
+  }
+  .tile h4 { font-size: 1.02rem; font-weight: 600; }
+  .tile p { font-size: .92rem; color: var(--fg-soft); }
 
-  .parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
-  .part { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-  .part h3 { font-size: 1rem; font-weight: 600; }
-  .part p { font-size: .925rem; color: var(--fg-soft); }
+  .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; counter-reset: pl; }
+  .pl {
+    counter-increment: pl; position: relative; padding: 18px 16px 16px; border: 1px solid var(--line);
+    background: var(--surface); margin: -1px 0 0 -1px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  }
+  .pl::before {
+    content: counter(pl, decimal-leading-zero); font-family: "JetBrains Mono", monospace; font-size: .72rem;
+    color: var(--accent-ink); font-weight: 500;
+  }
+  .pl b { font-family: "Sora", sans-serif; font-weight: 600; font-size: .98rem; }
+  .pl span { font-size: .84rem; color: var(--muted); }
+  .pipeline .pl:first-child { border-radius: 14px 0 0 14px; }
+  .pipeline .pl:last-child { border-radius: 0 14px 14px 0; }
+  @media (max-width: 760px) { .pipeline .pl { border-radius: 0 !important; } .pipeline { border-radius: 14px; overflow: hidden; } }
 
-  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-  table { width: 100%; border-collapse: collapse; font-size: .94rem; }
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .verdict {
+    border-radius: 16px; padding: 18px; border: 1px solid var(--vl); background: var(--vs);
+    display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  }
+  .verdict .vn { display: flex; align-items: center; gap: 8px; font-family: "Sora", sans-serif; font-weight: 700; color: var(--vc); }
+  .verdict .vn::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--vc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--vc) 20%, transparent); }
+  .verdict p { font-size: .9rem; color: var(--fg-soft); }
+  .verdict .gate { font-size: .82rem; font-weight: 600; color: var(--vc); border-top: 1px dashed var(--vl); padding-top: 8px; }
+  .v-ok { --vc: var(--ok); --vs: var(--ok-soft); --vl: var(--ok-line); }
+  .v-bad { --vc: var(--bad); --vs: var(--bad-soft); --vl: var(--bad-line); }
+  .v-warn { --vc: var(--warn); --vs: var(--warn-soft); --vl: var(--warn-line); }
+  .v-run { --vc: var(--accent-ink); --vs: var(--accent-soft); --vl: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .v-grey { --vc: var(--grey); --vs: var(--grey-soft); --vl: var(--line-strong); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
   th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  th { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--sunken); white-space: nowrap; }
-  td.num { font-weight: 600; color: var(--accent); width: 1%; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; background: var(--raised); white-space: nowrap; }
+  tr.group td { background: var(--sunken); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); font-weight: 700; padding-block: 8px; }
+  td.k { font-weight: 600; white-space: nowrap; }
   td.nowrap { white-space: nowrap; }
-  td a { color: var(--fg); text-decoration: none; font-weight: 500; }
-  td a:hover { color: var(--accent); text-decoration: underline; }
-  table.fields td:first-child { font-weight: 600; white-space: nowrap; width: 34%; }
-  table.fields td { overflow-wrap: anywhere; }
-
-  .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-  .checklist li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; }
-  .checklist li::before {
-    content: "✓"; width: 22px; height: 22px; border-radius: 6px; background: var(--accent-soft); color: var(--accent);
-    display: grid; place-items: center; font-size: .78rem; font-weight: 700; margin-top: 2px;
-  }
-
-  .step { gap: 28px; }
-  .step-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: start; }
-  .step-num {
-    width: 52px; height: 52px; border-radius: 14px; background: var(--accent); color: var(--accent-fg);
-    display: grid; place-items: center; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums;
-    transition: background .2s;
-  }
-  .step.is-done .step-num { background: var(--ok); }
-  .step-title { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-  .step-title h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.01em; }
-  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
-  .tag {
-    font-size: .78rem; font-weight: 500; padding: 3px 10px; border-radius: 99px;
-    background: var(--sunken); color: var(--fg-soft); border: 1px solid var(--line); white-space: nowrap;
-  }
-  .tag.where { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
-  .why { font-size: 1.05rem; color: var(--fg-soft); max-width: 65ch; }
-
-  .actions { list-style: none; margin: 0; padding: 0; counter-reset: act; display: flex; flex-direction: column; gap: 28px; }
-  .actions > li { counter-increment: act; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 16px; }
-  .actions > li::before {
-    content: counter(act, lower-alpha); width: 30px; height: 30px; border-radius: 50%;
-    border: 1.5px solid var(--line-strong); color: var(--fg-soft); font-weight: 600; font-size: .9rem;
-    display: grid; place-items: center; background: var(--surface);
-  }
-  .act { min-width: 0; display: flex; flex-direction: column; gap: 12px; padding-top: 3px; }
-  .act h3 { font-size: 1.08rem; font-weight: 600; }
-  .act p, .act li { color: var(--fg-soft); }
-  .clicks { margin: 0; padding-left: 1.25em; display: flex; flex-direction: column; gap: 8px; color: var(--fg-soft); }
-  .clicks li::marker { color: var(--muted); font-weight: 600; }
-  .or { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 12px; }
-  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-
-  .code { position: relative; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
-  .code-label { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 10px 16px 0; }
-  .code pre {
-    margin: 0; padding: 14px 16px 16px; padding-right: 84px; color: var(--code-fg);
-    font-size: .86rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere;
-  }
-  .code pre.scroll { white-space: pre; overflow-x: auto; overflow-wrap: normal; max-height: 520px; padding-right: 16px; padding-top: 48px; }
-  .copy {
-    position: absolute; top: 10px; right: 10px; font: inherit; font-size: .78rem; font-weight: 500;
-    background: var(--surface); color: var(--fg-soft); border: 1px solid var(--line); border-radius: 6px;
-    padding: 4px 12px; cursor: pointer;
-  }
-  .copy:hover { color: var(--fg); border-color: var(--line-strong); }
-  .copy.copied { color: var(--ok); border-color: var(--ok-line); }
-  .ph { color: var(--ph); background: var(--ph-bg); border-radius: 4px; padding: 0 .2em; }
-  .x-tag { color: var(--tag); }
-  .x-str { color: var(--muted); }
-
-  .callout {
-    border-radius: 10px; padding: 16px 18px; border: 1px solid; display: grid;
-    grid-template-columns: 22px minmax(0, 1fr); gap: 12px; font-size: .95rem;
-  }
-  .callout .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; margin-top: 1px; }
-  .callout .body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .callout .label { font-weight: 700; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
-  .callout p, .callout li { color: var(--fg-soft); }
-  .callout ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px; }
-  .callout.ok { background: var(--ok-bg); border-color: var(--ok-line); }
-  .callout.ok .ico { background: var(--ok); color: var(--surface); }
-  .callout.ok .label { color: var(--ok); }
-  .callout.warn { background: var(--warn-bg); border-color: var(--warn-line); }
-  .callout.warn .ico { background: var(--warn); color: var(--surface); }
-  .callout.warn .label { color: var(--warn); }
-  .callout.info { background: var(--info-bg); border-color: var(--info-line); }
-  .callout.info .ico { background: var(--info); color: var(--surface); }
-  .callout.info .label { color: var(--info); }
-
-  .keyfact {
-    border: 2px solid var(--accent); background: var(--accent-soft); border-radius: 14px;
-    padding: 24px 26px; display: flex; flex-direction: column; gap: 12px;
-  }
-  .keyfact .label { font-weight: 700; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
-  .keyfact h3 { font-size: 1.3rem; font-weight: 700; }
-  .keyfact p { color: var(--fg-soft); max-width: 65ch; }
-  @media (max-width: 560px) { .keyfact { padding: 20px 18px; } }
+  td code { overflow-wrap: anywhere; }
+  table.kv td:first-child { font-weight: 600; width: 34%; white-space: nowrap; }
 
   .pill {
-    display: inline-block; font-size: .78rem; font-weight: 600; padding: 2px 10px; border-radius: 99px;
-    border: 1px solid; white-space: nowrap; margin-right: 4px;
+    display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 600; padding: 2px 10px;
+    border-radius: 999px; white-space: nowrap; border: 1px solid; line-height: 1.6;
   }
-  .pill.yes { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-line); }
-  .pill.no { color: var(--bad); background: var(--bad-bg); border-color: var(--bad-line); }
-  table.matrix td:first-child { white-space: nowrap; }
-  .note { font-size: .9rem; color: var(--muted); }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .p-yes { color: var(--ok); background: var(--ok-soft); border-color: var(--ok-line); }
+  .p-no { color: var(--bad); background: var(--bad-soft); border-color: var(--bad-line); }
+  .p-mid { color: var(--warn); background: var(--warn-soft); border-color: var(--warn-line); }
+  .p-re { color: var(--orange); background: var(--orange-soft); border-color: var(--orange-line); }
+  .p-run { color: var(--accent-ink); background: var(--accent-soft); border-color: transparent; }
+  .p-grey { color: var(--grey); background: var(--grey-soft); border-color: var(--line-strong); }
 
-  .ps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
-  .ps {
-    background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c);
-    border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  .note {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; border-radius: 14px; padding: 15px 18px;
+    background: var(--ns); border: 1px solid var(--nl); font-size: .93rem;
   }
-  .ps-who { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--c); }
-  .ps h4 { margin: 0; font-size: 1.02rem; font-weight: 600; line-height: 1.3; }
-  .ps dl { margin: 0; display: grid; gap: 2px; font-size: .9rem; }
-  .ps dt { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-top: 6px; }
-  .ps dd { margin: 0; color: var(--fg-soft); }
-  .ps dd code { overflow-wrap: normal; }
+  .note .ni { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: var(--nc); color: var(--surface); font-weight: 700; font-size: .78rem; }
+  .note .nb { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .note .nt { font-weight: 700; color: var(--nc); font-size: .9rem; }
+  .note p, .note li { color: var(--fg-soft); }
+  .note ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px; }
+  .n-ok { --nc: var(--ok); --ns: var(--ok-soft); --nl: var(--ok-line); }
+  .n-warn { --nc: var(--warn); --ns: var(--warn-soft); --nl: var(--warn-line); }
+  .n-info { --nc: var(--accent); --ns: var(--accent-soft); --nl: color-mix(in srgb, var(--accent) 25%, transparent); }
+  .n-re { --nc: var(--orange); --ns: var(--orange-soft); --nl: var(--orange-line); }
 
-  .done-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    border-top: 1px dashed var(--line-strong); padding-top: 20px;
+  .hl {
+    border-radius: 20px; padding: 26px 28px; display: flex; flex-direction: column; gap: 10px; color: var(--fg);
+    background:
+      radial-gradient(500px 220px at 0% 0%, var(--glow-1), transparent 70%),
+      radial-gradient(500px 220px at 100% 100%, var(--glow-2), transparent 70%),
+      var(--surface);
+    border: 1px solid var(--line-strong);
   }
-  .done-row .hint { font-size: .88rem; color: var(--muted); }
+  .hl .eyebrow { color: var(--teal); }
+  .hl h3 { font-size: 1.3rem; font-weight: 700; }
+  .hl p { color: var(--fg-soft); max-width: 68ch; }
+  @media (max-width: 560px) { .hl { padding: 20px 18px; } }
+
+  /* ---------- code ---------- */
+  .code { position: relative; background: var(--code-bg); border-radius: 12px; min-width: 0; border: 1px solid var(--line); }
+  .code-label { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--code-muted); font-weight: 600; padding: 12px 16px 0; font-family: "Inter", sans-serif; }
+  .code pre {
+    margin: 0; padding: 14px 16px 16px; padding-right: 88px; color: var(--code-fg); font-size: .84rem; line-height: 1.65;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .code pre.scroll { white-space: pre; overflow-wrap: normal; overflow-x: auto; max-height: 520px; padding-top: 50px; padding-right: 16px; }
+  .copy {
+    position: absolute; top: 10px; right: 10px; font: inherit; font-family: "Inter", sans-serif; font-size: .76rem; font-weight: 600;
+    background: rgba(255, 255, 255, .08); color: var(--code-fg); border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 8px; padding: 4px 12px; cursor: pointer;
+  }
+  .copy:hover { background: rgba(255, 255, 255, .16); }
+  .copy.copied { color: #5fd69c; border-color: rgba(95, 214, 156, .5); }
+  .ph { color: #ffb37a; background: rgba(255, 179, 122, .14); border-radius: 4px; padding: 0 .2em; }
+  .x-tag { color: var(--code-tag); }
+  .x-str { color: var(--code-muted); }
+
+  /* ---------- setup steps ---------- */
+  .progress-card {
+    position: sticky; top: calc(env(safe-area-inset-top, 0px) + 66px); z-index: 10;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .progress-card b { font-family: "Sora", sans-serif; font-size: .92rem; font-weight: 600; }
+  .ptrack { flex: 1 1 160px; height: 8px; border-radius: 99px; background: var(--sunken); overflow: hidden; min-width: 120px; }
+  .pfill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--teal)); transition: width .35s ease; }
+  .pcount { font-size: .84rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .btn {
+    font: inherit; font-size: .82rem; font-weight: 500; color: var(--fg-soft); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; cursor: pointer;
+  }
+  .btn:hover { color: var(--fg); border-color: var(--line-strong); }
+
+  .overview-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .os {
+    display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; text-decoration: none; color: var(--fg);
+    border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px;
+  }
+  .os:hover { border-color: var(--accent); }
+  .os .d {
+    width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--sunken);
+    font-family: "Sora", sans-serif; font-weight: 700; font-size: .85rem; color: var(--fg-soft);
+  }
+  .os.done .d { background: var(--ok); color: var(--surface); }
+  .os b { font-weight: 600; font-size: .9rem; display: block; line-height: 1.3; }
+  .os span { font-size: .78rem; color: var(--muted); }
+
+  .steps { display: flex; flex-direction: column; }
+  .step { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0 20px; position: relative; padding-bottom: 36px; }
+  .step::before { content: ""; position: absolute; left: 25px; top: 52px; bottom: 0; width: 2px; background: var(--line); }
+  .step:last-child::before { display: none; }
+  .step.is-done::before { background: var(--ok-line); }
+  .snum {
+    width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; z-index: 1;
+    background: linear-gradient(135deg, var(--accent), var(--teal)); color: var(--accent-fg);
+    font-family: "Sora", sans-serif; font-weight: 800; font-size: 1.3rem; box-shadow: var(--shadow);
+  }
+  .step.is-done .snum { background: var(--ok); }
+  .sbody { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  .shead { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+  .shead h3 { font-size: 1.4rem; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: .76rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--sunken); color: var(--fg-soft); border: 1px solid var(--line); white-space: nowrap; }
+  .chip.where { background: var(--teal-soft); color: var(--teal); border-color: transparent; }
+  .swhy { color: var(--fg-soft); max-width: 68ch; }
+  @media (max-width: 560px) {
+    .step { grid-template-columns: 40px minmax(0, 1fr); gap: 0 14px; }
+    .snum { width: 40px; height: 40px; border-radius: 12px; font-size: 1.05rem; }
+    .step::before { left: 19px; top: 40px; }
+  }
+
+  .actions { list-style: none; margin: 0; padding: 0; counter-reset: act; display: flex; flex-direction: column; gap: 24px; }
+  .actions > li { counter-increment: act; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 14px; }
+  .actions > li::before {
+    content: counter(act, lower-alpha); width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line-strong);
+    display: grid; place-items: center; font-weight: 700; font-size: .82rem; color: var(--fg-soft); background: var(--surface);
+  }
+  .act { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding-top: 2px; }
+  .act h4 { font-size: 1.02rem; font-weight: 600; }
+  .act p, .act li { color: var(--fg-soft); }
+  .clicks { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; color: var(--fg-soft); }
+  .clicks li::marker { color: var(--accent-ink); font-weight: 700; }
+  .or { display: flex; align-items: center; gap: 12px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .done-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px dashed var(--line-strong); padding-top: 16px; }
+  .done-row .hint { font-size: .86rem; color: var(--muted); }
   .done-toggle {
-    display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
-    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface);
-    font-weight: 500; font-size: .92rem;
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; font-weight: 600; font-size: .88rem;
+    padding: 8px 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface);
   }
   .done-toggle input { width: 18px; height: 18px; accent-color: var(--ok); margin: 0; cursor: pointer; }
-  .step.is-done .done-toggle { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok); }
+  .step.is-done .done-toggle { border-color: var(--ok-line); background: var(--ok-soft); color: var(--ok); }
 
-  .smoke { list-style: none; margin: 0; padding: 0; counter-reset: sm; display: flex; flex-direction: column; }
+  .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .checklist li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; }
+  .checklist li::before {
+    content: "✓"; width: 22px; height: 22px; border-radius: 7px; background: var(--accent-soft); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: .75rem; font-weight: 800; margin-top: 2px;
+  }
+
+  .smoke { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .smoke li {
-    counter-increment: sm; display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr); gap: 20px;
-    padding: 18px 0; border-bottom: 1px solid var(--line);
+    display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line);
   }
   .smoke li:first-child { padding-top: 0; }
   .smoke li:last-child { border-bottom: 0; padding-bottom: 0; }
-  .smoke li::before {
-    content: counter(sm); width: 28px; height: 28px; border-radius: 50%; background: var(--sunken);
-    display: grid; place-items: center; font-weight: 600; font-size: .85rem; color: var(--fg-soft);
-  }
-  .smoke .do, .smoke .see { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .smoke .k { font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; font-weight: 600; color: var(--muted); }
-  .smoke .see .k { color: var(--ok); }
-  .smoke p { color: var(--fg-soft); font-size: .95rem; }
-  .msg { font-style: italic; color: var(--fg); }
-  @media (max-width: 640px) {
-    .smoke li { grid-template-columns: 28px minmax(0, 1fr); gap: 12px 14px; }
-    .smoke .see { grid-column: 2; }
-  }
+  .smoke .sn { width: 30px; height: 30px; border-radius: 10px; background: var(--sunken); display: grid; place-items: center; font-weight: 700; font-size: .82rem; color: var(--fg-soft); font-family: "Sora", sans-serif; }
+  .smoke .col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .smoke .lbl { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
+  .smoke .col.exp .lbl { color: var(--ok); }
+  .smoke p { font-size: .93rem; color: var(--fg-soft); }
+  @media (max-width: 680px) { .smoke li { grid-template-columns: 30px minmax(0, 1fr); gap: 8px 12px; } .smoke .col.exp { grid-column: 2; } }
+  .who { display: inline-block; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 1px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+  .who.dev { color: var(--accent-ink); background: var(--accent-soft); }
+  .who.re { color: var(--orange); background: var(--orange-soft); }
+  .who.any { color: var(--teal); background: var(--teal-soft); }
 
-  .faults { display: flex; flex-direction: column; gap: 14px; }
-  .fault { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; }
-  .fault .sym { font-weight: 600; color: var(--fg); display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; }
-  .fault .sym::before { content: "!"; width: 20px; height: 20px; border-radius: 50%; background: var(--bad); color: var(--surface); font-size: .72rem; font-weight: 700; display: grid; place-items: center; margin-top: 3px; }
-  .fault p { color: var(--fg-soft); padding-left: 30px; }
+  /* ---------- permission cards ---------- */
+  .ps { border-radius: 16px; border: 1px solid var(--line); background: var(--surface); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+  .ps-top { padding: 16px 20px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 16%, transparent), transparent); border-bottom: 1px solid var(--line); }
+  .ps-who { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; color: var(--c); }
+  .ps-top h4 { font-size: 1.02rem; font-weight: 600; margin-top: 4px; line-height: 1.3; }
+  .ps dl { margin: 0; padding: 14px 20px 18px; display: grid; gap: 2px; font-size: .9rem; }
+  .ps dt { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; margin-top: 8px; }
+  .ps dt:first-child { margin-top: 0; }
+  .ps dd { margin: 0; color: var(--fg-soft); overflow-wrap: anywhere; }
 
-  details.xml { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-  details.xml summary {
-    cursor: pointer; font-weight: 600; padding: 14px 18px; list-style: none; display: flex; align-items: center; gap: 10px;
+  /* ---------- scenarios ---------- */
+  .scn-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .scn-tools .muted { font-size: .88rem; }
+  .scns { display: flex; flex-direction: column; gap: 10px; }
+  details.scn { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; transition: border-color .15s, box-shadow .15s; }
+  details.scn[open] { border-color: var(--line-strong); box-shadow: var(--shadow); }
+  details.scn > summary {
+    list-style: none; cursor: pointer; padding: 16px 20px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center;
   }
+  details.scn > summary::-webkit-details-marker { display: none; }
+  .sid { font-family: "JetBrains Mono", monospace; font-size: .74rem; font-weight: 500; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border-radius: 7px; padding: 3px 8px; }
+  .stitle { font-weight: 600; font-size: 1rem; min-width: 0; }
+  .sres { display: flex; align-items: center; gap: 10px; }
+  .chev { width: 26px; height: 26px; border-radius: 8px; background: var(--sunken); display: grid; place-items: center; color: var(--muted); transition: transform .2s; font-size: .8rem; }
+  details.scn[open] .chev { transform: rotate(180deg); }
+  @media (max-width: 560px) { .sres .pill { display: none; } }
+  .scn-body { padding: 0 20px 20px; }
+  .scn-body dl { margin: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px 18px; font-size: .93rem; border-top: 1px solid var(--line); padding-top: 16px; }
+  .scn-body dt { color: var(--muted); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; padding-top: 3px; }
+  .scn-body dd { margin: 0; color: var(--fg-soft); min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .scn-body ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px; }
+  @media (max-width: 560px) { .scn-body dl { grid-template-columns: minmax(0, 1fr); gap: 2px; } .scn-body dd { margin-bottom: 10px; } }
+  .quote { border-left: 3px solid var(--qc, var(--line-strong)); background: var(--sunken); padding: 8px 12px; border-radius: 0 8px 8px 0; color: var(--fg); font-size: .9rem; }
+  .q-bad { --qc: var(--bad); }
+  .q-warn { --qc: var(--warn); }
+  .q-ok { --qc: var(--ok); }
+
+  .banner-demo {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; border-radius: 10px;
+    background: var(--orange-soft); border: 1px solid var(--orange-line); padding: 14px 16px; font-size: .88rem;
+  }
+  .banner-demo .bi { width: 24px; height: 24px; border-radius: 50%; background: var(--orange); color: var(--surface); display: grid; place-items: center; font-weight: 800; font-size: .78rem; }
+  .banner-demo b { color: var(--orange); display: block; font-weight: 700; }
+  .banner-demo p { color: var(--fg-soft); }
+  .demo-cap { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+  /* ---------- troubleshooting / misc ---------- */
+  .faults { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .fault { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .fault .sym { font-weight: 600; color: var(--fg); display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; }
+  .fault .sym::before { content: "!"; width: 22px; height: 22px; border-radius: 7px; background: var(--bad-soft); color: var(--bad); font-weight: 800; font-size: .78rem; display: grid; place-items: center; }
+  .fault p { color: var(--fg-soft); font-size: .92rem; }
+  details.xml { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  details.xml summary { cursor: pointer; padding: 14px 18px; font-weight: 600; list-style: none; display: flex; gap: 10px; align-items: center; }
   details.xml summary::-webkit-details-marker { display: none; }
   details.xml summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
   details.xml[open] summary::before { transform: rotate(90deg); }
   details.xml .code { margin: 0 14px 14px; }
-
-  .note-list { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 10px; color: var(--fg-soft); }
-  footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 24px; }
+  .glossary { margin: 0; display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 12px 22px; font-size: .93rem; }
+  .glossary dt { font-weight: 600; }
+  .glossary dd { margin: 0; color: var(--fg-soft); min-width: 0; }
+  @media (max-width: 560px) { .glossary { grid-template-columns: minmax(0, 1fr); gap: 2px; } .glossary dd { margin-bottom: 10px; } }
+  .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .comp { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--surface); min-width: 0; }
+  .comp b { font-family: "Sora", sans-serif; font-size: 1.5rem; font-weight: 700; display: block; }
+  .comp span { font-size: .82rem; color: var(--muted); }
+  footer { color: var(--muted); font-size: .84rem; border-top: 1px solid var(--line); padding-block: 26px 40px; }
 </style>
 
-<div class="bar">
-  <div class="bar-inner">
-    <span class="bar-title">Setup progress</span>
-    <div class="bar-track" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div>
-    <span class="bar-count" id="barCount">0 of 8 steps done</span>
-    <button class="btn-ghost" id="resetTicks" type="button">Clear</button>
+<header class="hero gutter">
+  <div class="wrap">
+    <div class="brand"><span class="mark">✓</span>Copado Story Verification Gate</div>
+    <div class="hero-grid">
+      <div>
+        <h1>Promote only what's <span>verified</span>.</h1>
+        <p class="lede">The gate checks every Copado User Story against its Git feature branch and lets it be promoted only when the result is clean and still current. This guide covers installing it, using it every day, and running it.</p>
+        <div class="audience">
+          <a class="aud" href="#setup" style="--c: var(--accent)"><span class="av">AD</span>Admin: install it</a>
+          <a class="aud" href="#developer" style="--c: var(--ok)"><span class="av">DV</span>Developer: verify and promote</a>
+          <a class="aud" href="#release-engineer" style="--c: var(--orange)"><span class="av">RE</span>Release engineer: bypass</a>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>6</b><span>checks per verification</span></div>
+        <div class="stat"><b>12</b><span>validation rules</span></div>
+        <div class="stat"><b>67</b><span>components</span></div>
+        <div class="stat"><b>~40 min</b><span>to install</span></div>
+      </div>
+    </div>
   </div>
-</div>
+</header>
 
-<div class="page">
-  <div class="layout">
+<nav class="tabs-bar gutter" aria-label="Guide sections">
+  <div class="wrap tabs">
+    <a class="tab" href="#overview"><span class="n">01</span>Overview</a>
+    <a class="tab" href="#setup"><span class="n">02</span>Setup</a>
+    <a class="tab" href="#developer"><span class="n">03</span>Developer</a>
+    <a class="tab" href="#release-engineer"><span class="n">04</span>Release engineer</a>
+    <a class="tab" href="#reference"><span class="n">05</span>Rules and messages</a>
+    <a class="tab" href="#maintain"><span class="n">06</span>Maintain</a>
+  </div>
+</nav>
 
-    <nav class="toc" aria-label="Contents">
-      <div class="toc-label">Steps</div>
-      <ol>
-        <li><a href="#step-1" data-step="1"><span class="dot"><span>1</span></span>Deploy the package</a></li>
-        <li><a href="#step-2" data-step="2"><span class="dot"><span>2</span></span>Create Copado records</a></li>
-        <li><a href="#step-3" data-step="3"><span class="dot"><span>3</span></span>Store the webhook secret</a></li>
-        <li><a href="#step-4" data-step="4"><span class="dot"><span>4</span></span>Site and guest user</a></li>
-        <li><a href="#step-5" data-step="5"><span class="dot"><span>5</span></span>GitHub webhook</a></li>
-        <li><a href="#step-6" data-step="6"><span class="dot"><span>6</span></span>Verify button</a></li>
-        <li><a href="#step-7" data-step="7"><span class="dot"><span>7</span></span>Permission sets</a></li>
-        <li><a href="#step-8" data-step="8"><span class="dot"><span>8</span></span>Smoke test</a></li>
-      </ol>
-      <div class="toc-label">Reference</div>
-      <ol>
-        <li><a href="#before">Before you start</a></li>
-        <li><a href="#access">Who needs which permission</a></li>
-        <li><a href="#upgrading">Upgrading later</a></li>
-        <li><a href="#switch">Turn the gate off org-wide</a></li>
-        <li><a href="#troubleshooting">Troubleshooting</a></li>
-        <li><a href="#package">What package.xml deploys</a></li>
-      </ol>
-    </nav>
+<div class="page gutter">
+<div class="wrap">
 
-    <main>
+<!-- ======================================================= OVERVIEW -->
+<section class="view" id="overview">
+  <div class="view-head">
+    <div class="eyebrow">01 · Overview</div>
+    <h2>How the gate works</h2>
+    <p>A User Story can be marked <span class="ui">Ready to Promote</span> or <span class="ui">Promote and Deploy</span>, or added to a promotion, only when it has been <strong>verified</strong>, the result is <strong>Clean</strong>, and nothing has been committed since.</p>
+  </div>
 
-      <header class="hero">
-        <div class="eyebrow">Copado Story Verification Gate · Installation guide</div>
-        <h1>Set up the Story Verification Gate in a new org</h1>
-        <p class="lede">Do the eight steps in order. Each step tells you where to do it, how long it takes and what you should see when it has worked. Mark each step done as you go; your progress is kept in this browser.</p>
-        <div class="facts">
-          <div class="fact"><b>8</b><span>steps</span></div>
-          <div class="fact"><b>~30 min</b><span>total time</span></div>
-          <div class="fact"><b>50</b><span>components deployed</span></div>
-          <div class="fact"><b>API 63.0</b><span>Salesforce version</span></div>
+  <div class="block">
+    <h3>The story's journey</h3>
+    <div class="pipeline">
+      <div class="pl"><b>Commit</b><span>Through Copado or straight to Git</span></div>
+      <div class="pl"><b>Verify</b><span>Six checks run live in a popup</span></div>
+      <div class="pl"><b>Result</b><span>Clean, or Issues to fix</span></div>
+      <div class="pl"><b>Ready to Promote</b><span>Allowed by the gate rules</span></div>
+      <div class="pl"><b>Promotion</b><span>Checked again on add</span></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>What's in the box</h3>
+    <div class="grid">
+      <div class="tile"><div class="ic">V</div><h4>Verify popup</h4><p>A <span class="ui">Verify</span> action on the User Story runs six checks, shows each result with its reason, and saves the verdict on the story.</p></div>
+      <div class="tile"><div class="ic">7</div><h4>Gate rules</h4><p>Seven validation rules stop both promote boxes being checked until the story is verified, Clean, current, approved and has no pending tests.</p></div>
+      <div class="tile"><div class="ic">G</div><h4>Promotion guard</h4><p>A story with Issues can't be added to a promotion from any screen or the API.</p></div>
+      <div class="tile"><div class="ic">W</div><h4>Push webhook</h4><p>GitHub reports every push to a <code>feature/US-…</code> branch. A new commit after verification unchecks the promote boxes.</p></div>
+      <div class="tile"><div class="ic">B</div><h4>Release-engineer bypass</h4><p>A release engineer can let one story with Issues through, with a recorded reason. Orange banners mark the story and its promotion.</p></div>
+      <div class="tile"><div class="ic">+</div><h4>Create Selected Metadata</h4><p>Components changed in Git but missing from the story can be registered from the popup in one click.</p></div>
+      <div class="tile"><div class="ic">⏻</div><h4>Org-wide switch</h4><p>One custom setting turns the gate off for everyone without a deploy. Verify keeps working for information.</p></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Verdicts</h3>
+    <p class="intro">Every verification ends in one of these. The promote rules run only when a box is being <em>checked</em>; saving other fields is never blocked.</p>
+    <div class="verdicts">
+      <div class="verdict v-ok"><div class="vn">Clean</div><p>No check failed. Warnings are allowed.</p><div class="gate">Can promote*</div></div>
+      <div class="verdict v-bad"><div class="vn">Issues</div><p>At least one check failed.</p><div class="gate">Blocked · a release engineer can bypass</div></div>
+      <div class="verdict v-warn"><div class="vn">Failed</div><p>The run broke (for example Git couldn't be cloned) or was cancelled.</p><div class="gate">Blocked · verify again</div></div>
+      <div class="verdict v-run"><div class="vn">Running</div><p>A verification is in progress.</p><div class="gate">Blocked · wait</div></div>
+      <div class="verdict v-grey"><div class="vn">Not verified</div><p>The status is blank.</p><div class="gate">Blocked · click Verify</div></div>
+    </div>
+    <p class="muted" style="font-size:.88rem">* While no newer commit has arrived, the pull request is approved (or the story has no commits) and Pending Tests is 0.</p>
+  </div>
+
+  <div class="block">
+    <h3>The six checks</h3>
+    <p class="intro">Three checks read Git history through a Copado Function (no file contents). Three read Salesforce through Apex.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Check</th><th><span class="pill p-yes">Pass</span></th><th><span class="pill p-mid">Warn</span></th><th><span class="pill p-no">Fail</span></th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="4">Git · Copado Function</td></tr>
+          <tr>
+            <td class="k">Unregistered commits</td>
+            <td>Every commit beyond the base branch is registered in Copado, or was made outside Copado by someone who also has a Copado commit on the story and only touched registered components. Amended or rebased commits show in teal and pass.</td>
+            <td>Commits outside Copado by someone with no Copado commit on the story, on registered components: <span class="msg">"1 commit made outside Copado by &lt;name&gt;"</span>.</td>
+            <td>A commit outside Copado changes components not registered on the story, or the story has commits but no <code>feature/US-…</code> branch exists.</td>
+          </tr>
+          <tr>
+            <td class="k">Metadata coverage</td>
+            <td>Every component changed in Git is registered with the same type and exact name.</td>
+            <td>-</td>
+            <td>A changed component isn't registered, so it won't deploy. It is listed under <span class="ui">Not registered</span> as ADD or DELETE.</td>
+          </tr>
+          <tr>
+            <td class="k">External branch merge</td>
+            <td>No other branch was merged in after the branch left its base.</td>
+            <td>Only the base branch was merged in.</td>
+            <td>An environment, promotion or other story's branch was merged in.</td>
+          </tr>
+          <tr class="group"><td colspan="4">Salesforce · Apex</td></tr>
+          <tr>
+            <td class="k">Pull request approval</td>
+            <td><span class="ui">Pull Requests Approved</span> is checked, or the story has no commits.</td>
+            <td>No commits but a feature branch exists, or nothing to promote at all.</td>
+            <td>The story has commits and the pull request isn't approved.</td>
+          </tr>
+          <tr>
+            <td class="k">Pending tests</td>
+            <td><span class="ui">Pending Tests</span> is 0.</td>
+            <td>-</td>
+            <td>Tests are pending.</td>
+          </tr>
+          <tr>
+            <td class="k">Parent story dependencies</td>
+            <td>Every parent story (via the base branch or a Copado dependency) is in a later environment or Completed.</td>
+            <td>-</td>
+            <td>A parent hasn't been promoted ahead of this story. The row names it.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Roles</h3>
+    <div class="grid wide">
+      <div class="ps" style="--c: var(--ok)">
+        <div class="ps-top"><div class="ps-who">Developer</div><h4>Builds the change and promotes it</h4></div>
+        <dl><dt>Can</dt><dd>Verify, fix, check Ready to Promote once Clean, add Clean stories to promotions.</dd><dt>Can't</dt><dd>Bypass, or promote a story that has Issues.</dd></dl>
+      </div>
+      <div class="ps" style="--c: var(--orange)">
+        <div class="ps-top"><div class="ps-who">Release engineer</div><h4>Owns the release and its exceptions</h4></div>
+        <dl><dt>Can</dt><dd>Everything a developer can, plus bypass one story with Issues and take it through a promotion.</dd><dt>Can't</dt><dd>Use Promote and Deploy on a bypassed story, or skip any other rule.</dd></dl>
+      </div>
+      <div class="ps" style="--c: var(--accent)">
+        <div class="ps-top"><div class="ps-who">Admin</div><h4>Installs and runs the gate</h4></div>
+        <dl><dt>Can</dt><dd>Install it, assign permission sets, switch the gate off org-wide, update it.</dd></dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Components</h3>
+    <p class="intro">67 components, all listed in <code>manifest/package.xml</code>.</p>
+    <div class="comp-grid">
+      <div class="comp"><b>21</b><span>Apex classes</span></div>
+      <div class="comp"><b>3</b><span>Apex triggers</span></div>
+      <div class="comp"><b>2</b><span>Lightning web components</span></div>
+      <div class="comp"><b>3</b><span>Objects</span></div>
+      <div class="comp"><b>18</b><span>Fields</span></div>
+      <div class="comp"><b>12</b><span>Validation rules</span></div>
+      <div class="comp"><b>4</b><span>Permission sets</span></div>
+      <div class="comp"><b>4</b><span>Other</span></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Component</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="2">Apex classes</td></tr>
+          <tr><td><code>StoryVerificationService</code></td><td>Gathers Salesforce facts, runs the three Apex checks and starts the Copado job.</td></tr>
+          <tr><td><code>StoryVerificationController</code></td><td>Behind the Verify popup: start, poll, cancel.</td></tr>
+          <tr><td><code>StoryVerificationComplete</code></td><td>Writes the job result back to the story.</td></tr>
+          <tr><td><code>StoryVerificationException</code></td><td>Error type shown in the popup.</td></tr>
+          <tr><td><code>StoryVerificationSetup</code></td><td>Creates the Copado Function, Job Template and Job Step; carries the Function code.</td></tr>
+          <tr><td><code>StoryVerificationMetadataController</code></td><td>Create Selected Metadata: preview and insert.</td></tr>
+          <tr><td><code>StoryVerificationPushWebhook</code></td><td>REST endpoint GitHub calls; checks the signature and publishes the push event.</td></tr>
+          <tr><td><code>StoryBranchPushHandler</code></td><td>Records the branch head and unchecks the promote boxes after a new push.</td></tr>
+          <tr><td><code>StoryVerificationSwitch</code></td><td>Reads the org-wide switch.</td></tr>
+          <tr><td><code>StoryPromotionGuard</code></td><td>Refuses to add a story with Issues to a promotion.</td></tr>
+          <tr><td><code>StoryBypass</code></td><td>Stamps and ends a bypass; unchecks the promote boxes when a verification finds Issues.</td></tr>
+          <tr><td><code>StoryBypassController</code></td><td>Lists a promotion's bypassed stories for the banner.</td></tr>
+          <tr><td>9 test classes</td><td><code>StoryVerificationServiceTest</code>, <code>StoryVerificationCompleteTest</code>, <code>StoryVerificationControllerTest</code>, <code>StoryVerificationSetupTest</code>, <code>StoryVerificationMetadataControllerTest</code>, <code>StoryVerificationPushWebhookTest</code>, <code>StoryVerificationSwitchTest</code>, <code>StoryPromotionGuardTest</code>, <code>StoryBypassTest</code></td></tr>
+          <tr class="group"><td colspan="2">Triggers</td></tr>
+          <tr><td><code>StoryBranchPushTrigger</code></td><td>On <code>Story_Branch_Push__e</code>; runs the push handler as the Automated Process user.</td></tr>
+          <tr><td><code>StoryPromotionGuardTrigger</code></td><td>Before insert on <code>copado__Promoted_User_Story__c</code>.</td></tr>
+          <tr><td><code>StoryBypassTrigger</code></td><td>Before insert and update on <code>copado__User_Story__c</code>.</td></tr>
+          <tr class="group"><td colspan="2">Lightning web components</td></tr>
+          <tr><td><code>storyVerificationPopup</code></td><td>The Verify popup.</td></tr>
+          <tr><td><code>storyBypassBanner</code></td><td>"Story Verification Bypass Banner" for the User Story and Promotion pages, including the Yes/No prompt.</td></tr>
+          <tr class="group"><td colspan="2">Objects and their fields</td></tr>
+          <tr><td><code>Story_Branch_Push__e</code></td><td>Platform event: <code>Story_Name__c</code>, <code>Head_SHA__c</code>, <code>Pushed_At__c</code>.</td></tr>
+          <tr><td><code>Story_Verification_Setting__mdt</code></td><td>Custom metadata type with <code>GitHub_Webhook_Secret__c</code>.</td></tr>
+          <tr><td><code>Story_Verification_Control__c</code></td><td>Custom setting with <code>Disable_Story_Verification__c</code>: the org-wide switch.</td></tr>
+          <tr class="group"><td colspan="2">User Story fields</td></tr>
+          <tr><td><code>Verification_Status__c</code></td><td>Clean, Issues, Failed, Running or blank.</td></tr>
+          <tr><td><code>Verification_Date__c</code></td><td>When the last verification finished.</td></tr>
+          <tr><td><code>Verification_Details__c</code></td><td>Readable summary.</td></tr>
+          <tr><td><code>Verification_Checks__c</code></td><td>Full result as JSON for the popup.</td></tr>
+          <tr><td><code>Verification_Run_Id__c</code></td><td>The current Copado job.</td></tr>
+          <tr><td><code>Verification_No_Commits__c</code></td><td>The story had no commits, so no PR approval is required.</td></tr>
+          <tr><td><code>Verified_Head_SHA__c</code></td><td>The commit the last verification checked.</td></tr>
+          <tr><td><code>Branch_Head_SHA__c</code>, <code>Branch_Head_Pushed_At__c</code></td><td>Latest commit on the branch, from the webhook.</td></tr>
+          <tr><td><code>Bypass_Verification__c</code></td><td>Checked by a release engineer to let a story with Issues through.</td></tr>
+          <tr><td><code>Bypass_Reason__c</code></td><td>Why. Required; kept after the bypass ends.</td></tr>
+          <tr><td><code>Bypassed_By__c</code>, <code>Bypassed_At__c</code></td><td>Who and when. Filled automatically.</td></tr>
+          <tr class="group"><td colspan="2">Validation rules on User Story</td></tr>
+          <tr><td>7 gate rules</td><td><code>Story_Not_Verified</code>, <code>Story_Verification_Running</code>, <code>Story_Verification_Issues</code>, <code>New_Commits_After_Verification</code>, <code>Branch_Changed_After_Verification</code>, <code>PR_Not_Approved</code>, <code>Tests_Pending</code></td></tr>
+          <tr><td>5 bypass rules</td><td><code>Bypass_Release_Engineer_Only</code>, <code>Bypass_Only_When_Issues</code>, <code>Bypass_Reason_Required</code>, <code>Bypassed_Promote_Release_Engineer_Only</code>, <code>Bypassed_No_Promote_And_Deploy</code></td></tr>
+          <tr class="group"><td colspan="2">Access and automation</td></tr>
+          <tr><td>Custom permissions</td><td><code>Bypass_Verification_Gate</code> ("Story Verification Release Engineer"), <code>Create_Story_Metadata</code></td></tr>
+          <tr><td>Permission sets</td><td>User, Release Engineer, Metadata Creator, Webhook. See <a href="#step-8">setup step 8</a>.</td></tr>
+          <tr><td>Flow</td><td><code>Story_Verification_Completion</code>: hands the finished Copado job to Apex.</td></tr>
+          <tr><td>Quick action</td><td><code>Verify_Story_Live</code>, label <span class="ui">Verify</span>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note n-info"><div class="ni">i</div><div class="nb"><div class="nt">Set up by hand, not deployed</div><p>The Copado Function records, the webhook secret, the Site, page layouts and Lightning pages differ per org. Setup covers each one.</p></div></div>
+  </div>
+
+  <div class="next"><a class="fwd" href="#setup"><small>Next</small><b>Setup →</b></a></div>
+</section>
+
+<!-- ======================================================= SETUP -->
+<section class="view" id="setup" hidden>
+  <div class="view-head">
+    <div class="eyebrow">02 · Setup</div>
+    <h2>Install in nine steps</h2>
+    <p>For admins. Do the steps in order. Tick each one as you finish it; your progress is kept in this browser.</p>
+  </div>
+
+  <div class="progress-card">
+    <b>Progress</b>
+    <div class="ptrack" aria-hidden="true"><div class="pfill" id="pfill"></div></div>
+    <span class="pcount" id="pcount">0 of 9 done</span>
+    <button class="btn" id="resetTicks" type="button">Clear</button>
+  </div>
+
+  <div class="block">
+    <h3>Before you start</h3>
+    <div class="card">
+      <ul class="checklist">
+        <li><div><strong>Copado is installed</strong> (namespace <code>copado</code>) with a pipeline, a project and an authenticated Git repository.</div></li>
+        <li><div><strong>The Salesforce CLI (<code>sf</code>) is installed</strong> and you are logged in as a user who can deploy, run anonymous Apex, edit Sites and edit Lightning pages.</div></li>
+        <li><div><strong>You are an admin of the GitHub repository</strong>, so you can add a webhook.</div></li>
+        <li><div><strong>A terminal is open at the repository root</strong> (the folder with <code>manifest/</code>, <code>force-app/</code> and <code>scripts/</code>).</div></li>
+        <li><div><strong>You know your release engineers.</strong> Keep it to a few people.</div></li>
+      </ul>
+      <div class="note n-info"><div class="ni">i</div><div class="nb"><p>Replace highlighted values such as <code>&lt;alias&gt;</code> with your own.</p></div></div>
+    </div>
+    <div class="overview-steps" id="stepIndex">
+      <a class="os" href="#step-1" data-step="1"><span class="d">1</span><span><b>Deploy the package</b><span>Command line · 5 min</span></span></a>
+      <a class="os" href="#step-2" data-step="2"><span class="d">2</span><span><b>Create Copado records</b><span>Command line · 1 min</span></span></a>
+      <a class="os" href="#step-3" data-step="3"><span class="d">3</span><span><b>Store the webhook secret</b><span>Setup · 3 min</span></span></a>
+      <a class="os" href="#step-4" data-step="4"><span class="d">4</span><span><b>Site and guest user</b><span>Setup · 5 min</span></span></a>
+      <a class="os" href="#step-5" data-step="5"><span class="d">5</span><span><b>GitHub webhook</b><span>GitHub · 3 min</span></span></a>
+      <a class="os" href="#step-6" data-step="6"><span class="d">6</span><span><b>User Story page</b><span>Setup, App Builder · 6 min</span></span></a>
+      <a class="os" href="#step-7" data-step="7"><span class="d">7</span><span><b>Promotion page</b><span>App Builder · 2 min</span></span></a>
+      <a class="os" href="#step-8" data-step="8"><span class="d">8</span><span><b>Permission sets</b><span>Setup · 3 min</span></span></a>
+      <a class="os" href="#step-9" data-step="9"><span class="d">9</span><span><b>Smoke test</b><span>Salesforce, GitHub · 12 min</span></span></a>
+    </div>
+  </div>
+
+  <div class="steps">
+
+    <!-- STEP 1 -->
+    <div class="step" id="step-1" data-step="1">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <div class="shead"><h3>Deploy the package</h3><div class="meta"><span class="chip where">Command line</span><span class="chip">5 min</span></div></div>
+        <p class="swhy">Deploys the 67 components and runs the nine test classes.</p>
+        <div class="card">
+          <ol class="actions">
+            <li><div class="act">
+              <h4>Validate first</h4>
+              <p>Runs everything and the tests without changing the org.</p>
+              <div class="code"><pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --dry-run --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --tests StoryPromotionGuardTest --tests StoryBypassTest --wait 30</pre><button class="copy" type="button">Copy</button></div>
+            </div></li>
+            <li><div class="act">
+              <h4>Deploy</h4>
+              <div class="code"><pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --tests StoryPromotionGuardTest --tests StoryBypassTest --wait 30</pre><button class="copy" type="button">Copy</button></div>
+            </div></li>
+          </ol>
+          <div class="note n-ok"><div class="ni">✓</div><div class="nb"><div class="nt">Expect</div><p><strong>Status: Succeeded</strong>, 67 components, every test passing.</p></div></div>
+          <div class="note n-warn"><div class="ni">!</div><div class="nb"><div class="nt">If tests fail on your org's own rules</div><p>Validation rules outside this package can refuse the test data. The tests fill <code>Jira_Key__c</code> when that field exists and test the box-unchecking logic in memory. If another rule still blocks them, extend the test data to satisfy it.</p></div></div>
+          <div class="done-row"><span class="hint">Deploy succeeded?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="1"> Mark done</label></div>
         </div>
-      </header>
+      </div>
+    </div>
 
-      <section>
-        <div class="section-head">
-          <div class="kicker">Overview</div>
-          <h2>What you are installing</h2>
+    <!-- STEP 2 -->
+    <div class="step" id="step-2" data-step="2">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <div class="shead"><h3>Create the Copado Function records</h3><div class="meta"><span class="chip where">Command line</span><span class="chip">1 min</span></div></div>
+        <p class="swhy">The Function, Job Template and Job Step are data records, so one Apex call creates them.</p>
+        <div class="card">
+          <ol class="actions">
+            <li><div class="act">
+              <h4>Run the setup script</h4>
+              <div class="code"><pre>sf apex run --file scripts/create-copado-records.apex --target-org <span class="ph">&lt;alias&gt;</span></pre><button class="copy" type="button">Copy</button></div>
+              <div class="or">or in Execute Anonymous</div>
+              <div class="code"><pre>StoryVerificationSetup.run();</pre><button class="copy" type="button">Copy</button></div>
+            </div></li>
+          </ol>
+          <div class="note n-ok"><div class="ni">✓</div><div class="nb"><div class="nt">Expect</div><p><code>Story Verification records ready. Function=… Template=… Step=…</code></p></div></div>
+          <div class="table-wrap"><table class="kv"><tbody>
+            <tr><td>Function</td><td><code>Story_Verification</code> · image <code>copado-multicloud-dx:v6</code> · worker size S</td></tr>
+            <tr><td>Job Template</td><td><code>Story_Verification_1</code></td></tr>
+            <tr><td>Job Step</td><td><code>Story_Verification_1_Story_Verification_1</code></td></tr>
+          </tbody></table></div>
+          <div class="note n-warn"><div class="ni">!</div><div class="nb"><div class="nt">Run it after every deploy</div><p>The script copies the Function code from the deployed <code>StoryVerificationSetup</code> class and updates the records in place, so rerunning it is always safe.</p></div></div>
+          <div class="done-row"><span class="hint">Saw "records ready"?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="2"> Mark done</label></div>
         </div>
-        <div class="parts">
-          <div class="part">
-            <h3>Verify button</h3>
-            <p>Sits on the User Story. It runs six checks on the feature branch through a Copado Function and records the result as Clean or Issues.</p>
-          </div>
-          <div class="part">
-            <h3>7 validation rules</h3>
-            <p>Block <span class="ui">Ready to Promote</span> and <span class="ui">Promote and Deploy</span> until the story is verified and Clean, its pull request is approved and its tests pass. One org-wide <a href="#switch">switch</a> turns them all off.</p>
-          </div>
-          <div class="part">
-            <h3>GitHub webhook</h3>
-            <p>Records each new commit on a <code>feature/US-…</code> branch. A commit after verification blocks promotion again and unchecks both boxes.</p>
-          </div>
-        </div>
+      </div>
+    </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>Step</th><th>Where</th><th>Time</th></tr></thead>
+    <!-- STEP 3 -->
+    <div class="step" id="step-3" data-step="3">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <div class="shead"><h3>Store the webhook secret</h3><div class="meta"><span class="chip where">Salesforce Setup</span><span class="chip">3 min</span></div></div>
+        <p class="swhy">GitHub signs every delivery with a shared secret, and Salesforce checks the signature against this record.</p>
+        <div class="card">
+          <ol class="actions">
+            <li><div class="act">
+              <h4>Generate a secret</h4>
+              <div class="code"><div class="code-label">PowerShell</div><pre>$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | % { $_.ToString('x2') })</pre><button class="copy" type="button">Copy</button></div>
+              <div class="code"><div class="code-label">Git Bash, macOS, Linux</div><pre>openssl rand -hex 32</pre><button class="copy" type="button">Copy</button></div>
+              <p>Keep it in a password manager; step 5 needs it.</p>
+            </div></li>
+            <li><div class="act">
+              <h4>Create the Default record</h4>
+              <ol class="clicks">
+                <li><span class="path">Setup<i>›</i>Custom Metadata Types</span>, then <span class="ui">Manage Records</span> next to <span class="ui">Story Verification Setting</span>, then <span class="ui">New</span>.</li>
+                <li>Fill in and save:</li>
+              </ol>
+              <div class="table-wrap"><table class="kv"><tbody>
+                <tr><td>Label</td><td><code>Default</code></td></tr>
+                <tr><td>Story Verification Setting Name</td><td><code>Default</code></td></tr>
+                <tr><td>GitHub Webhook Secret</td><td>The secret from 3a</td></tr>
+              </tbody></table></div>
+            </div></li>
+          </ol>
+          <div class="note n-warn"><div class="ni">!</div><div class="nb"><div class="nt">Keep it private</div><ul><li>Never email it, post it in chat or commit it.</li><li>To rotate it, change it here and in GitHub together.</li></ul></div></div>
+          <div class="done-row"><span class="hint">Record saved?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="3"> Mark done</label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step" id="step-4" data-step="4">
+      <div class="snum">4</div>
+      <div class="sbody">
+        <div class="shead"><h3>Create the Site and give the guest user access</h3><div class="meta"><span class="chip where">Salesforce Setup</span><span class="chip">5 min</span></div></div>
+        <p class="swhy">A Salesforce Site gives GitHub a public URL to call. The site's guest user receives each delivery.</p>
+        <div class="card">
+          <ol class="actions">
+            <li><div class="act">
+              <h4>Create the Site</h4>
+              <ol class="clicks">
+                <li><span class="path">Setup<i>›</i>Sites</span>. Register a Sites domain first if the org has none.</li>
+                <li>Click <span class="ui">New</span>, fill in and save. An existing active site also works.</li>
+              </ol>
+              <div class="table-wrap"><table class="kv"><tbody>
+                <tr><td>Site Label / Name</td><td><code>storyverification</code></td></tr>
+                <tr><td>Default Web Address</td><td>Empty</td></tr>
+                <tr><td>Active Site Home Page</td><td>Any page, e.g. <code>InMaintenance</code></td></tr>
+                <tr><td>Active</td><td>Checked</td></tr>
+              </tbody></table></div>
+            </div></li>
+            <li><div class="act">
+              <h4>Assign the Webhook permission set to the guest user</h4>
+              <ol class="clicks">
+                <li>Open the site, click <span class="ui">Public Access Settings</span>, then <span class="ui">View Users</span>, then <span class="ui">Site Guest User</span>.</li>
+                <li>Under <span class="ui">Permission Set Assignments</span>, add <span class="ui">Copado Story Verification Webhook</span>.</li>
+              </ol>
+              <div class="note n-info"><div class="ni">i</div><div class="nb"><div class="nt">Why it's safe</div><p>It grants only the webhook class and create on the push event. The guest user never reads or edits stories; the trigger runs as the Automated Process user.</p></div></div>
+            </div></li>
+            <li><div class="act">
+              <h4>Note the endpoint URL</h4>
+              <div class="code"><pre>https://<span class="ph">&lt;site domain&gt;</span>/services/apexrest/storyverification/push</pre><button class="copy" type="button">Copy</button></div>
+              <p>A sandbox domain looks like <code>https://&lt;org&gt;--&lt;sandbox&gt;.sandbox.my.salesforce-sites.com</code>. If the site has a path, put it before <code>/services</code>.</p>
+            </div></li>
+          </ol>
+          <div class="done-row"><span class="hint">Site active, guest user assigned?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="4"> Mark done</label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step" id="step-5" data-step="5">
+      <div class="snum">5</div>
+      <div class="sbody">
+        <div class="shead"><h3>Add the GitHub webhook</h3><div class="meta"><span class="chip where">GitHub</span><span class="chip">3 min</span></div></div>
+        <p class="swhy">Every push reaches Salesforce, whether it came from Copado, a local <code>git push</code> or the GitHub editor.</p>
+        <div class="card">
+          <ol class="actions">
+            <li><div class="act">
+              <h4>Create it</h4>
+              <p><span class="path">Repository<i>›</i>Settings<i>›</i>Webhooks<i>›</i>Add webhook</span></p>
+              <div class="table-wrap"><table class="kv"><tbody>
+                <tr><td>Payload URL</td><td>The endpoint from 4c</td></tr>
+                <tr><td>Content type</td><td><code>application/json</code></td></tr>
+                <tr><td>Secret</td><td>The secret from step 3</td></tr>
+                <tr><td>SSL verification</td><td>Enabled</td></tr>
+                <tr><td>Events</td><td>Just the push event</td></tr>
+                <tr><td>Active</td><td>Checked</td></tr>
+              </tbody></table></div>
+            </div></li>
+            <li><div class="act"><h4>Check the ping</h4><p>Open <span class="ui">Recent Deliveries</span> and open the ping.</p></div></li>
+          </ol>
+          <div class="note n-ok"><div class="ni">✓</div><div class="nb"><div class="nt">Expect</div><p>Response <strong>200</strong> with <code>{"message":"pong"}</code>.</p></div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Response</th><th>Meaning</th><th>Fix</th></tr></thead>
             <tbody>
-              <tr><td class="num">1</td><td><a href="#step-1">Deploy the package</a></td><td>Command line</td><td class="nowrap">5 min</td></tr>
-              <tr><td class="num">2</td><td><a href="#step-2">Create the Copado Function records</a></td><td>Command line</td><td class="nowrap">1 min</td></tr>
-              <tr><td class="num">3</td><td><a href="#step-3">Store the webhook secret</a></td><td>Salesforce Setup</td><td class="nowrap">3 min</td></tr>
-              <tr><td class="num">4</td><td><a href="#step-4">Create the Site and give the guest user access</a></td><td>Salesforce Setup</td><td class="nowrap">5 min</td></tr>
-              <tr><td class="num">5</td><td><a href="#step-5">Add the GitHub webhook</a></td><td>GitHub</td><td class="nowrap">3 min</td></tr>
-              <tr><td class="num">6</td><td><a href="#step-6">Add the Verify button to the page layout</a></td><td>Salesforce Setup</td><td class="nowrap">3 min</td></tr>
-              <tr><td class="num">7</td><td><a href="#step-7">Assign permission sets</a></td><td>Setup or command line</td><td class="nowrap">2 min</td></tr>
-              <tr><td class="num">8</td><td><a href="#step-8">Run the smoke test</a></td><td>Salesforce and GitHub</td><td class="nowrap">5 min</td></tr>
+              <tr><td class="nowrap"><strong>401</strong> Invalid signature</td><td>Secrets don't match.</td><td>Use the same secret in both places.</td></tr>
+              <tr><td class="nowrap"><strong>500</strong> Secret not configured</td><td>No Default record.</td><td><a href="#step-3">Step 3</a>.</td></tr>
+              <tr><td class="nowrap"><strong>404</strong></td><td>Wrong URL, or site inactive.</td><td>Recheck 4c.</td></tr>
+              <tr><td class="nowrap"><strong>403</strong> / login page</td><td>Guest user can't run the class.</td><td>Do 4b.</td></tr>
+              <tr><td class="nowrap"><strong>200</strong> Ignored</td><td>Normal for non-<code>feature/US-…</code> branches, tags and deletions.</td><td>Nothing.</td></tr>
             </tbody>
-          </table>
+          </table></div>
+          <div class="done-row"><span class="hint">Ping returned pong?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="5"> Mark done</label></div>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <section id="before">
-        <div class="section-head">
-          <div class="kicker">Prerequisites</div>
-          <h2>Before you start</h2>
-          <p>Make sure you have all of these. Every step below assumes them.</p>
-        </div>
-        <div class="card">
-          <ul class="checklist">
-            <li><div><strong>Copado is installed</strong> (namespace <code>copado</code>) with a pipeline, a project and an authenticated Git repository.</div></li>
-            <li><div><strong>The Salesforce CLI (<code>sf</code>) is installed</strong>, and you are logged in as a user who can deploy metadata, run anonymous Apex and edit Sites.</div></li>
-            <li><div><strong>You are an admin of the GitHub repository</strong> that Copado uses, so you can add a webhook.</div></li>
-            <li><div><strong>A terminal is open in the project folder</strong> <code>D:\copado-story-verification</code>.</div></li>
-          </ul>
-          <div class="callout info">
-            <div class="ico">i</div>
-            <div class="body">
-              <div class="label">Placeholders</div>
-              <p>Wherever you see <span class="ph">&lt;alias&gt;</span> in a command, replace it with your org alias, for example <code>RBKPIPEQA</code>. Highlighted values are always ones you fill in.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="step" id="step-1" data-step="1">
-        <div class="step-head">
-          <div class="step-num">1</div>
-          <div class="step-title">
-            <h2>Deploy the package</h2>
-            <div class="tags"><span class="tag where">Command line</span><span class="tag">About 5 minutes</span></div>
-          </div>
-        </div>
-        <p class="why">Deploys all 50 components in <code>manifest/package.xml</code> (Apex, the trigger, the popup, fields, the on/off custom setting, permission sets and the 7 validation rules) and runs the seven test classes.</p>
+    <!-- STEP 6 -->
+    <div class="step" id="step-6" data-step="6">
+      <div class="snum">6</div>
+      <div class="sbody">
+        <div class="shead"><h3>Set up the User Story page</h3><div class="meta"><span class="chip where">Setup · App Builder</span><span class="chip">6 min</span></div></div>
+        <p class="swhy">Layouts and Lightning pages belong to your org, so add the Verify action, the fields and the banner by hand.</p>
         <div class="card">
           <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Run a dry run first</h3>
-                <p>This validates everything and runs the tests without changing the org.</p>
-                <div class="code">
-                  <pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --dry-run --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Deploy for real</h3>
-                <p>When the dry run succeeds, run the same command without <code>--dry-run</code>.</p>
-                <div class="code">
-                  <pre>sf project deploy start --manifest manifest/package.xml --target-org <span class="ph">&lt;alias&gt;</span> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --wait 30</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-              </div>
-            </li>
+            <li><div class="act">
+              <h4>Add the Verify action</h4>
+              <ol class="clicks">
+                <li><span class="path">Setup<i>›</i>Object Manager<i>›</i>User Story<i>›</i>Page Layouts</span>, open the layout in use.</li>
+                <li>From <span class="ui">Mobile &amp; Lightning Actions</span>, drag <span class="ui">Verify</span> into the Lightning actions section and save.</li>
+                <li>If the page uses dynamic actions, add <span class="ui">Verify</span> in App Builder instead.</li>
+              </ol>
+            </div></li>
+            <li><div class="act">
+              <h4>Add the fields</h4>
+              <p>Add a <em>Verification</em> section to the same layout:</p>
+              <div class="table-wrap"><table class="kv"><tbody>
+                <tr><td>Verification Status, Date, Details</td><td>The last verdict, when, and its summary.</td></tr>
+                <tr><td>Bypass Verification</td><td>Release engineers check it; read-only for others.</td></tr>
+                <tr><td>Bypass Reason</td><td>Required with a bypass.</td></tr>
+                <tr><td>Bypassed By, Bypassed At</td><td>Filled automatically; the audit trail.</td></tr>
+              </tbody></table></div>
+            </div></li>
+            <li><div class="act">
+              <h4>Add the bypass banner</h4>
+              <ol class="clicks">
+                <li>On a User Story, gear icon, <span class="ui">Edit Page</span>.</li>
+                <li>Drag <span class="ui">Story Verification Bypass Banner</span> (Custom components) to the top.</li>
+                <li><span class="ui">Save</span>, and <span class="ui">Activation</span> if the page is new.</li>
+              </ol>
+              <p>It stays invisible until a story is bypassed with Issues.</p>
+              <div class="note n-warn"><div class="ni">!</div><div class="nb"><div class="nt">It also hosts the Yes/No prompt</div><p>The prompt a release engineer sees after checking Ready to Promote on a bypassed story comes from this component.</p></div></div>
+            </div></li>
           </ol>
-          <div class="callout ok">
-            <div class="ico">✓</div>
-            <div class="body">
-              <div class="label">You should see</div>
-              <p><strong>Status: Succeeded</strong>, 50 components deployed and all seven test classes passing.</p>
-            </div>
-          </div>
-          <div class="callout warn">
-            <div class="ico">!</div>
-            <div class="body">
-              <div class="label">If the tests fail</div>
-              <p>The org's own validation rules on User Story can stop the test data from saving. The tests already fill <code>Jira_Key__c</code>. If another rule blocks them, extend the test data to satisfy it.</p>
-            </div>
-          </div>
-          <div class="done-row">
-            <span class="hint">Deployment succeeded?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="1"> Mark step 1 done</label>
-          </div>
+          <div class="done-row"><span class="hint">Action, fields and banner added?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="6"> Mark done</label></div>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <section class="step" id="step-2" data-step="2">
-        <div class="step-head">
-          <div class="step-num">2</div>
-          <div class="step-title">
-            <h2>Create the Copado Function records</h2>
-            <div class="tags"><span class="tag where">Command line</span><span class="tag">About 1 minute</span></div>
-          </div>
-        </div>
-        <p class="why">The Copado Function, Job Template and Job Step are data records, not metadata, so the deploy cannot create them. One Apex call creates all three.</p>
+    <!-- STEP 7 -->
+    <div class="step" id="step-7" data-step="7">
+      <div class="snum">7</div>
+      <div class="sbody">
+        <div class="shead"><h3>Add the banner to the Promotion page</h3><div class="meta"><span class="chip where">App Builder</span><span class="chip">2 min</span></div></div>
+        <p class="swhy">On a Promotion, the banner lists every bypassed story with Issues, so whoever deploys sees them first.</p>
         <div class="card">
           <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Run the setup script</h3>
-                <div class="code">
-                  <pre>sf apex run --file scripts/create-copado-records.apex --target-org <span class="ph">&lt;alias&gt;</span></pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-                <div class="or">or</div>
-                <p>In the Developer Console, open <span class="path">Debug<span class="sep">›</span>Open Execute Anonymous Window</span> and run:</p>
-                <div class="code">
-                  <pre>StoryVerificationSetup.run();</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-              </div>
-            </li>
+            <li><div class="act">
+              <h4>Add it</h4>
+              <ol class="clicks">
+                <li>On a Promotion, gear icon, <span class="ui">Edit Page</span>.</li>
+                <li>Drag <span class="ui">Story Verification Bypass Banner</span> to the top, save and activate.</li>
+              </ol>
+            </div></li>
           </ol>
-          <div class="callout ok">
-            <div class="ico">✓</div>
-            <div class="body">
-              <div class="label">You should see</div>
-              <p>The debug log contains <code>Story Verification records ready. Function=… Template=… Step=…</code></p>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table class="fields">
-              <thead><tr><th>Record created</th><th>Name and settings</th></tr></thead>
-              <tbody>
-                <tr><td>Function</td><td><code>Story_Verification</code>, image <code>copado-multicloud-dx:v6</code>, worker size S</td></tr>
-                <tr><td>Job Template</td><td><code>Story_Verification_1</code></td></tr>
-                <tr><td>Job Step</td><td><code>Story_Verification_1_Story_Verification_1</code></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="callout info">
-            <div class="ico">i</div>
-            <div class="body">
-              <div class="label">Safe to rerun</div>
-              <p>The script updates the records if they already exist. <strong>Run it again after every package deploy</strong> so the Function code stays current.</p>
-            </div>
-          </div>
-          <div class="done-row">
-            <span class="hint">Saw the "records ready" line?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="2"> Mark step 2 done</label>
-          </div>
+          <div class="demo-cap">How it looks</div>
+          <div class="banner-demo"><div class="bi">!</div><div><b>This promotion contains stories whose verification was bypassed and still have issues.</b><p>US-0004856 (bypassed by Alex Morgan): Hotfix for production outage</p><p>Review them before you deploy.</p></div></div>
+          <div class="done-row"><span class="hint">Banner added?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="7"> Mark done</label></div>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <section class="step" id="step-3" data-step="3">
-        <div class="step-head">
-          <div class="step-num">3</div>
-          <div class="step-title">
-            <h2>Store the webhook secret</h2>
-            <div class="tags"><span class="tag where">Salesforce Setup</span><span class="tag">About 3 minutes</span></div>
-          </div>
+    <!-- STEP 8 -->
+    <div class="step" id="step-8" data-step="8">
+      <div class="snum">8</div>
+      <div class="sbody">
+        <div class="shead"><h3>Assign permission sets</h3><div class="meta"><span class="chip where">Setup or command line</span><span class="chip">3 min</span></div></div>
+        <div class="hl">
+          <div class="eyebrow">Read this first</div>
+          <h3>The gate applies to everyone. No permission set switches it off.</h3>
+          <p><strong>User</strong> lets someone run Verify and so clear the block themselves. Give it to everyone who promotes. <strong>Release Engineer</strong> skips no rule; it lets the holder bypass one story with Issues and take it to a promotion.</p>
         </div>
-        <p class="why">GitHub signs every delivery with a shared secret. Salesforce checks the signature against the secret stored in a custom metadata record.</p>
-        <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Generate a random secret</h3>
-                <div class="code">
-                  <div class="code-label">PowerShell</div>
-                  <pre>$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | % { $_.ToString('x2') })</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-                <div class="code">
-                  <div class="code-label">Git Bash, macOS or Linux</div>
-                  <pre>openssl rand -hex 32</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-                <p>Save the 64-character value in your password manager. You need it again in step 5.</p>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Create the Default record</h3>
-                <ol class="clicks">
-                  <li>Go to <span class="path">Setup<span class="sep">›</span>Custom Metadata Types</span>.</li>
-                  <li>Click <span class="ui">Manage Records</span> next to <span class="ui">Story Verification Setting</span>, then <span class="ui">New</span>.</li>
-                  <li>Fill in the fields below and click <span class="ui">Save</span>.</li>
-                </ol>
-                <div class="table-wrap">
-                  <table class="fields">
-                    <thead><tr><th>Field</th><th>Value</th></tr></thead>
-                    <tbody>
-                      <tr><td>Label</td><td><code>Default</code> (exactly)</td></tr>
-                      <tr><td>Story Verification Setting Name</td><td><code>Default</code> (exactly)</td></tr>
-                      <tr><td>GitHub Webhook Secret</td><td><span class="ph">the secret from 3a</span></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </li>
-          </ol>
-          <div class="callout warn">
-            <div class="ico">!</div>
-            <div class="body">
-              <div class="label">Keep the secret private</div>
-              <ul>
-                <li>Never send it by email or chat, and never commit it to Git.</li>
-                <li>To rotate it, change it here and in GitHub at the same time. Deliveries sent in between get a 401.</li>
-              </ul>
-            </div>
-          </div>
-          <div class="done-row">
-            <span class="hint">Default record saved?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="3"> Mark step 3 done</label>
-          </div>
-        </div>
-      </section>
-
-      <section class="step" id="step-4" data-step="4">
-        <div class="step-head">
-          <div class="step-num">4</div>
-          <div class="step-title">
-            <h2>Create the Site and give the guest user access</h2>
-            <div class="tags"><span class="tag where">Salesforce Setup</span><span class="tag">About 5 minutes</span></div>
-          </div>
-        </div>
-        <p class="why">GitHub needs a public URL to call. A Salesforce Site provides it, and the site's guest user receives each delivery.</p>
-        <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Create the Site</h3>
-                <ol class="clicks">
-                  <li>Go to <span class="path">Setup<span class="sep">›</span>Sites</span>. If this is the org's first site, register a Sites domain first.</li>
-                  <li>Click <span class="ui">New</span>, fill in the fields below and click <span class="ui">Save</span>.</li>
-                </ol>
-                <div class="table-wrap">
-                  <table class="fields">
-                    <thead><tr><th>Field</th><th>Value</th></tr></thead>
-                    <tbody>
-                      <tr><td>Site Label</td><td><code>storyverification</code></td></tr>
-                      <tr><td>Site Name</td><td><code>storyverification</code></td></tr>
-                      <tr><td>Default Web Address</td><td>Leave empty</td></tr>
-                      <tr><td>Active Site Home Page</td><td>Any page, for example <code>InMaintenance</code></td></tr>
-                      <tr><td>Active</td><td>Checked</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <p>You can reuse an existing active site instead of creating a new one.</p>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Give the guest user the webhook permission set</h3>
-                <ol class="clicks">
-                  <li>Open the site and click <span class="ui">Public Access Settings</span>.</li>
-                  <li>Click <span class="ui">View Users</span>, then open <span class="ui">Site Guest User</span>.</li>
-                  <li>Under <span class="ui">Permission Set Assignments</span>, click <span class="ui">Edit Assignments</span>, add <span class="ui">Copado Story Verification Webhook</span> and save.</li>
-                </ol>
-                <div class="callout info">
-                  <div class="ico">i</div>
-                  <div class="body">
-                    <div class="label">Why this is safe</div>
-                    <p>The permission set only grants access to the <code>StoryVerificationPushWebhook</code> class and create on the <code>Story_Branch_Push__e</code> event. The guest user never reads or edits stories. The trigger that updates stories runs as the Automated Process user.</p>
-                  </div>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Write down the endpoint URL</h3>
-                <p>Copy the site's domain from the Sites page and build the URL:</p>
-                <div class="code">
-                  <pre>https://<span class="ph">&lt;site domain&gt;</span>/services/apexrest/storyverification/push</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-                <ul class="note-list">
-                  <li>A sandbox domain looks like <code>https://&lt;org&gt;--&lt;sandbox&gt;.sandbox.my.salesforce-sites.com</code>.</li>
-                  <li>If the site has a path, put it before <code>/services</code>: <code>https://&lt;domain&gt;/&lt;path&gt;/services/apexrest/storyverification/push</code>.</li>
-                </ul>
-              </div>
-            </li>
-          </ol>
-          <div class="done-row">
-            <span class="hint">Site active, guest user assigned, URL noted?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="4"> Mark step 4 done</label>
-          </div>
-        </div>
-      </section>
-
-      <section class="step" id="step-5" data-step="5">
-        <div class="step-head">
-          <div class="step-num">5</div>
-          <div class="step-title">
-            <h2>Add the GitHub webhook</h2>
-            <div class="tags"><span class="tag where">GitHub</span><span class="tag">About 3 minutes</span></div>
-          </div>
-        </div>
-        <p class="why">From now on every push to the repository is sent to Salesforce, which records the new head commit on the matching story.</p>
-        <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Create the webhook</h3>
-                <ol class="clicks">
-                  <li>In the repository, go to <span class="path">Settings<span class="sep">›</span>Webhooks</span> and click <span class="ui">Add webhook</span>.</li>
-                  <li>Fill in the fields below and click <span class="ui">Add webhook</span>.</li>
-                </ol>
-                <div class="table-wrap">
-                  <table class="fields">
-                    <thead><tr><th>Field</th><th>Value</th></tr></thead>
-                    <tbody>
-                      <tr><td>Payload URL</td><td><span class="ph">the endpoint URL from 4c</span></td></tr>
-                      <tr><td>Content type</td><td><code>application/json</code></td></tr>
-                      <tr><td>Secret</td><td><span class="ph">the same secret as step 3</span></td></tr>
-                      <tr><td>SSL verification</td><td>Enable</td></tr>
-                      <tr><td>Which events?</td><td>Just the push event</td></tr>
-                      <tr><td>Active</td><td>Checked</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Check the ping</h3>
-                <p>Open the webhook, go to the <span class="ui">Recent Deliveries</span> tab and open the ping delivery.</p>
-              </div>
-            </li>
-          </ol>
-          <div class="callout ok">
-            <div class="ico">✓</div>
-            <div class="body">
-              <div class="label">You should see</div>
-              <p>Response <strong>200</strong> with the body <code>{"message":"pong"}</code>.</p>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Response</th><th>What it means</th><th>Fix</th></tr></thead>
-              <tbody>
-                <tr><td class="nowrap"><strong>401</strong> Invalid signature</td><td>The secrets don't match.</td><td>Paste the same secret in GitHub and in the Default record.</td></tr>
-                <tr><td class="nowrap"><strong>500</strong> Webhook secret is not configured</td><td>The Default record is missing.</td><td>Do <a href="#step-3">step 3</a>.</td></tr>
-                <tr><td class="nowrap"><strong>404</strong></td><td>Wrong URL or path, or the site is inactive.</td><td>Recheck 4c and that the site is active.</td></tr>
-                <tr><td class="nowrap"><strong>403</strong> or an HTML login page</td><td>The guest user can't run the class.</td><td>Do 4b.</td></tr>
-                <tr><td class="nowrap"><strong>200</strong> Ignored</td><td>Normal for branches other than <code>feature/US-…</code> and for branch deletions.</td><td>Nothing to fix.</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="done-row">
-            <span class="hint">Ping returned 200 pong?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="5"> Mark step 5 done</label>
-          </div>
-        </div>
-      </section>
-
-      <section class="step" id="step-6" data-step="6">
-        <div class="step-head">
-          <div class="step-num">6</div>
-          <div class="step-title">
-            <h2>Add the Verify button to the page layout</h2>
-            <div class="tags"><span class="tag where">Salesforce Setup</span><span class="tag">About 3 minutes</span></div>
-          </div>
-        </div>
-        <p class="why">Page layouts are not in the package, because deploying one would overwrite your org's layout. Add the button by hand.</p>
-        <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Add the action</h3>
-                <ol class="clicks">
-                  <li>Go to <span class="path">Setup<span class="sep">›</span>Object Manager<span class="sep">›</span>User Story<span class="sep">›</span>Page Layouts</span> and open the layout your users use.</li>
-                  <li>From <span class="ui">Mobile &amp; Lightning Actions</span> in the palette, drag <span class="ui">Verify</span> (<code>Verify_Story_Live</code>) into the <span class="ui">Salesforce Mobile and Lightning Experience Actions</span> section.</li>
-                  <li>Click <span class="ui">Save</span>.</li>
-                </ol>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Optional: add the result fields</h3>
-                <p>Add <span class="ui">Verification Status</span>, <span class="ui">Verification Date</span> and <span class="ui">Verification Details</span> to the layout so users can see the last result.</p>
-              </div>
-            </li>
-          </ol>
-          <div class="callout info">
-            <div class="ico">i</div>
-            <div class="body">
-              <div class="label">Dynamic actions</div>
-              <p>If the record page uses dynamic actions, add <span class="ui">Verify</span> in Lightning App Builder instead.</p>
-            </div>
-          </div>
-          <div class="done-row">
-            <span class="hint">Verify button visible on a story?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="6"> Mark step 6 done</label>
-          </div>
-        </div>
-      </section>
-
-      <section class="step" id="step-7" data-step="7">
-        <div class="step-head">
-          <div class="step-num">7</div>
-          <div class="step-title">
-            <h2>Assign permission sets</h2>
-            <div class="tags"><span class="tag where">Setup or command line</span><span class="tag">About 2 minutes</span></div>
-          </div>
-        </div>
-        <p class="why">Give each group only the access it needs.</p>
-
-        <div class="keyfact" id="access">
-          <div class="label">Read this first</div>
-          <h3>The 7 validation rules block every user, with or without a permission set.</h3>
-          <p>A permission set does not turn the gate on. The gate is always on for everyone who edits a story. Only <strong>Copado Story Verification Bypass</strong> (custom permission <code>Bypass_Verification_Gate</code>) lets a user skip it.</p>
-          <p><strong>Copado Story Verification User</strong> is what lets a user <em>clear</em> the block by running <span class="ui">Verify</span>. Give it to everyone who checks <span class="ui">Ready to Promote</span> or <span class="ui">Promote and Deploy</span>: developers, DevOps engineers and release managers. Without it they are blocked and cannot fix it themselves.</p>
-        </div>
-
-        <div class="card">
-          <h3 class="sub">Who is blocked, and who can unblock</h3>
-          <div class="table-wrap">
-            <table class="matrix">
-              <thead><tr><th>User has</th><th>Blocked by the 7 rules?</th><th>Can run Verify?</th><th>Can create missing metadata?</th></tr></thead>
-              <tbody>
-                <tr><td><strong>No permission set</strong></td><td><span class="pill no">Blocked</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
-                <tr><td><strong>User</strong></td><td><span class="pill no">Blocked</span> until the story is verified and Clean</td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td></tr>
-                <tr><td><strong>User + Metadata Creator</strong></td><td><span class="pill no">Blocked</span> until the story is verified and Clean</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td></tr>
-                <tr><td><strong>User + Bypass</strong></td><td><span class="pill yes">Skipped</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="note">The rules read the verification fields at the system level, so they block users who cannot see those fields too. When the <a href="#switch">org-wide switch</a> is on, nobody is blocked.</p>
-        </div>
-
-        <div class="ps-grid">
-          <div class="ps" style="--c: var(--accent)">
-            <div class="ps-who">Everyone who promotes</div>
-            <h4>Copado Story Verification User</h4>
-            <dl>
-              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>User</code></dd>
-              <dt>Custom permission</dt><dd>None</dd>
-              <dt>Gives</dt><dd>The Verify button and popup, and read-only access to the verification fields.</dd>
-            </dl>
-          </div>
+        <div class="grid wide">
           <div class="ps" style="--c: var(--ok)">
-            <div class="ps-who">Optional, with User</div>
-            <h4>Copado Story Verification Metadata Creator</h4>
-            <dl>
-              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>Metadata_<wbr>Creator</code></dd>
-              <dt>Custom permission</dt><dd><code>Create_Story_Metadata</code></dd>
-              <dt>Gives</dt><dd>The <span class="ui">Create Selected Metadata</span> button, which registers missing components on the story.</dd>
-            </dl>
+            <div class="ps-top"><div class="ps-who">Everyone who promotes</div><h4>Copado Story Verification User</h4></div>
+            <dl><dt>API name</dt><dd><code>Copado_Story_Verification_User</code></dd><dt>Gives</dt><dd>The Verify popup, read access to every verification and bypass field, the promotion banner.</dd></dl>
           </div>
-          <div class="ps" style="--c: var(--bad)">
-            <div class="ps-who">Emergency users only</div>
-            <h4>Copado Story Verification Bypass</h4>
-            <dl>
-              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>Bypass</code></dd>
-              <dt>Custom permission</dt><dd><code>Bypass_Verification_Gate</code></dd>
-              <dt>Gives</dt><dd>Skips all 7 validation rules. Keep this to a handful of people.</dd>
-            </dl>
+          <div class="ps" style="--c: var(--orange)">
+            <div class="ps-top"><div class="ps-who">Release engineers · with User</div><h4>Copado Story Verification Release Engineer</h4></div>
+            <dl><dt>API name</dt><dd><code>Copado_Story_Verification_Bypass</code></dd><dt>Custom permission</dt><dd><code>Bypass_Verification_Gate</code></dd><dt>Gives</dt><dd>Edit on Bypass Verification and Bypass Reason; the right to check Ready to Promote on, and add to a promotion, a bypassed story.</dd></dl>
           </div>
-          <div class="ps" style="--c: var(--muted)">
-            <div class="ps-who">Site guest user only</div>
-            <h4>Copado Story Verification Webhook</h4>
-            <dl>
-              <dt>API name</dt><dd><code>Copado_<wbr>Story_<wbr>Verification_<wbr>Webhook</code></dd>
-              <dt>Custom permission</dt><dd>None</dd>
-              <dt>Gives</dt><dd>Lets GitHub push events reach Salesforce. Already assigned in <a href="#step-4">step 4b</a>. Never give it to people.</dd>
-            </dl>
+          <div class="ps" style="--c: var(--accent)">
+            <div class="ps-top"><div class="ps-who">Optional · with User</div><h4>Copado Story Verification Metadata Creator</h4></div>
+            <dl><dt>API name</dt><dd><code>Copado_Story_Verification_Metadata_Creator</code></dd><dt>Custom permission</dt><dd><code>Create_Story_Metadata</code></dd><dt>Gives</dt><dd>Tick boxes and <span class="ui">Create Selected Metadata</span> in the popup.</dd></dl>
           </div>
-        </div>
-
-        <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Assign in Setup or from the command line</h3>
-                <p>In Setup, open the permission set and click <span class="ui">Manage Assignments</span>. Or run:</p>
-                <div class="code">
-                  <pre>sf org assign permset --name Copado_Story_Verification_User --target-org <span class="ph">&lt;alias&gt;</span> --on-behalf-of <span class="ph">&lt;username&gt;</span></pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-              </div>
-            </li>
-          </ol>
-          <div class="callout info">
-            <div class="ico">i</div>
-            <div class="body">
-              <div class="label">Tip</div>
-              <p>You can add the <code>Bypass_Verification_Gate</code> custom permission to an existing permission set group instead of assigning the Bypass set.</p>
-            </div>
+          <div class="ps" style="--c: var(--grey)">
+            <div class="ps-top"><div class="ps-who">Site guest user only</div><h4>Copado Story Verification Webhook</h4></div>
+            <dl><dt>API name</dt><dd><code>Copado_Story_Verification_Webhook</code></dd><dt>Gives</dt><dd>Lets GitHub pushes in. Assigned in <a href="#step-4">step 4b</a>. Never give it to people.</dd></dl>
           </div>
-          <div class="done-row">
-            <span class="hint">Everyone assigned?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="7"> Mark step 7 done</label>
-          </div>
-        </div>
-      </section>
-
-      <section class="step" id="step-8" data-step="8">
-        <div class="step-head">
-          <div class="step-num">8</div>
-          <div class="step-title">
-            <h2>Run the smoke test</h2>
-            <div class="tags"><span class="tag where">Salesforce and GitHub</span><span class="tag">About 5 minutes</span></div>
-          </div>
-        </div>
-        <p class="why">Use a test story that has a <code>feature/US-…</code> branch. Do each action in order and compare with the expected result.</p>
-        <div class="card">
-          <ol class="smoke">
-            <li>
-              <div class="do"><span class="k">Do</span><p>Check <span class="ui">Ready to Promote</span> without verifying the story.</p></div>
-              <div class="see"><span class="k">Expect</span><p>Blocked: <span class="msg">"This User Story has not been verified. Run Verify before Promote."</span></p></div>
-            </li>
-            <li>
-              <div class="do"><span class="k">Do</span><p>Click <span class="ui">Verify</span>.</p></div>
-              <div class="see"><span class="k">Expect</span><p>Six checks run and the verdict is <strong>Clean</strong> or <strong>Issues</strong>.</p></div>
-            </li>
-            <li>
-              <div class="do"><span class="k">Do</span><p>On a Clean story, check <span class="ui">Ready to Promote</span>.</p></div>
-              <div class="see"><span class="k">Expect</span><p>Saves, as long as the pull request is approved and Pending Tests is 0.</p></div>
-            </li>
-            <li>
-              <div class="do"><span class="k">Do</span><p>Uncheck it. Then commit directly on GitHub to the story's <code>feature/US-…</code> branch.</p></div>
-              <div class="see"><span class="k">Expect</span><p>The delivery shows 200 <code>Recorded US-… at &lt;sha&gt;</code> and <span class="ui">Branch Head SHA</span> updates on the story.</p></div>
-            </li>
-            <li>
-              <div class="do"><span class="k">Do</span><p>Check <span class="ui">Ready to Promote</span>, then <span class="ui">Promote and Deploy</span>.</p></div>
-              <div class="see"><span class="k">Expect</span><p>Both blocked: <span class="msg">"The feature branch has changed since the last verification. Run Verify again before Promote."</span></p></div>
-            </li>
-            <li>
-              <div class="do"><span class="k">Do</span><p>Click <span class="ui">Verify</span> again, then check <span class="ui">Ready to Promote</span>.</p></div>
-              <div class="see"><span class="k">Expect</span><p>Saves.</p></div>
-            </li>
-            <li>
-              <div class="do"><span class="k">Do</span><p>With <span class="ui">Ready to Promote</span> checked, commit again on GitHub and refresh the story.</p></div>
-              <div class="see"><span class="k">Expect</span><p><span class="ui">Ready to Promote</span> and <span class="ui">Promote and Deploy</span> are both unchecked automatically.</p></div>
-            </li>
-          </ol>
-          <div class="callout ok">
-            <div class="ico">✓</div>
-            <div class="body">
-              <div class="label">All seven match?</div>
-              <p>The gate is fully installed. If one doesn't match, see <a href="#troubleshooting">Troubleshooting</a>.</p>
-            </div>
-          </div>
-          <div class="done-row">
-            <span class="hint">All seven results matched?</span>
-            <label class="done-toggle"><input type="checkbox" class="done" data-step="8"> Mark step 8 done</label>
-          </div>
-        </div>
-      </section>
-
-      <section id="upgrading">
-        <div class="section-head">
-          <div class="kicker">Later</div>
-          <h2>Upgrading later</h2>
-          <p>Steps 3 to 7 are one-time. For a new version you only repeat steps 1 and 2.</p>
         </div>
         <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>If <code>function/index.js</code> changed, rebuild the setup script</h3>
-                <div class="code">
-                  <pre>node scripts/build-create-records.js
-node scripts/build-create-records.js --check</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Redeploy the package</h3>
-                <p>Run the deploy in <a href="#step-1">step 1</a>.</p>
-                <div class="callout warn">
-                  <div class="ico">!</div>
-                  <div class="body">
-                    <div class="label">Upgrading from the older rule set</div>
-                    <p>Older installs had separate <code>Ready_Promote_Gate_*</code> and <code>Promote_Deploy_Gate_*</code> rules. Add <code>--post-destructive-changes manifest/destructiveChanges.xml</code> to the deploy once. The old rules are then deleted in the same deploy that adds the new 7, so the gate is never off. On a fresh install, leave the flag out.</p>
-                  </div>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Rerun the setup script</h3>
-                <p>Run <a href="#step-2">step 2</a> so the Function uses the new code.</p>
-              </div>
-            </li>
-          </ol>
-        </div>
-      </section>
-
-      <section id="switch">
-        <div class="section-head">
-          <div class="kicker">Operations</div>
-          <h2>Turn the gate off org-wide</h2>
-          <p>The custom setting <strong>Story Verification Control</strong> (<code>Story_Verification_Control__c</code>) switches the whole gate off for everyone, with no deploy. It is deployed unticked, so a fresh install has the gate on.</p>
-        </div>
-        <div class="card">
-          <ol class="actions">
-            <li>
-              <div class="act">
-                <h3>Open the custom setting</h3>
-                <p>Setup &gt; Quick Find <span class="ui">Custom Settings</span> &gt; <span class="ui">Story Verification Control</span> &gt; <span class="ui">Manage</span>.</p>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Set the organization default</h3>
-                <p>Click the <span class="ui">New</span> (or <span class="ui">Edit</span>) button next to <span class="ui">Default Organization Level Value</span> at the top, tick <span class="ui">Disable Story Verification</span> and save.</p>
-              </div>
-            </li>
-            <li>
-              <div class="act">
-                <h3>Or from Execute Anonymous</h3>
-                <p>Use <code>false</code> to switch the gate back on.</p>
-                <div class="code">
-                  <pre>Story_Verification_Control__c c = Story_Verification_Control__c.getOrgDefaults();
-c.Disable_Story_Verification__c = true;
-upsert c;</pre>
-                  <button class="copy" type="button">Copy</button>
-                </div>
-              </div>
-            </li>
-          </ol>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Part</th><th>Gate on (unticked)</th><th>Gate off (ticked)</th></tr></thead>
-              <tbody>
-                <tr><td>7 validation rules</td><td>Block unverified, stale or Issues stories</td><td>Never block, for anyone</td></tr>
-                <tr><td>New push to the feature branch</td><td>Unchecks Ready to Promote and Promote and Deploy</td><td>Leaves both boxes alone; the branch head is still recorded</td></tr>
-                <tr><td>Verify button</td><td>Runs; the verdict gates promotion</td><td>Runs; a grey banner says results are for information only</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="callout warn">
-            <div class="ico">!</div>
-            <div class="body">
-              <div class="label">Use the top New button</div>
-              <p>The lower <span class="ui">New</span> on the Manage page creates a value for one profile or user and asks for a <span class="ui">Location</span>. For the whole org, use the button next to <span class="ui">Default Organization Level Value</span>.</p>
-            </div>
-          </div>
-          <div class="callout info">
-            <div class="ico">i</div>
-            <div class="body">
-              <div class="label">Switching back on</div>
-              <p>Untick the box or delete the default value. Because pushes kept being recorded while it was off, a story with commits newer than its last verification is blocked straight away until Verify runs again.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="troubleshooting">
-        <div class="section-head">
-          <div class="kicker">Help</div>
-          <h2>Troubleshooting</h2>
-          <p>Find the message or symptom you see, then apply the fix.</p>
-        </div>
-        <div class="faults">
-          <div class="fault">
-            <div class="sym"><span>"Invalid template name Story_Verification_1"</span></div>
-            <p>The Copado records don't exist yet. Run <a href="#step-2">step 2</a>.</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>"You do not have access to this story"</span></div>
-            <p>Assign the Copado Story Verification User permission set (<a href="#step-7">step 7</a>).</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>"Repository not authenticated"</span></div>
-            <p>Re-authenticate the Git repository in Copado, then rerun <a href="#step-2">step 2</a>.</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>Stuck on "Waiting for Copado to start the job"</span></div>
-            <p>The Copado job queue is busy. Wait, or click <span class="ui">Cancel</span> next to <span class="ui">Close</span>. That marks the story Failed ("Verification cancelled by …") and ignores the job's result when it arrives.</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>Webhook returns 200 but Branch Head SHA doesn't update</span></div>
-            <p>Only <code>feature/US-…</code> branches are recorded. If a Copado trigger rejects the Automated Process user, add a <code>PlatformEventSubscriberConfig</code> for <code>StoryBranchPushTrigger</code> that runs as a Copado-licensed integration user.</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>Ready to Promote stays checked after a direct commit</span></div>
-            <p>Same cause as above, or another validation rule refused the uncheck. The new head commit is still saved, so checking the box again stays blocked until the story is verified again.</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>"All tests on this User Story must pass before Promote."</span></div>
-            <p>Pending Tests is above 0. Run the story's tests and make sure they pass.</p>
-          </div>
-          <div class="fault">
-            <div class="sym"><span>Nothing blocks and the popup says the gate is turned off org-wide</span></div>
-            <p><span class="ui">Disable Story Verification</span> is ticked in the Story Verification Control custom setting. Untick it to turn the gate back on (see <a href="#switch">Turn the gate off org-wide</a>).</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="package">
-        <div class="section-head">
-          <div class="kicker">Reference</div>
-          <h2>What package.xml deploys</h2>
-          <p><code>manifest/package.xml</code> was checked on 19 Nov 2026 and contains every component the gate needs.</p>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Type</th><th>Count</th><th>Notes</th></tr></thead>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Who</th><th>User</th><th>Release Engineer</th><th>Metadata Creator</th></tr></thead>
             <tbody>
-              <tr><td>ApexClass</td><td>16</td><td>9 classes and 7 test classes</td></tr>
-              <tr><td>ApexTrigger</td><td>1</td><td><code>StoryBranchPushTrigger</code></td></tr>
-              <tr><td>LightningComponentBundle</td><td>1</td><td><code>storyVerificationPopup</code></td></tr>
-              <tr><td>CustomObject</td><td>3</td><td>Platform event, custom metadata type and the <code>Story_Verification_Control__c</code> on/off custom setting</td></tr>
-              <tr><td>CustomField</td><td>14</td><td>9 on User Story, 3 on the event, 1 on the metadata type, 1 on the custom setting</td></tr>
-              <tr><td>CustomPermission</td><td>2</td><td>Bypass and metadata creation</td></tr>
-              <tr><td>Flow</td><td>1</td><td><code>Story_Verification_Completion</code>, after-save on Job Execution</td></tr>
-              <tr><td>PermissionSet</td><td>4</td><td>User, Metadata Creator, Bypass, Webhook</td></tr>
-              <tr><td>QuickAction</td><td>1</td><td><code>Verify_Story_Live</code></td></tr>
-              <tr><td>ValidationRule</td><td>7</td><td>Each one blocks both Ready to Promote and Promote and Deploy</td></tr>
-              <tr><td><strong>Total</strong></td><td><strong>50</strong></td><td></td></tr>
+              <tr><td class="k">Developer</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-grey">No</span></td><td><span class="pill p-grey">Optional</span></td></tr>
+              <tr><td class="k">Lead / DevOps</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-grey">No</span></td><td><span class="pill p-yes">Yes</span></td></tr>
+              <tr><td class="k">Release engineer</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-re">Yes</span></td><td><span class="pill p-grey">Optional</span></td></tr>
             </tbody>
-          </table>
+          </table></div>
+          <div class="code"><div class="code-label">Assign from the command line</div><pre>sf org assign permset --name Copado_Story_Verification_User --target-org <span class="ph">&lt;alias&gt;</span> --on-behalf-of <span class="ph">&lt;username&gt;</span>
+sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span class="ph">&lt;alias&gt;</span> --on-behalf-of <span class="ph">&lt;release engineer username&gt;</span></pre><button class="copy" type="button">Copy</button></div>
+          <div class="note n-info"><div class="ni">i</div><div class="nb"><p>Granting <code>Bypass_Verification_Gate</code> through a permission set group also works, but the holder then needs edit access to Bypass Verification and Bypass Reason too.</p></div></div>
+          <div class="done-row"><span class="hint">Everyone assigned?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="8"> Mark done</label></div>
         </div>
+      </div>
+    </div>
 
+    <!-- STEP 9 -->
+    <div class="step" id="step-9" data-step="9">
+      <div class="snum">9</div>
+      <div class="sbody">
+        <div class="shead"><h3>Run the smoke test</h3><div class="meta"><span class="chip where">Salesforce · GitHub</span><span class="chip">12 min</span></div></div>
+        <p class="swhy">You need a test story with a <code>feature/US-…</code> branch, a draft promotion, a developer (User only) and a release engineer (User and Release Engineer).</p>
         <div class="card">
-          <h3 class="sub">Not in package.xml, and why</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Item</th><th>Why it's not deployed</th><th>Set up in</th></tr></thead>
-              <tbody>
-                <tr><td>Function, Job Template, Job Step</td><td>They are data records, not metadata.</td><td class="nowrap"><a href="#step-2">Step 2</a></td></tr>
-                <tr><td>Default custom metadata record</td><td>It holds the webhook secret, which must stay out of Git.</td><td class="nowrap"><a href="#step-3">Step 3</a></td></tr>
-                <tr><td>Site and guest user assignment</td><td>The site domain differs in every org.</td><td class="nowrap"><a href="#step-4">Step 4</a></td></tr>
-                <tr><td>Page layout change</td><td>Deploying a layout would overwrite the org's layout.</td><td class="nowrap"><a href="#step-6">Step 6</a></td></tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="demo-cap">The gate</div>
+          <ol class="smoke">
+            <li><span class="sn">1</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>Check Ready to Promote without verifying.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Blocked: <span class="msg">"This User Story has not been verified…"</span></p></div></li>
+            <li><span class="sn">2</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>Click Verify, then Verify in the popup.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Six checks run; the verdict appears in Verification Status.</p></div></li>
+            <li><span class="sn">3</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>On a Clean story, check Ready to Promote.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Saves.</p></div></li>
+            <li><span class="sn">4</span><div class="col"><span class="lbl">Do</span><p><span class="who any">Any</span>Commit to the branch on GitHub, refresh the story.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Delivery says <code>Recorded US-…</code>; Ready to Promote is unchecked.</p></div></li>
+            <li><span class="sn">5</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>Check Ready to Promote again.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Blocked: <span class="msg">"The feature branch has changed since the last verification…"</span></p></div></li>
+          </ol>
+          <div class="demo-cap" style="margin-top:8px">Issues, promotions and bypass · first make the story Issues (uncheck Pull Requests Approved, Verify)</div>
+          <ol class="smoke">
+            <li><span class="sn">6</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>Add the story to the promotion.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Refused: <span class="msg">"…cannot be added to this promotion because its last verification found issues…"</span></p></div></li>
+            <li><span class="sn">7</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>Check Bypass Verification.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Read-only, or <span class="msg">"Only a release engineer can check Bypass Verification."</span></p></div></li>
+            <li><span class="sn">8</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check Bypass Verification without a reason.</p></div><div class="col exp"><span class="lbl">Expect</span><p><span class="msg">"Enter a Bypass Reason…"</span></p></div></li>
+            <li><span class="sn">9</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check it with a reason.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Saves; Bypassed By/At filled; orange banner on the story.</p></div></li>
+            <li><span class="sn">10</span><div class="col"><span class="lbl">Do</span><p><span class="who dev">Dev</span>Check Ready to Promote.</p></div><div class="col exp"><span class="lbl">Expect</span><p><span class="msg">"…Only a release engineer can check Ready to Promote."</span></p></div></li>
+            <li><span class="sn">11</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check Promote and Deploy.</p></div><div class="col exp"><span class="lbl">Expect</span><p><span class="msg">"…Promote and Deploy is not allowed…"</span></p></div></li>
+            <li><span class="sn">12</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check Ready to Promote, click Cancel in the prompt.</p></div><div class="col exp"><span class="lbl">Expect</span><p>"Promote a bypassed story?" appears; Cancel unchecks it.</p></div></li>
+            <li><span class="sn">13</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check it again, OK, then add the story to the promotion.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Both succeed; the Promotion page shows the orange banner.</p></div></li>
+            <li><span class="sn">14</span><div class="col"><span class="lbl">Do</span><p><span class="who any">Any</span>Fix the issue and Verify until Clean.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Bypass unchecks itself; banner gone; reason kept.</p></div></li>
+          </ol>
+          <div class="note n-ok"><div class="ni">✓</div><div class="nb"><div class="nt">All 14 match?</div><p>The gate is live. Remove the test story from the promotion. If anything differs, see <a href="#troubleshooting">Troubleshooting</a>.</p></div></div>
+          <div class="done-row"><span class="hint">All matched?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="9"> Mark done</label></div>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <details class="xml">
-          <summary>Full manifest/package.xml</summary>
-          <div class="code">
-            <pre class="scroll" id="pkgXml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+  <div class="next"><a href="#overview"><small>Back</small><b>← Overview</b></a><a class="fwd" href="#developer"><small>Next</small><b>Developer guide →</b></a></div>
+</section>
+
+<!-- ======================================================= DEVELOPER -->
+<section class="view" id="developer" hidden>
+  <div class="view-head">
+    <div class="eyebrow">03 · Developer guide</div>
+    <h2>Verify, fix, promote</h2>
+    <p>You need the <strong>Copado Story Verification User</strong> permission set. Your everyday loop is: commit, Verify, fix what it finds, Verify again, promote.</p>
+  </div>
+
+  <div class="block">
+    <div class="scn-tools"><span class="muted">12 situations. Click one to open it.</span><button class="btn" type="button" data-toggle-all="developer">Expand all</button></div>
+    <div class="scns">
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D1</span><span class="stitle">Verify a story</span><span class="sres"><span class="pill p-run">Everyday</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Do</dt><dd>Open the story, click <span class="ui">Verify</span>, then <span class="ui">Verify</span> in the popup.</dd>
+          <dt>See</dt><dd>Live progress, then each check with a green, amber or red mark (passed first). <span class="ui">Show details</span> opens the reasons; <span class="ui">Time taken</span> shows Copado queue time and check time separately.</dd>
+          <dt>Know</dt><dd>You can close the popup; the result still saves. <span class="ui">Cancel</span> stops the run and marks the story <strong>Failed</strong> ("Verification cancelled by …").</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D2</span><span class="stitle">The result is Clean</span><span class="sres"><span class="pill p-yes">Promote</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Do</dt><dd>Check Ready to Promote or Promote and Deploy, or add the story to a promotion.</dd>
+          <dt>See</dt><dd>It saves, provided the pull request is approved and no tests are pending; both are checked again at that moment.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D3</span><span class="stitle">The result is Issues</span><span class="sres"><span class="pill p-no">Fix and re-verify</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd>Red rows. Both promote boxes are blocked and the story can't join a promotion.</dd>
+          <dt>Fix</dt><dd><ul>
+            <li><strong>Unregistered commits</strong>: register the changed components (D4) or commit them through Copado.</li>
+            <li><strong>Metadata coverage</strong>: register each component under Not registered (D4), or remove the change.</li>
+            <li><strong>External branch merge</strong>: recreate the branch from its base without that merge.</li>
+            <li><strong>Pull request approval</strong>: get the PR approved.</li>
+            <li><strong>Pending tests</strong>: run the tests until they pass.</li>
+            <li><strong>Parent story dependencies</strong>: promote the named parent first.</li>
+          </ul></dd>
+          <dt>Then</dt><dd>Click <span class="ui">Verify again</span>. Only Clean unblocks the story.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D4</span><span class="stitle">Register missing components from the popup</span><span class="sres"><span class="pill p-mid">Metadata Creator</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Needs</dt><dd>The Metadata Creator permission set. Without it you see the list but can't tick it.</dd>
+          <dt>Do</dt><dd>Tick components (or a type, or Select all), click <span class="ui">Create Selected Metadata</span>, check the preview, <span class="ui">Insert</span>, then <span class="ui">Verify again</span>.</dd>
+          <dt>Know</dt><dd>Only components the verification found can be added, and clicking twice never creates duplicates.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D5</span><span class="stitle">"1 commit made outside Copado by …"</span><span class="sres"><span class="pill p-mid">Warning</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd><div class="quote q-warn">Unregistered commits: 1 commit made outside Copado by Jordan Lee</div></dd>
+          <dt>Means</dt><dd>Someone with no Copado commit on the story pushed straight to Git, touching only registered components. It deploys; the verdict can still be Clean.</dd>
+          <dt>Do</dt><dd>Confirm the commit belongs here. Your own direct commits on a story you've committed to through Copado simply pass.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D6</span><span class="stitle">You commit after a Clean verification</span><span class="sres"><span class="pill p-no">Boxes unchecked</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd>Within seconds, checked promote boxes are unchecked. Re-checking is refused:
+            <div class="quote q-bad">The feature branch has changed since the last verification. Run Verify again before Promote.</div>
+            <div class="quote q-bad">New commits were added after the last verification. Run Verify again before Promote.</div></dd>
+          <dt>Do</dt><dd>Verify again. A story already in a promotion stays there.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D7</span><span class="stitle">You re-verify and get Issues, or the run Fails</span><span class="sres"><span class="pill p-no">Issues unchecks</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Issues</dt><dd>Ready to Promote and Promote and Deploy are unchecked automatically.</dd>
+          <dt>Failed</dt><dd>Checked boxes stay as they were: a broken run, like a Copado or Git problem, says nothing about the code. While the status is Failed nobody can check a box. Verify again.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D8</span><span class="stitle">Adding a story with Issues to a promotion</span><span class="sres"><span class="pill p-no">Refused</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd><div class="quote q-bad">US-0001234 cannot be added to this promotion because its last verification found issues. Open the User Story, click Verify, fix the issues it lists, and add the story again once the verification is Clean.</div></dd>
+          <dt>Know</dt><dd>Applies from every screen and the API. Other stories added at the same time still go in.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D9</span><span class="stitle">It's urgent and you want to bypass</span><span class="sres"><span class="pill p-re">Ask an RE</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd>Bypass Verification is read-only, or <span class="msg">"Only a release engineer can check Bypass Verification."</span></dd>
+          <dt>Do</dt><dd>Ask a release engineer and explain why. They decide.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D10</span><span class="stitle">Your story was bypassed</span><span class="sres"><span class="pill p-re">Orange banner</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd><div class="banner-demo"><div class="bi">!</div><div><b>Verification bypassed. This story still has issues.</b><p>Bypassed by Alex Morgan on 20/11/2026, 14:05.</p><p><strong>Reason:</strong> Hotfix for production outage</p><p>Only a release engineer can check Ready to Promote or add it to a promotion. Promote and Deploy is not allowed.</p></div></div></dd>
+          <dt>Can</dt><dd>Keep working and fix the issues. A Clean verification ends the bypass and the story behaves normally.</dd>
+          <dt>Can't</dt><dd>Check Ready to Promote or add it to a promotion yourself.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D11</span><span class="stitle">A story with no commits</span><span class="sres"><span class="pill p-yes">Not blocked</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd>With deployment steps only: <span class="msg">"Pull Request Approval : No commits"</span> in green. With nothing at all: an amber "Nothing to promote". Neither blocks.</dd>
+          <dt>But</dt><dd>If the story has commits and its <code>feature/US-…</code> branch is missing, Unregistered commits fails with "No feature branch".</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D12</span><span class="stitle">The popup shows a grey "gate is off" banner</span><span class="sres"><span class="pill p-grey">Info only</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Means</dt><dd>An admin switched the gate off org-wide. Verify still runs; nothing blocks.</dd>
+        </dl></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="next"><a href="#setup"><small>Back</small><b>← Setup</b></a><a class="fwd" href="#release-engineer"><small>Next</small><b>Release engineer guide →</b></a></div>
+</section>
+
+<!-- ======================================================= RELEASE ENGINEER -->
+<section class="view" id="release-engineer" hidden>
+  <div class="view-head">
+    <div class="eyebrow">04 · Release engineer guide</div>
+    <h2>Bypass, carefully</h2>
+    <p>You need <strong>User</strong> and <strong>Release Engineer</strong>. On normal stories the gate treats you like a developer. Your extra tool is Bypass Verification, for a story with Issues you accept for this release.</p>
+  </div>
+
+  <div class="hl">
+    <div class="eyebrow">The bypass in one line</div>
+    <h3>Issues only · Ready to Promote and promotions only · until the next Clean.</h3>
+    <p>It needs a reason and records who and when. It lets <em>you</em>, not developers, check Ready to Promote and add the story to a promotion. Promote and Deploy stays refused. It ends by itself when a verification is Clean.</p>
+  </div>
+
+  <div class="block">
+    <h3>Lifecycle of a bypass</h3>
+    <div class="pipeline">
+      <div class="pl"><b>Issues</b><span>Verification failed a check</span></div>
+      <div class="pl"><b>Bypass</b><span>RE checks it with a reason</span></div>
+      <div class="pl"><b>Ready to Promote</b><span>RE only, after Yes/No</span></div>
+      <div class="pl"><b>Promotion</b><span>RE adds it; banner shows</span></div>
+      <div class="pl"><b>Clean</b><span>Bypass ends by itself</span></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="scn-tools"><span class="muted">9 situations.</span><button class="btn" type="button" data-toggle-all="release-engineer">Expand all</button></div>
+    <div class="scns">
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R1</span><span class="stitle">Bypass a story</span><span class="sres"><span class="pill p-re">Issues only</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Do</dt><dd>Check <span class="ui">Bypass Verification</span>, enter a <span class="ui">Bypass Reason</span>, save.</dd>
+          <dt>See</dt><dd>Bypassed By and Bypassed At are filled; the orange banner appears.</dd>
+          <dt>Refused</dt><dd><ul>
+            <li>No reason: <span class="msg">"Enter a Bypass Reason to bypass verification for this story."</span></li>
+            <li>Status isn't Issues: <span class="msg">"Bypass Verification is only needed when the last verification found issues."</span></li>
+          </ul></dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R2</span><span class="stitle">Mark a bypassed story Ready to Promote</span><span class="sres"><span class="pill p-re">Yes/No prompt</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Do</dt><dd>Check Ready to Promote and save.</dd>
+          <dt>See</dt><dd><div class="quote">Promote a bypassed story? You are going to promote US-…. Its verification was bypassed and it still has issues. Do you want to proceed?</div>OK keeps it; Cancel unchecks it.</dd>
+          <dt>Still</dt><dd>The PR must be approved and no tests pending. The bypass covers only the Issues verdict.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R3</span><span class="stitle">Add a bypassed story to a promotion</span><span class="sres"><span class="pill p-yes">Allowed for RE</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Do</dt><dd>Add it from any Copado screen.</dd>
+          <dt>See</dt><dd>It's added, and the Promotion banner lists it with who bypassed it and why.</dd>
+          <dt>A developer</dt><dd>gets <span class="msg">"Verification for US-… was bypassed, but it still has issues. Only a release engineer can add it to a promotion."</span></dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R4</span><span class="stitle">Promote and Deploy on a bypassed story</span><span class="sres"><span class="pill p-no">Never</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd><div class="quote q-bad">Verification for this story was bypassed, but it still has issues. Promote and Deploy is not allowed. Check Ready to Promote instead and deploy from the promotion.</div></dd>
+          <dt>Why</dt><dd>Promote and Deploy deploys straight away, before anyone reviews the promotion.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R5</span><span class="stitle">How long a bypass lasts</span><span class="sres"><span class="pill p-run">Until Clean</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Stays</dt><dd>Through promotions, environments, Running and Failed results.</dd>
+          <dt>Ends</dt><dd>On a Clean verification: Bypass Verification unchecks itself, the banner disappears, the reason is kept.</dd>
+          <dt>Withdraw</dt><dd>Uncheck Bypass Verification yourself.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R6</span><span class="stitle">A bypassed story is verified again</span><span class="sres"><span class="pill p-run">Depends</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Issues</dt><dd>Bypass stays. Ready to Promote stays checked; Promote and Deploy is unchecked.</dd>
+          <dt>Failed</dt><dd>Nothing changes, but no box can be checked while Failed; a bypass doesn't cover a broken run. Verify again.</dd>
+          <dt>Clean</dt><dd>The bypass ends.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R7</span><span class="stitle">New commits on a bypassed story</span><span class="sres"><span class="pill p-no">Boxes unchecked</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd>Promote boxes are unchecked, as for any story.</dd>
+          <dt>Do</dt><dd>Verify before re-checking Ready to Promote. Your bypass was for the code you saw; new commits deserve a fresh look.</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R8</span><span class="stitle">A story with Issues that isn't bypassed</span><span class="sres"><span class="pill p-no">Blocked for you too</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>See</dt><dd>The same blocks as a developer, on the boxes and on promotions.</dd>
+          <dt>Why</dt><dd>Nothing gets through by accident. Bypass first (R1).</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R9</span><span class="stitle">Review a promotion before deploying</span><span class="sres"><span class="pill p-run">Checklist</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Do</dt><dd>Open the Promotion. The banner lists every bypassed story with Issues. Read each reason and its failed checks.</dd>
+          <dt>Know</dt><dd>The guard checks a story when it's added. A story that gets Issues after joining stays in the promotion with its boxes unchecked, and appears in the banner only if bypassed. Check Verification Status on the promotion's stories if in doubt.</dd>
+        </dl></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="next"><a href="#developer"><small>Back</small><b>← Developer guide</b></a><a class="fwd" href="#reference"><small>Next</small><b>Rules and messages →</b></a></div>
+</section>
+
+<!-- ======================================================= REFERENCE -->
+<section class="view" id="reference" hidden>
+  <div class="view-head">
+    <div class="eyebrow">05 · Rules and messages</div>
+    <h2>Exactly how it behaves</h2>
+    <p>Who can do what, what happens automatically, and every message the gate shows.</p>
+  </div>
+
+  <div class="block" id="matrix">
+    <h3>Who can do what</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Story state · action</th><th>Developer</th><th>Release engineer</th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="3">Any story</td></tr>
+          <tr><td>Run Verify</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-yes">Yes</span></td></tr>
+          <tr><td>Create Selected Metadata</td><td><span class="pill p-mid">With Metadata Creator</span></td><td><span class="pill p-mid">With Metadata Creator</span></td></tr>
+          <tr class="group"><td colspan="3">Clean and current</td></tr>
+          <tr><td>Ready to Promote / Promote and Deploy</td><td><span class="pill p-yes">Yes*</span></td><td><span class="pill p-yes">Yes*</span></td></tr>
+          <tr><td>Add to a promotion</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-yes">Yes</span></td></tr>
+          <tr class="group"><td colspan="3">Clean, newer commits since</td></tr>
+          <tr><td>Ready to Promote / Promote and Deploy</td><td><span class="pill p-no">Verify again</span></td><td><span class="pill p-no">Verify again</span></td></tr>
+          <tr class="group"><td colspan="3">Not verified · Running · Failed</td></tr>
+          <tr><td>Ready to Promote / Promote and Deploy</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
+          <tr><td>Bypass Verification</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">Issues only</span></td></tr>
+          <tr class="group"><td colspan="3">Issues · not bypassed</td></tr>
+          <tr><td>Ready to Promote / Promote and Deploy</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
+          <tr><td>Add to a promotion</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
+          <tr><td>Check Bypass Verification</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes, with reason</span></td></tr>
+          <tr class="group"><td colspan="3">Issues · bypassed</td></tr>
+          <tr><td>Ready to Promote</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes*, after Yes/No</span></td></tr>
+          <tr><td>Promote and Deploy</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
+          <tr><td>Add to a promotion</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes</span></td></tr>
+          <tr><td>Uncheck Bypass Verification</td><td><span class="pill p-no">Read-only</span></td><td><span class="pill p-yes">Yes</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:.88rem">* Only when the PR is approved (or the story has no commits) and Pending Tests is 0.</p>
+  </div>
+
+  <div class="block" id="automatic">
+    <h3>What happens automatically</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th>What happens</th><th>Gate switched off</th></tr></thead>
+        <tbody>
+          <tr><td>A push reaches <code>feature/US-…</code></td><td>Branch head recorded. If it isn't the verified commit, the promote boxes are unchecked.</td><td>Head recorded; boxes left alone</td></tr>
+          <tr><td>Verification ends <span class="pill p-no">Issues</span></td><td>Not bypassed: both boxes unchecked. Bypassed: Promote and Deploy unchecked, Ready to Promote kept.</td><td>Boxes left alone</td></tr>
+          <tr><td>Verification ends <span class="pill p-yes">Clean</span></td><td>Any bypass ends. Pushes recorded before the run count as checked.</td><td>Same</td></tr>
+          <tr><td>Verification <span class="pill p-mid">Failed</span> or <span class="pill p-run">Running</span></td><td>Nothing changes.</td><td>Same</td></tr>
+          <tr><td>Bypass Verification checked</td><td>Bypassed By and Bypassed At filled.</td><td>Same</td></tr>
+          <tr><td>Story added to a promotion</td><td>Refused if Issues, unless bypassed and added by a release engineer.</td><td>Allowed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="block" id="messages">
+    <h3>Every message</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Message</th><th>Source</th><th>Do</th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="3">Checking Ready to Promote or Promote and Deploy</td></tr>
+          <tr><td class="msg">This User Story has not been verified. Run Verify before Promote.</td><td><code>Story_Not_Verified</code></td><td>Verify.</td></tr>
+          <tr><td class="msg">Verification is in progress. Promote is available once verification completes with a Clean result.</td><td><code>Story_Verification_Running</code></td><td>Wait.</td></tr>
+          <tr><td class="msg">Verification did not pass. Resolve the issues listed in Verification Details and run Verify again before Promote.</td><td><code>Story_Verification_Issues</code></td><td>Issues (not bypassed) or Failed. Fix, verify again.</td></tr>
+          <tr><td class="msg">New commits were added after the last verification. Run Verify again before Promote.</td><td><code>New_Commits_After_Verification</code></td><td>Verify again.</td></tr>
+          <tr><td class="msg">The feature branch has changed since the last verification. Run Verify again before Promote.</td><td><code>Branch_Changed_After_Verification</code></td><td>Verify again.</td></tr>
+          <tr><td class="msg">Pull request approval is required before Promote.</td><td><code>PR_Not_Approved</code></td><td>Get the PR approved.</td></tr>
+          <tr><td class="msg">All tests on this User Story must pass before Promote.</td><td><code>Tests_Pending</code></td><td>Run the tests.</td></tr>
+          <tr><td class="msg">Verification for this story was bypassed, but it still has issues. Only a release engineer can check Ready to Promote.</td><td><code>Bypassed_Promote_Release_Engineer_Only</code></td><td>Ask a release engineer.</td></tr>
+          <tr><td class="msg">Verification for this story was bypassed, but it still has issues. Promote and Deploy is not allowed. Check Ready to Promote instead and deploy from the promotion.</td><td><code>Bypassed_No_Promote_And_Deploy</code></td><td>Use a promotion.</td></tr>
+          <tr class="group"><td colspan="3">Checking Bypass Verification</td></tr>
+          <tr><td class="msg">Only a release engineer can check Bypass Verification.</td><td><code>Bypass_Release_Engineer_Only</code></td><td>Ask a release engineer.</td></tr>
+          <tr><td class="msg">Bypass Verification is only needed when the last verification found issues.</td><td><code>Bypass_Only_When_Issues</code></td><td>Status isn't Issues.</td></tr>
+          <tr><td class="msg">Enter a Bypass Reason to bypass verification for this story.</td><td><code>Bypass_Reason_Required</code></td><td>Add a reason.</td></tr>
+          <tr class="group"><td colspan="3">Adding to a promotion</td></tr>
+          <tr><td class="msg">US-… cannot be added to this promotion because its last verification found issues. Open the User Story, click Verify, fix the issues it lists, and add the story again once the verification is Clean.</td><td><code>StoryPromotionGuard</code></td><td>Fix and verify, or ask for a bypass.</td></tr>
+          <tr><td class="msg">Verification for US-… was bypassed, but it still has issues. Only a release engineer can add it to a promotion.</td><td><code>StoryPromotionGuard</code></td><td>Ask a release engineer.</td></tr>
+          <tr class="group"><td colspan="3">Banners, prompts and popup</td></tr>
+          <tr><td class="msg">Promote a bypassed story? …Do you want to proceed?</td><td><code>storyBypassBanner</code></td><td>OK keeps the box; Cancel unchecks it.</td></tr>
+          <tr><td class="msg">Verification bypassed. This story still has issues.</td><td><code>storyBypassBanner</code> · story</td><td>Information.</td></tr>
+          <tr><td class="msg">This promotion contains stories whose verification was bypassed and still have issues.</td><td><code>storyBypassBanner</code> · promotion</td><td>Review before deploying.</td></tr>
+          <tr><td class="msg">N commit(s) made outside Copado by &lt;name&gt;</td><td>Unregistered commits</td><td>Confirm it belongs.</td></tr>
+          <tr><td class="msg">Verification cancelled by &lt;name&gt; at &lt;time&gt;</td><td>Popup · Cancel</td><td>Verify again.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="next"><a href="#release-engineer"><small>Back</small><b>← Release engineer guide</b></a><a class="fwd" href="#maintain"><small>Next</small><b>Maintain →</b></a></div>
+</section>
+
+<!-- ======================================================= MAINTAIN -->
+<section class="view" id="maintain" hidden>
+  <div class="view-head">
+    <div class="eyebrow">06 · Maintain</div>
+    <h2>Run it day to day</h2>
+    <p>For admins: the off switch, updates, routine care, troubleshooting and reference.</p>
+  </div>
+
+  <div class="block" id="switch">
+    <h3>Turn the gate off org-wide</h3>
+    <p class="intro">The custom setting <strong>Story Verification Control</strong> switches the gate off for everyone, without a deploy. It is off (gate on) by default.</p>
+    <div class="card">
+      <ol class="actions">
+        <li><div class="act"><h4>Open it</h4><p><span class="path">Setup<i>›</i>Custom Settings<i>›</i>Story Verification Control<i>›</i>Manage</span></p></div></li>
+        <li><div class="act"><h4>Set the organization default</h4><p>Click <span class="ui">New</span> (or Edit) next to <span class="ui">Default Organization Level Value</span> at the top, tick <span class="ui">Disable Story Verification</span>, save.</p></div></li>
+        <li><div class="act"><h4>Or from Execute Anonymous</h4><p>Use <code>false</code> to turn the gate back on.</p>
+          <div class="code"><pre>Story_Verification_Control__c c = Story_Verification_Control__c.getOrgDefaults();
+c.Disable_Story_Verification__c = true;
+upsert c;</pre><button class="copy" type="button">Copy</button></div></div></li>
+      </ol>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Part</th><th>Gate on</th><th>Gate off</th></tr></thead>
+        <tbody>
+          <tr><td>7 gate rules</td><td><span class="pill p-yes">Block</span></td><td><span class="pill p-grey">Never block</span></td></tr>
+          <tr><td>Promotion guard</td><td><span class="pill p-yes">Refuses Issues</span></td><td><span class="pill p-grey">Allows all</span></td></tr>
+          <tr><td>Bypassed-story rules (promote boxes)</td><td><span class="pill p-yes">Apply</span></td><td><span class="pill p-grey">Don't block</span></td></tr>
+          <tr><td>Bypass field rules (RE only, Issues only, reason)</td><td><span class="pill p-yes">Apply</span></td><td><span class="pill p-yes">Still apply</span></td></tr>
+          <tr><td>Uncheck on push / on Issues</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-grey">No</span></td></tr>
+          <tr><td>Verify</td><td><span class="pill p-yes">Gates promotion</span></td><td><span class="pill p-grey">Info only, grey banner</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="note n-warn"><div class="ni">!</div><div class="nb"><div class="nt">Use the top New button</div><p>The lower New sets a value for one profile or user only.</p></div></div>
+      <div class="note n-info"><div class="ni">i</div><div class="nb"><div class="nt">Turning it back on</div><p>Pushes are still recorded while it's off, so stories with newer commits than their last verification are blocked straight away until verified again.</p></div></div>
+    </div>
+  </div>
+
+  <div class="block" id="updating">
+    <h3>Install a new version</h3>
+    <div class="card">
+      <ol class="actions">
+        <li><div class="act"><h4>If <code>function/index.js</code> changed, rebuild the setup class</h4>
+          <p>The Function code lives inside <code>StoryVerificationSetup</code>. The first command rebuilds it; the second confirms the two match.</p>
+          <div class="code"><pre>node scripts/build-create-records.js
+node scripts/build-create-records.js --check</pre><button class="copy" type="button">Copy</button></div></div></li>
+        <li><div class="act"><h4>Deploy</h4><p>Same command as <a href="#step-1">setup step 1</a>.</p></div></li>
+        <li><div class="act"><h4>Rerun the setup script</h4><p><a href="#step-2">Setup step 2</a>, so the Function runs the new code.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="block" id="routine">
+    <h3>Routine care</h3>
+    <div class="grid wide">
+      <div class="tile"><div class="ic">RE</div><h4>Review release engineers</h4><p>Check who holds <strong>Copado Story Verification Release Engineer</strong> each quarter and remove anyone who no longer releases.</p></div>
+      <div class="tile"><div class="ic">⟳</div><h4>Rotate the webhook secret</h4><p>Generate a new one (step 3a), update the Default record, then GitHub straight after. Deliveries in between get 401.</p></div>
+      <div class="tile"><div class="ic">↯</div><h4>Watch webhook deliveries</h4><p>GitHub, Settings, Webhooks, Recent Deliveries. Anything other than 200 means pushes aren't reaching the story.</p></div>
+      <div class="tile"><div class="ic">B</div><h4>Audit bypasses</h4><p>A User Story report filtered on Bypass Verification shows who bypassed what, when and why.</p></div>
+      <div class="tile"><div class="ic">F</div><h4>Check verification failures</h4><p>Many Failed stories at once usually mean Git credentials expired in Copado. Re-authenticate, then rerun setup step 2.</p></div>
+    </div>
+  </div>
+
+  <div class="block" id="troubleshooting">
+    <h3>Troubleshooting</h3>
+    <div class="faults">
+      <div class="fault"><div class="sym"><span>"Invalid template name Story_Verification_1"</span></div><p>Run <a href="#step-2">setup step 2</a>. If Copado named the template differently, update <code>TEMPLATE_API_NAME</code> in <code>StoryVerificationService</code>.</p></div>
+      <div class="fault"><div class="sym"><span>"You do not have access to this story"</span></div><p>Assign Copado Story Verification User. Release engineers need it too.</p></div>
+      <div class="fault"><div class="sym"><span>"Could not clone the repository"</span></div><p>Re-authenticate the Git repository in Copado, then rerun step 2. The message ends with Git's own reason.</p></div>
+      <div class="fault"><div class="sym"><span>Stuck on "Waiting for Copado to start the job"</span></div><p>Copado's job queue is busy. Wait, or Cancel.</p></div>
+      <div class="fault"><div class="sym"><span>No orange banner on a bypassed story</span></div><p>Add the component to the page this app and profile actually use (<a href="#step-6">step 6c</a>). It shows only while bypassed and Issues.</p></div>
+      <div class="fault"><div class="sym"><span>No Yes/No prompt</span></div><p>The banner must be on the page. The prompt appears only for the user who just checked the box.</p></div>
+      <div class="fault"><div class="sym"><span>"Only a release engineer…" for a release engineer</span></div><p>Assign the Release Engineer permission set, then have them log out and in.</p></div>
+      <div class="fault"><div class="sym"><span>Bypass Verification is read-only for a release engineer</span></div><p>They need edit access to the field (the Release Engineer set gives it) and the field on the layout.</p></div>
+      <div class="fault"><div class="sym"><span>Webhook 200 but Branch Head SHA unchanged</span></div><p>Only <code>feature/US-…</code> branches are recorded. If a Copado trigger rejects the Automated Process user, add a <code>PlatformEventSubscriberConfig</code> for <code>StoryBranchPushTrigger</code> running as a Copado-licensed user.</p></div>
+      <div class="fault"><div class="sym"><span>Boxes stay checked after a push or Issues</span></div><p>Another rule or trigger in the org refused the update, or the gate is off. Re-checking is still blocked.</p></div>
+      <div class="fault"><div class="sym"><span>Nothing blocks; popup says the gate is off</span></div><p>Untick Disable Story Verification (<a href="#switch">above</a>).</p></div>
+    </div>
+  </div>
+
+  <div class="block" id="package">
+    <h3>package.xml</h3>
+    <details class="xml">
+      <summary>Show manifest/package.xml (67 components)</summary>
+      <div class="code">
+        <pre class="scroll" id="pkgXml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;Package xmlns="http://soap.sforce.com/2006/04/metadata"&gt;
     &lt;types&gt;
         &lt;members&gt;StoryBranchPushHandler&lt;/members&gt;
+        &lt;members&gt;StoryBypass&lt;/members&gt;
+        &lt;members&gt;StoryBypassController&lt;/members&gt;
+        &lt;members&gt;StoryBypassTest&lt;/members&gt;
+        &lt;members&gt;StoryPromotionGuard&lt;/members&gt;
+        &lt;members&gt;StoryPromotionGuardTest&lt;/members&gt;
         &lt;members&gt;StoryVerificationComplete&lt;/members&gt;
         &lt;members&gt;StoryVerificationCompleteTest&lt;/members&gt;
         &lt;members&gt;StoryVerificationController&lt;/members&gt;
@@ -1162,9 +1473,12 @@ upsert c;</pre>
     &lt;/types&gt;
     &lt;types&gt;
         &lt;members&gt;StoryBranchPushTrigger&lt;/members&gt;
+        &lt;members&gt;StoryBypassTrigger&lt;/members&gt;
+        &lt;members&gt;StoryPromotionGuardTrigger&lt;/members&gt;
         &lt;name&gt;ApexTrigger&lt;/name&gt;
     &lt;/types&gt;
     &lt;types&gt;
+        &lt;members&gt;storyBypassBanner&lt;/members&gt;
         &lt;members&gt;storyVerificationPopup&lt;/members&gt;
         &lt;name&gt;LightningComponentBundle&lt;/name&gt;
     &lt;/types&gt;
@@ -1182,6 +1496,10 @@ upsert c;</pre>
         &lt;members&gt;Story_Verification_Setting__mdt.GitHub_Webhook_Secret__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Branch_Head_Pushed_At__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Branch_Head_SHA__c&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypass_Reason__c&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypass_Verification__c&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypassed_At__c&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypassed_By__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Verification_Checks__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Verification_Date__c&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Verification_Details__c&lt;/members&gt;
@@ -1213,6 +1531,11 @@ upsert c;</pre>
     &lt;/types&gt;
     &lt;types&gt;
         &lt;members&gt;copado__User_Story__c.Branch_Changed_After_Verification&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypass_Reason_Required&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypass_Only_When_Issues&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypass_Release_Engineer_Only&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypassed_No_Promote_And_Deploy&lt;/members&gt;
+        &lt;members&gt;copado__User_Story__c.Bypassed_Promote_Release_Engineer_Only&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.New_Commits_After_Verification&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.PR_Not_Approved&lt;/members&gt;
         &lt;members&gt;copado__User_Story__c.Story_Not_Verified&lt;/members&gt;
@@ -1223,56 +1546,101 @@ upsert c;</pre>
     &lt;/types&gt;
     &lt;version&gt;63.0&lt;/version&gt;
 &lt;/Package&gt;</pre>
-            <button class="copy" type="button">Copy</button>
-          </div>
-        </details>
-      </section>
-
-      <footer>Copado Story Verification Gate · project folder <code>D:\copado-story-verification</code> · Salesforce API 63.0</footer>
-    </main>
+        <button class="copy" type="button">Copy</button>
+      </div>
+    </details>
   </div>
+
+  <div class="block" id="glossary">
+    <h3>Glossary</h3>
+    <div class="card">
+      <dl class="glossary">
+        <dt>Base branch</dt><dd>The branch a feature branch was created from: an environment branch or a parent story's feature branch.</dd>
+        <dt>Feature branch</dt><dd><code>feature/US-…</code>, the story's own branch.</dd>
+        <dt>Registered</dt><dd>Known to Copado: a commit with a User Story Commit record, or a component with a User Story Metadata record.</dd>
+        <dt>Current</dt><dd>No commit has reached the branch since the commit the last verification checked.</dd>
+        <dt>Gate rules</dt><dd>The 7 validation rules guarding Ready to Promote and Promote and Deploy.</dd>
+        <dt>Bypassed</dt><dd>A story with Issues on which a release engineer checked Bypass Verification with a reason.</dd>
+        <dt>Release engineer</dt><dd>A holder of the Release Engineer permission set (custom permission <code>Bypass_Verification_Gate</code>).</dd>
+        <dt>Promotion guard</dt><dd>The trigger that checks each story as it's added to a promotion.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="next"><a href="#reference"><small>Back</small><b>← Rules and messages</b></a></div>
+</section>
+
 </div>
+</div>
+
+<footer class="gutter"><div class="wrap">Copado Story Verification Gate · Salesforce API 63.0 · 67 components · November 2026</div></footer>
 
 <script>
 (function () {
-  var KEY = 'svg-setup-done';
-  var TOTAL = 8;
+  var VIEWS = ['overview', 'setup', 'developer', 'release-engineer', 'reference', 'maintain'];
+  var tabs = document.querySelectorAll('.tab');
+
+  function show(viewId, targetId) {
+    VIEWS.forEach(function (v) { document.getElementById(v).hidden = v !== viewId; });
+    tabs.forEach(function (t) { t.classList.toggle('active', t.getAttribute('href') === '#' + viewId); });
+    var target = targetId ? document.getElementById(targetId) : null;
+    if (target) {
+      requestAnimationFrame(function () { target.scrollIntoView({ block: 'start' }); });
+    } else {
+      window.scrollTo({ top: 0 });
+    }
+  }
+
+  function route() {
+    var id = decodeURIComponent((location.hash || '').slice(1));
+    if (!id) { show('overview'); return; }
+    if (VIEWS.indexOf(id) !== -1) { show(id); return; }
+    var el = document.getElementById(id);
+    var view = el ? el.closest('.view') : null;
+    if (view) show(view.id, id); else show('overview');
+  }
+  window.addEventListener('hashchange', route);
+  route();
+
+  document.querySelectorAll('[data-toggle-all]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var items = document.getElementById(btn.dataset.toggleAll).querySelectorAll('details.scn');
+      var open = btn.textContent === 'Expand all';
+      items.forEach(function (d) { d.open = open; });
+      btn.textContent = open ? 'Collapse all' : 'Expand all';
+    });
+  });
+
+  var KEY = 'svg-setup-done-v3';
+  var boxes = document.querySelectorAll('input.done');
+  var TOTAL = boxes.length;
   var done = {};
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || '[]');
     if (Array.isArray(saved)) saved.forEach(function (n) { done[n] = true; });
   } catch (e) {}
-
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(Object.keys(done))); } catch (e) {}
-  }
-
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(Object.keys(done))); } catch (e) {} }
   function render() {
     var count = 0;
-    document.querySelectorAll('input.done').forEach(function (box) {
-      var n = box.dataset.step;
-      var on = !!done[n];
+    boxes.forEach(function (box) {
+      var n = box.dataset.step, on = !!done[n];
       if (on) count++;
       box.checked = on;
-      var sec = document.getElementById('step-' + n);
-      if (sec) sec.classList.toggle('is-done', on);
-      var link = document.querySelector('.toc a[data-step="' + n + '"]');
-      if (link) link.classList.toggle('done', on);
+      var step = document.getElementById('step-' + n);
+      if (step) step.classList.toggle('is-done', on);
+      var idx = document.querySelector('.os[data-step="' + n + '"]');
+      if (idx) idx.classList.toggle('done', on);
     });
-    document.getElementById('barFill').style.width = (count / TOTAL * 100) + '%';
-    document.getElementById('barCount').textContent =
-      count === TOTAL ? 'All 8 steps done' : count + ' of ' + TOTAL + ' steps done';
+    document.getElementById('pfill').style.width = (count / TOTAL * 100) + '%';
+    document.getElementById('pcount').textContent = count === TOTAL ? 'All ' + TOTAL + ' done' : count + ' of ' + TOTAL + ' done';
   }
-
-  document.querySelectorAll('input.done').forEach(function (box) {
+  boxes.forEach(function (box) {
     box.addEventListener('change', function () {
       if (box.checked) done[box.dataset.step] = true; else delete done[box.dataset.step];
       save(); render();
     });
   });
-  document.getElementById('resetTicks').addEventListener('click', function () {
-    done = {}; save(); render();
-  });
+  document.getElementById('resetTicks').addEventListener('click', function () { done = {}; save(); render(); });
   render();
 
   document.querySelectorAll('.copy').forEach(function (btn) {
@@ -1284,17 +1652,13 @@ upsert c;</pre>
         setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
       }
       function fallback() {
-        var range = document.createRange();
-        range.selectNodeContents(pre);
-        var sel = window.getSelection();
-        sel.removeAllRanges(); sel.addRange(range);
+        var range = document.createRange(); range.selectNodeContents(pre);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
         flash('Selected, press Ctrl+C');
       }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function () { flash('Copied'); }, fallback);
-      } else {
-        fallback();
-      }
+      } else { fallback(); }
     });
   });
 
@@ -1304,20 +1668,6 @@ upsert c;</pre>
     xml.innerHTML = esc
       .replace(/"([^"]*)"/g, "<span class='x-str'>&quot;$1&quot;</span>")
       .replace(/(&lt;\/?[\w?]+|\??&gt;)/g, "<span class='x-tag'>$1</span>");
-  }
-
-  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (!en.isIntersecting) return;
-        links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + en.target.id); });
-      });
-    }, { rootMargin: '-30% 0px -60% 0px' });
-    links.forEach(function (a) {
-      var t = document.querySelector(a.getAttribute('href'));
-      if (t) io.observe(t);
-    });
   }
 })();
 </script>

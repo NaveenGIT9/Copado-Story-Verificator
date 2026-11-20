@@ -1,0 +1,33 @@
+<template>
+    <template lwc:if={storyBypassed}>
+        <div class="bypass-banner" role="alert" data-id="story-banner">
+            <lightning-icon icon-name="utility:warning" size="small" class="bypass-icon" alternative-text="Warning"></lightning-icon>
+            <div class="bypass-text">
+                <div class="bypass-title">Verification bypassed. This story still has issues.</div>
+                <div data-id="story-banner-who">Bypassed by {bypassedBy}<template lwc:if={bypassedAt}> on {bypassedAt}</template>.</div>
+                <template lwc:if={reason}>
+                    <div data-id="story-banner-reason"><span class="bypass-key">Reason:</span> {reason}</div>
+                </template>
+                <div>Only a release engineer can check Ready to Promote or add it to a promotion. Promote and Deploy is not allowed.</div>
+            </div>
+        </div>
+    </template>
+    <template lwc:if={showPromotionBanner}>
+        <div class="bypass-banner" role="alert" data-id="promotion-banner">
+            <lightning-icon icon-name="utility:warning" size="small" class="bypass-icon" alternative-text="Warning"></lightning-icon>
+            <div class="bypass-text">
+                <div class="bypass-title">This promotion contains stories whose verification was bypassed and still have issues.</div>
+                <ul class="bypass-list">
+                    <template for:each={promotionStories} for:item="row">
+                        <li key={row.id} data-id="promotion-story">
+                            <a href={row.url}>{row.name}</a>
+                            <template lwc:if={row.bypassedBy}> (bypassed by {row.bypassedBy})</template>
+                            <template lwc:if={row.reason}>: {row.reason}</template>
+                        </li>
+                    </template>
+                </ul>
+                <div>Review them before you deploy.</div>
+            </div>
+        </div>
+    </template>
+</template>

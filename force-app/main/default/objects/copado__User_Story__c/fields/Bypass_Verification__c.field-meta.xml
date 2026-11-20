@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypass_Verification__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Checked by a release engineer to let a story whose last verification found issues be promoted (Ready to Promote and added to promotions, by release engineers only). Unchecked automatically when the verification status becomes Clean.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Release engineers only. Lets this story be promoted although its last verification found issues. Cleared automatically when verification becomes Clean.</inlineHelpText>
+    <label>Bypass Verification</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

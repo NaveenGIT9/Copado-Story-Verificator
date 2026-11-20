@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bypass_Only_When_Issues</fullName>
+    <active>true</active>
+    <description>Bypass Verification can only be checked when the latest verification found issues. A box already checked stays valid while a new verification runs or fails.</description>
+    <errorConditionFormula>AND(
+  Bypass_Verification__c,
+  OR(ISNEW(), ISCHANGED(Bypass_Verification__c)),
+  NOT(ISPICKVAL(Verification_Status__c, "Issues"))
+)</errorConditionFormula>
+    <errorDisplayField>Bypass_Verification__c</errorDisplayField>
+    <errorMessage>Bypass Verification is only needed when the last verification found issues.</errorMessage>
+</ValidationRule>
