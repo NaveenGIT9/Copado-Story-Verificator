@@ -16,7 +16,7 @@ public with sharing class StoryVerificationController {
         'Cancelled',
         'Canceled'
     };
-    private static final Set<String> FINISHED_STATUSES = new Set<String>{ 'Clean', 'Issues', 'Failed' };
+    private static final Set<String> FINISHED_STATUSES = new Set<String>{ 'Clean', 'Issues', 'Blocked', 'Failed' };
     private static final Set<String> CHECK_STATUSES = new Set<String>{ 'pass', 'fail', 'warn', 'skipped' };
     private static final Integer MAX_EXECUTIONS_SCANNED = 20;
     private static final Integer MAX_RESULTS_SCANNED = 20;
@@ -348,12 +348,14 @@ public with sharing class StoryVerificationController {
         snapshot.runId = story.Verification_Run_Id__c;
         snapshot.isFinished = FINISHED_STATUSES.contains(story.Verification_Status__c);
         snapshot.isCurrentRun = snapshot.runId == runId;
-        snapshot.details = splitLines(story.Verification_Details__c);
         snapshot.baseBranch = baseBranchOf(story.Id);
 
         JobReader reader = new JobReader();
         snapshot.facts = reader.readFacts(story.Id);
-        snapshot.checks = reader.readChecks(story.Id);
+        // While a run is in progress the stored Details and Checks are still the previous run's (kept for Cancel), so none are shown.
+        Boolean running = story.Verification_Status__c == 'Running';
+        snapshot.details = running ? new List<String>() : splitLines(story.Verification_Details__c);
+        snapshot.checks = running ? new List<CheckResult>() : reader.readChecks(story.Id);
         snapshot.scriptSeconds = reader.scriptSeconds;
         if (snapshot.isFinished) {
             snapshot.commitBaseUrl = reader.readCommitBaseUrl(story.Id);

@@ -87,6 +87,8 @@ private class StoryVerificationServiceTest {
                 Verification_Date__c,
                 Verification_Run_Id__c,
                 Verification_Checks__c,
+                Verification_No_Commits__c,
+                Verification_Previous__c,
                 Verified_Head_SHA__c,
                 Branch_Head_SHA__c,
                 Branch_Head_Pushed_At__c
@@ -188,8 +190,12 @@ private class StoryVerificationServiceTest {
         System.runAs(admin) {
             copado__User_Story__c story = storyByTitle(STORY_TITLE);
             addCommitAndMetadata(story.Id);
+            Datetime verifiedAt = System.now().addDays(-1);
             update new copado__User_Story__c(
                 Id = story.Id,
+                Verification_Status__c = 'Clean',
+                Verification_Date__c = verifiedAt,
+                Verification_Details__c = 'INFO: ok',
                 Verification_Checks__c = '{"checks":[]}',
                 Verified_Head_SHA__c = 'abcdef0123456789abcdef0123456789abcdef01'
             );
@@ -203,10 +209,13 @@ private class StoryVerificationServiceTest {
             copado__User_Story__c after = storyByTitle(STORY_TITLE);
             System.assertEquals('Running', after.Verification_Status__c);
             System.assertEquals(32, after.Verification_Run_Id__c.length());
-            System.assertNotEquals(null, after.Verification_Date__c);
-            System.assertEquals(null, after.Verification_Details__c);
-            System.assertEquals(null, after.Verification_Checks__c, 'Checks of the previous run must be cleared at start');
-            System.assertEquals(null, after.Verified_Head_SHA__c, 'The previous verified commit must be cleared at start');
+            System.assert(after.Verification_Date__c > verifiedAt);
+            System.assertEquals('INFO: ok', after.Verification_Details__c, 'Details of the previous run are kept for Cancel');
+            System.assertEquals('{"checks":[]}', after.Verification_Checks__c, 'Checks of the previous run are kept for Cancel');
+            System.assertEquals('abcdef0123456789abcdef0123456789abcdef01', after.Verified_Head_SHA__c);
+            Map<String, Object> previous = (Map<String, Object>) JSON.deserializeUntyped(after.Verification_Previous__c);
+            System.assertEquals('Clean', previous.get('status'));
+            System.assertNotEquals(null, previous.get('verifiedAt'));
 
             System.assertEquals(1, stub.requests.size());
             copado.CreateExecution.Request req = stub.requests[0];
@@ -1022,6 +1031,128 @@ private class StoryVerificationServiceTest {
     }
 
     @IsTest
+    static void restartOfAStaleRunKeepsTheStateFromBeforeIt() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            String beforeStale = '{"status":"Issues","verifiedAt":null,"noCommits":false}';
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Status__c = 'Running',
+                Verification_Run_Id__c = 'old-run',
+                Verification_Date__c = System.now().addMinutes(-31),
+                Verification_Previous__c = beforeStale
+            );
+            StoryVerificationService.starter = new CapturingStarter();
+
+            String runId = StoryVerificationService.startVerification(story.Id);
+            System.assertEquals(beforeStale, storyByTitle(STORY_TITLE).Verification_Previous__c);
+
+            System.assertEquals(true, StoryVerificationService.cancelVerification(story.Id, runId));
+            System.assertEquals('Issues', storyByTitle(STORY_TITLE).Verification_Status__c);
+        }
+    }
+
+    @IsTest
+    static void cancelRestoresTheStateFromBeforeTheRun() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            Datetime verifiedAt = Datetime.newInstanceGmt(2026, 1, 2, 3, 4, 5);
+            String sha = 'abcdef0123456789abcdef0123456789abcdef01';
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Status__c = 'Issues',
+                Verification_Date__c = verifiedAt,
+                Verification_Details__c = 'ISSUE: one',
+                Verification_Checks__c = '{"checks":[{"id":"a","status":"fail"}]}',
+                Verification_No_Commits__c = true,
+                Verified_Head_SHA__c = sha
+            );
+            StoryVerificationService.starter = new CapturingStarter();
+            String runId = StoryVerificationService.startVerification(story.Id);
+
+            Test.startTest();
+            Boolean cancelled = StoryVerificationService.cancelVerification(story.Id, runId);
+            Test.stopTest();
+
+            System.assertEquals(true, cancelled);
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Issues', after.Verification_Status__c);
+            System.assertEquals(verifiedAt, after.Verification_Date__c, 'The old date keeps the stale-verification rule working');
+            System.assertEquals('ISSUE: one', after.Verification_Details__c);
+            System.assertEquals('{"checks":[{"id":"a","status":"fail"}]}', after.Verification_Checks__c);
+            System.assertEquals(true, after.Verification_No_Commits__c);
+            System.assertEquals(sha, after.Verified_Head_SHA__c);
+            System.assertEquals(null, after.Verification_Run_Id__c);
+            System.assertEquals(null, after.Verification_Previous__c);
+        }
+    }
+
+    @IsTest
+    static void cancelOfANeverVerifiedStoryLeavesItBlank() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            StoryVerificationService.starter = new CapturingStarter();
+            String runId = StoryVerificationService.startVerification(story.Id);
+
+            System.assertEquals(true, StoryVerificationService.cancelVerification(story.Id, runId));
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals(null, after.Verification_Status__c);
+            System.assertEquals(null, after.Verification_Date__c);
+            System.assertEquals(null, after.Verification_Run_Id__c);
+        }
+    }
+
+    @IsTest
+    static void cancelWithoutASavedStateMarksTheStoryFailed() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-np');
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verification_Checks__c = '{"checks":[]}',
+                Verified_Head_SHA__c = 'abcdef0123456789abcdef0123456789abcdef01'
+            );
+
+            System.assertEquals(true, StoryVerificationService.cancelVerification(story.Id, 'run-np'));
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Failed', after.Verification_Status__c);
+            System.assert(after.Verification_Details__c.startsWith('Verification cancelled by '), after.Verification_Details__c);
+            System.assertEquals(null, after.Verification_Checks__c);
+            System.assertEquals(null, after.Verified_Head_SHA__c);
+            System.assertEquals(null, after.Verification_Run_Id__c);
+        }
+    }
+
+    @IsTest
+    static void aResultWithoutAHeadClearsTheCommitThePreviousRunVerified() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-oldsha');
+            update new copado__User_Story__c(
+                Id = story.Id,
+                Verified_Head_SHA__c = 'abcdef0123456789abcdef0123456789abcdef01',
+                Verification_Previous__c = '{"status":"Clean"}'
+            );
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-oldsha', 'Failed', null) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Failed', after.Verification_Status__c);
+            System.assertEquals(null, after.Verified_Head_SHA__c);
+            System.assertEquals(null, after.Verification_Previous__c);
+        }
+    }
+
+    @IsTest
     static void startRecordsFailureWhenJobCannotStart() {
         User admin = newAdmin();
         System.runAs(admin) {
@@ -1111,6 +1242,24 @@ private class StoryVerificationServiceTest {
             copado__User_Story__c after = storyByTitle(STORY_TITLE);
             System.assertEquals('Issues', after.Verification_Status__c);
             System.assertEquals('ISSUE: one', after.Verification_Details__c);
+        }
+    }
+
+    @IsTest
+    static void completeWritesBlockedResult() {
+        User admin = newAdmin();
+        System.runAs(admin) {
+            copado__User_Story__c story = storyByTitle(STORY_TITLE);
+            markRunning(story.Id, 'run-blk');
+            String result = '{"runId":"run-blk","status":"Blocked","details":"Branch merges into the feature branch: FAIL"}';
+
+            StoryVerificationService.applyOutcomes(
+                new List<StoryVerificationService.JobOutcome>{ outcome(story.Id, 'run-blk', 'Successful', result) }
+            );
+
+            copado__User_Story__c after = storyByTitle(STORY_TITLE);
+            System.assertEquals('Blocked', after.Verification_Status__c);
+            System.assert(after.Verification_Details__c.contains('Branch merges'), after.Verification_Details__c);
         }
     }
 

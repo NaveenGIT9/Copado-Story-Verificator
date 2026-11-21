@@ -10,7 +10,7 @@ A user clicks **Verify** on the story. A popup runs six checks live, shows each 
 |---|---|---|
 | **Unregistered commits** | Every commit on the feature branch (compared with the base branch) is registered in Copado. A commit made outside Copado on components that are registered passes if its author has a Copado-registered commit on the story, and is only a **warning** ("1 commit made outside Copado by &lt;name&gt;") if not. A commit on components that are not registered **fails**. A commit that was amended or rebased after Copado registered it (same author email and author time as a registered commit that is no longer on the branch) is shown in teal as **amended**, and is exempt when all its components are registered. | Copado Function (git) |
 | **Metadata coverage** | Every component changed in git is registered on the story, so it will actually be deployed. A changed component is registered only by an item of the **same type with exactly its name**. Nothing registered under a related name stands in for it (an object's fields do not cover the object, a class does not cover a trigger of the same name). | Copado Function (git) |
-| **External branch merge** | No other branch was merged into the feature branch since it left its base branch: not an environment branch (for example `dev1`, `uat`), a promotion branch or another story's feature branch (fails). The story's own feature branch is ignored, and merging only the base branch is a warning. | Copado Function (git) |
+| **External branch merge** | No other branch was merged into the feature branch since it left its base branch: not an environment branch (for example `dev1`, `uat`), a promotion branch or another story's feature branch (fails, and the verdict is **Blocked**). The story's own feature branch is ignored, and merging only the base branch is a warning. | Copado Function (git) |
 | **Pull request approval** | The story's *Pull Requests Approved* box is checked. Stories with no commits and no metadata are not asked for one (see below). | Apex |
 | **Pending tests** | *Pending Tests* is 0. | Apex |
 | **Parent story dependencies** | Parent stories (through the base branch or a dependency) are promoted ahead of this story. | Apex |
@@ -20,7 +20,8 @@ Verdicts:
 | Verdict | Meaning | Can promote? |
 |---|---|---|
 | **Clean** | No check failed (warnings are allowed). | Yes, while the verification is current. |
-| **Issues** | At least one check failed. | No. |
+| **Issues** | At least one check failed. | No, unless a release engineer bypasses it (see [Bypassing verification](#bypassing-verification)). |
+| **Blocked** | Another branch (an environment, promotion or other story's branch) is merged into the feature branch. Its commits are not this story's and would be promoted with it. This wins over Issues. | No. It cannot be bypassed, even by a release engineer. Remove the merge from the feature branch and Verify again. |
 | **Failed** | The run itself crashed (for example the repository could not be cloned). | No. |
 | **Running** | A verification is in progress. | No. |
 | *(blank)* | Never verified. | No. |
@@ -63,7 +64,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
 | Custom setting | `Story_Verification_Control__c` (hierarchy, `Disable_Story_Verification__c`): the org-wide on/off switch |
 | Apex triggers (3) | `StoryBranchPushTrigger` (on `Story_Branch_Push__e`), `StoryPromotionGuardTrigger` (on `copado__Promoted_User_Story__c`), `StoryBypassTrigger` (on `copado__User_Story__c`) |
 | Lightning components (2) | `storyVerificationPopup`, `storyBypassBanner` (User Story and Promotion record pages) |
-| Fields (13, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Checks__c`, `Verified_Head_SHA__c`, `Branch_Head_SHA__c`, `Branch_Head_Pushed_At__c`, `Bypass_Verification__c`, `Bypass_Reason__c`, `Bypassed_By__c`, `Bypassed_At__c` |
+| Fields (14, on `copado__User_Story__c`) | `Verification_No_Commits__c`, `Verification_Status__c`, `Verification_Date__c`, `Verification_Details__c`, `Verification_Run_Id__c`, `Verification_Previous__c`, `Verification_Checks__c`, `Verified_Head_SHA__c`, `Branch_Head_SHA__c`, `Branch_Head_Pushed_At__c`, `Bypass_Verification__c`, `Bypass_Reason__c`, `Bypassed_By__c`, `Bypassed_At__c` |
 | Platform event | `Story_Branch_Push__e` (`Story_Name__c`, `Head_SHA__c`, `Pushed_At__c`) |
 | Custom metadata type | `Story_Verification_Setting__mdt` (`GitHub_Webhook_Secret__c`); the `Default` record is created by hand in each org, it is not in the repository |
 | Custom permissions (2) | `Bypass_Verification_Gate`, `Create_Story_Metadata` |
@@ -87,6 +88,7 @@ The rules only run when **Ready to Promote** or **Promote and Deploy** is being 
    sf project deploy start --manifest manifest/package.xml --target-org <alias> --test-level RunSpecifiedTests --tests StoryVerificationServiceTest --tests StoryVerificationCompleteTest --tests StoryVerificationControllerTest --tests StoryVerificationSetupTest --tests StoryVerificationMetadataControllerTest --tests StoryVerificationPushWebhookTest --tests StoryVerificationSwitchTest --tests StoryPromotionGuardTest --tests StoryBypassTest --wait 30
    ```
    Add `--dry-run` for a check-only run first.
+   **User Story record types:** Salesforce adds picklist values to existing record types only when a field is first created. If User Story has record types and you are upgrading, a newly added `Verification Status` value (such as `Blocked`) is refused with "bad value for restricted picklist" until it is enabled on each record type. Deploy the field alone first (`sf project deploy start --metadata CustomField:copado__User_Story__c.Verification_Status__c --target-org <alias>`), then in Setup › Object Manager › User Story › Record Types, open each record type, edit `Verification Status`, move the new value to Selected, and save. Then run the full deploy.
    If you are upgrading from the 14-rule version (`Ready_Promote_Gate_*` / `Promote_Deploy_Gate_*`), also add `--post-destructive-changes manifest/destructiveChanges.xml` once. This deletes the old rules in the same deploy.
 2. **Create the Copado records** (Function, Job Template, Job Step). This runs the deployed class `StoryVerificationSetup`:
    ```
@@ -130,7 +132,7 @@ The `Stale` rules compare the verification date with Copado's *Latest Commit Dat
 | Who | Permission set(s) | What it gives |
 |---|---|---|
 | **Developers and anyone who runs Verify** | **Copado Story Verification User** | Access to the Verify popup's Apex and read access to the five `Verification_*` fields. The gate applies to them. |
-| **Release engineers** | **Copado Story Verification Release Engineer** (API name `Copado_Story_Verification_Bypass`) **and** **Copado Story Verification User** | Edit access to Bypass Verification and Bypass Reason, and the `Bypass_Verification_Gate` custom permission. It switches off **no** rule: see [Bypassing verification](#bypassing-verification). |
+| **Release engineers** | **Copado Story Verification Release Engineer** (API name `Copado_Story_Verification_Bypass`) **and** **Copado Story Verification User** | Edit access to Bypass Verification and Bypass Reason, and the `Bypass_Verification_Gate` custom permission. On a bypassed `Issues` story it lets them past the issues, pending tests and pull request approval, nothing else: see [Bypassing verification](#bypassing-verification). |
 | **People who may register missing metadata on stories** | **Copado Story Verification Metadata Creator** **and** **Copado Story Verification User** | Shows the **Create Selected Metadata** button (see below). Without it the "Not registered" list is still shown, with ADD or DELETE beside each component, but cannot be ticked. |
 | **Everyone else** | none | They cannot run Verify, and the gate still blocks their checkboxes. |
 
@@ -160,11 +162,11 @@ Safety: the browser only says which components were ticked. The records are rebu
 
 ## Blocking stories with issues from promotions
 
-`StoryPromotionGuardTrigger` refuses to add a story whose **Verification Status** is `Issues` to any promotion, from the UI, the API or any Copado screen. (Copado does not let an existing promotion line be repointed to another story.) The message tells the user to open the story, click Verify, fix the issues and add it again once it is Clean. The only exception is a bypassed story added by a release engineer (next section). The org-wide switch turns this off too.
+`StoryPromotionGuardTrigger` refuses to add a story whose **Verification Status** is `Issues` or `Blocked` to any promotion, from the UI, the API or any Copado screen. (Copado does not let an existing promotion line be repointed to another story.) The message tells the user to open the story, click Verify, fix the issues and add it again once it is Clean. The only exception is a bypassed `Issues` story added by a release engineer (next section). A `Blocked` story is always refused. The org-wide switch turns this off too.
 
 ## Bypassing verification
 
-For an emergency a release engineer can let one story through while its verification still has issues:
+For an emergency (for example a hotfix while the reviewer is away or the tests cannot run yet) a release engineer can let one story through while its verification still has `Issues`:
 
 1. On the story, check **Bypass Verification** and enter a **Bypass Reason**. Only a release engineer can check it, only while the status is `Issues`, and the reason is required. **Bypassed By** and **Bypassed At** are filled in automatically.
 2. An orange banner (`storyBypassBanner`) appears on the story showing who bypassed it, when and why. A Promotion page lists the bypassed stories it contains in the same banner.
@@ -172,16 +174,35 @@ For an emergency a release engineer can let one story through while its verifica
    - Only a release engineer can check **Ready to Promote**. After the save a Yes/No prompt asks whether to proceed; **No** unchecks the box again.
    - Only a release engineer can add it to a promotion. Developers are still refused.
    - **Promote and Deploy** is refused for everyone, because the deployment would start before any prompt. Check Ready to Promote and deploy from the promotion.
-4. The bypass stays for any promotion until a verification comes back **Clean**, which unchecks Bypass Verification automatically. Running or Failed results keep it. The reason is kept as a record of the last bypass.
+4. The bypass ends automatically, and Bypass Verification is unchecked, when:
+   - a verification comes back **Clean** (nothing left to bypass), or **Blocked** (which can never be bypassed);
+   - a new commit is pushed to the feature branch. The bypass accepted the commit that was reviewed, not code pushed after it.
 
-Every other gate rule still applies to everyone, release engineers included.
+   Running or Failed results keep it. However it ends (including a release engineer unchecking it), Bypass Reason, Bypassed By and Bypassed At are cleared, so a later bypass needs a fresh reason. Turn on field history tracking for Bypass Reason if you want a record of past bypasses.
 
-**Boxes that are already checked:** the gate rules only stop a box being checked. So when a verification finds `Issues`, `StoryBypassTrigger` also unchecks the boxes that are already checked:
+### What a bypass covers and what it does not
 
-- **A story that isn't bypassed:** both Ready to Promote and Promote and Deploy are unchecked.
-- **A bypassed story:** Ready to Promote stays checked, because the bypass accepted the issues. Promote and Deploy is unchecked.
+A bypass is for things a release engineer can judge and accept. It does not change what the story is: a story that is not verified, still running, out of date or carrying another branch's commits is still stopped.
 
-A `Failed` result (the run itself broke, or was cancelled) leaves both boxes alone. A story that is already in a promotion stays in it; only the boxes change.
+| Gate rule | Stops Ready to Promote when… | Bypass lets it through? |
+|---|---|---|
+| `Story_Verification_Issues` | the status is `Issues` | **Yes** |
+| `Tests_Pending` | *Pending Tests* is above 0 | **Yes**, on a bypassed `Issues` story |
+| `PR_Not_Approved` | *Pull Requests Approved* is not checked | **Yes**, on a bypassed `Issues` story |
+| `Story_Verification_Issues` | the status is `Blocked` (another branch merged into the feature branch) | **No.** Remove the merge and Verify again. |
+| `Story_Verification_Issues` | the status is `Failed` (the run broke) | **No.** Verify again. |
+| `Story_Verification_Running` | a verification is running | **No.** Wait for the result. |
+| `Story_Not_Verified` | the story was never verified | **No.** Verify first. You cannot bypass a story that has no `Issues` result. |
+| `New_Commits_After_Verification`, `Branch_Changed_After_Verification` | newer commits than the last Clean verification | **No.** These only apply to Clean stories; on a bypassed story a new push clears the bypass instead. |
+
+Pending tests and pull request approval come from Copado's own fields, not from the verification. A story whose only problems are those two still shows them as findings, so its verdict is `Issues` and it can be bypassed. Unregistered metadata is also `Issues`, but the right fix is to register it (see [Registering missing metadata from the popup](#registering-missing-metadata-from-the-popup)) rather than to bypass it.
+
+**Boxes that are already checked:** the gate rules only stop a box being checked. So when a verification finds `Issues` or `Blocked`, `StoryBypassTrigger` also unchecks the boxes that are already checked:
+
+- **A story that isn't bypassed, or a `Blocked` story:** both Ready to Promote and Promote and Deploy are unchecked.
+- **A bypassed `Issues` story:** Ready to Promote stays checked, because the bypass accepted the issues. Promote and Deploy is unchecked.
+
+A `Failed` result (the run itself broke) or a cancelled run leaves both boxes alone. A story that is already in a promotion stays in it; only the boxes change.
 
 ## Why there is a custom permission
 
@@ -208,9 +229,9 @@ Untick it (or delete the default value) to switch the gate back on. Because it i
 2. Read the list of checks and click **Verify** in the popup.
 3. Wait for the result. Passed checks are listed first, failures after. **Show details** and **Hide details** open the reasons. Components that are not registered are listed on a line under the headline.
 4. If the verdict is **Clean**, check **Ready to Promote** or **Promote and Deploy**.
-5. If it is **Issues**, fix the cause and click **Verify again**.
+5. If it is **Issues**, fix the cause and click **Verify again**. If it is **Blocked**, remove the other branch's merge from the feature branch (for example recreate the branch from the base branch and re-commit the story's changes in Copado) and click **Verify again**.
 
-To stop a run that is still in progress, click **Cancel** beside **Close**. The story is marked **Failed** with the text "Verification cancelled by <name> at <time>", so it stays blocked until you click **Verify again**. Copado cannot stop a job that is already running, so the job may still finish in Copado, but its result is ignored.
+To stop a run that is still in progress, click **Cancel** beside **Close**. The story goes back to what it had before the run started: its status, date, details, check results and verified commit. A story that was never verified goes back to a blank status. Starting a run saves the old status in `Verification_Previous__c` and leaves the other fields as they were. The popup hides them while the run is in progress. Copado cannot stop a job that is already running, so the job may still finish in Copado, but its result is ignored.
 
 If you try to check a box without a Clean, current verification, the rule's message tells you what to do (verify first, wait for the run, fix the issues, run Verify again after new commits, approve the pull request, or run the tests and make sure they pass).
 

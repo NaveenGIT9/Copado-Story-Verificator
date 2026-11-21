@@ -74,7 +74,7 @@ private class StoryBypassTest {
     }
 
     @IsTest
-    static void aCleanVerificationClearsTheBypassAndKeepsTheReason() {
+    static void aCleanVerificationClearsTheBypassAndItsReason() {
         System.runAs(newUser(true)) {
             copado__User_Story__c story = newStory();
             bypass(story.Id);
@@ -83,7 +83,24 @@ private class StoryBypassTest {
 
             copado__User_Story__c saved = reload(story.Id);
             System.assertEquals(false, saved.Bypass_Verification__c, 'Clean ends the bypass');
-            System.assertEquals(REASON, saved.Bypass_Reason__c, 'The reason stays as a record of the last bypass');
+            System.assertEquals(null, saved.Bypass_Reason__c, 'A later bypass needs a fresh reason');
+            System.assertEquals(null, saved.Bypassed_By__c);
+            System.assertEquals(null, saved.Bypassed_At__c);
+        }
+    }
+
+    @IsTest
+    static void uncheckingTheBypassClearsItsReasonSoTheNextOneNeedsAFreshReason() {
+        System.runAs(newUser(true)) {
+            copado__User_Story__c story = newStory();
+            bypass(story.Id);
+
+            update new copado__User_Story__c(Id = story.Id, Bypass_Verification__c = false);
+            System.assertEquals(null, reload(story.Id).Bypass_Reason__c);
+
+            Database.SaveResult again = Database.update(new copado__User_Story__c(Id = story.Id, Bypass_Verification__c = true), false);
+            System.assertEquals(false, again.isSuccess());
+            System.assert(errorsOf(again).contains('Enter a Bypass Reason'), errorsOf(again));
         }
     }
 
@@ -129,7 +146,53 @@ private class StoryBypassTest {
                 new copado__User_Story__c(Id = story.Id, Bypass_Verification__c = true, Bypass_Reason__c = REASON),
                 false
             );
-            System.assert(errorsOf(clean).contains('only needed when the last verification found issues'), errorsOf(clean));
+            System.assert(errorsOf(clean).contains('can only be checked when the last verification is Issues'), errorsOf(clean));
+        }
+    }
+
+    @IsTest
+    static void aBlockedStoryCannotBeBypassed() {
+        System.runAs(newUser(true)) {
+            copado__User_Story__c story = newStory();
+            update new copado__User_Story__c(Id = story.Id, Verification_Status__c = 'Blocked');
+
+            Database.SaveResult result = Database.update(
+                new copado__User_Story__c(Id = story.Id, Bypass_Verification__c = true, Bypass_Reason__c = REASON),
+                false
+            );
+
+            System.assertEquals(false, result.isSuccess());
+            System.assert(errorsOf(result).contains('A Blocked story cannot be bypassed'), errorsOf(result));
+        }
+    }
+
+    @IsTest
+    static void aBlockedStoryStaysBlockedForAReleaseEngineer() {
+        System.runAs(newUser(true)) {
+            copado__User_Story__c story = newStory();
+            update new copado__User_Story__c(Id = story.Id, Verification_Status__c = 'Blocked');
+
+            Database.SaveResult result = Database.update(new copado__User_Story__c(Id = story.Id, copado__Promote_Change__c = true), false);
+
+            System.assertEquals(false, result.isSuccess());
+            System.assert(errorsOf(result).contains('Verification did not pass'), errorsOf(result));
+        }
+    }
+
+    @IsTest
+    static void aBypassSkipsPendingTestsAndPullRequestApproval() {
+        System.runAs(newUser(true)) {
+            copado__User_Story__c story = newStory();
+            update new copado__User_Story__c(Id = story.Id, Verification_No_Commits__c = false, copado__Pending_Tests__c = 4);
+
+            String notBypassed = errorsOf(Database.update(new copado__User_Story__c(Id = story.Id, copado__Promote_Change__c = true), false));
+            System.assert(notBypassed.contains('All tests on this User Story must pass'), notBypassed);
+
+            bypass(story.Id);
+            // Copado or org rules outside this package may still refuse the save; the tests and PR messages may not appear.
+            String bypassed = errorsOf(Database.update(new copado__User_Story__c(Id = story.Id, copado__Promote_Change__c = true), false));
+            System.assert(!bypassed.contains('All tests on this User Story must pass'), bypassed);
+            System.assert(!bypassed.contains('Pull request approval is required'), bypassed);
         }
     }
 
@@ -177,6 +240,7 @@ private class StoryBypassTest {
             Id = storyId,
             Verification_Status__c = 'Running',
             Bypass_Verification__c = bypassed,
+            Bypass_Reason__c = bypassed ? REASON : null,
             copado__Promote_Change__c = true,
             copado__Promote_and_Deploy__c = true
         );
@@ -202,7 +266,20 @@ private class StoryBypassTest {
             copado__User_Story__c story = statusChange('Issues', true);
 
             System.assertEquals(true, story.copado__Promote_Change__c, 'The bypass already accepted the issues');
+            System.assertEquals(REASON, story.Bypass_Reason__c, 'A bypass that continues keeps its reason');
             System.assertEquals(false, story.copado__Promote_and_Deploy__c, 'Promote and Deploy is never allowed with issues');
+        }
+    }
+
+    @IsTest
+    static void blockedUnchecksBothBoxesAndEndsTheBypass() {
+        System.runAs(newUser(true)) {
+            copado__User_Story__c story = statusChange('Blocked', true);
+
+            System.assertEquals(false, story.copado__Promote_Change__c, 'A bypass never covers Blocked');
+            System.assertEquals(false, story.copado__Promote_and_Deploy__c);
+            System.assertEquals(false, story.Bypass_Verification__c, 'Blocked ends the bypass');
+            System.assertEquals(null, story.Bypass_Reason__c, 'and clears its reason');
         }
     }
 

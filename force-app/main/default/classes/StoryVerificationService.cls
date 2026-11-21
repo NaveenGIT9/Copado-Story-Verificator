@@ -30,6 +30,7 @@ public with sharing class StoryVerificationService {
         Running,
         Clean,
         Issues,
+        Blocked,
         Failed
     }
 
@@ -167,6 +168,8 @@ public with sharing class StoryVerificationService {
                 copado__Project__r.copado__Deployment_Flow__c,
                 Verification_Status__c,
                 Verification_Date__c,
+                Verification_No_Commits__c,
+                Verification_Previous__c,
                 copado__Pending_Tests__c,
                 copado__Pull_Requests_Approved__c
             FROM copado__User_Story__c
@@ -193,15 +196,14 @@ public with sharing class StoryVerificationService {
         shrinkToFit(story, runId, inputs);
         List<Map<String, String>> findings = buildFindings(story, inputs, pipelineId);
 
+        // Details, Checks and the verified commit stay as they were so Cancel can hand them back; every result overwrites them.
         update new copado__User_Story__c(
             Id = story.Id,
             Verification_Status__c = VerificationStatus.Running.name(),
             Verification_Date__c = startedAt,
             Verification_Run_Id__c = runId,
-            Verification_Details__c = null,
-            Verification_Checks__c = null,
             Verification_No_Commits__c = inputs.noWork,
-            Verified_Head_SHA__c = null
+            Verification_Previous__c = previousStateOf(story)
         );
 
         Map<String, Object> data = buildData(story, runId, inputs, findings);
@@ -223,24 +225,50 @@ public with sharing class StoryVerificationService {
         } catch (Exception e) {
             // When this propagates out of an Apex action the whole transaction rolls back, so the story
             // reverts to its previous state; the Failed write only persists if the caller catches.
-            update new copado__User_Story__c(
-                Id = story.Id,
-                Verification_Status__c = VerificationStatus.Failed.name(),
-                Verification_Details__c = truncate('Verification could not be started: ' + e.getMessage())
-            );
+            update failed(story.Id, 'Verification could not be started: ' + e.getMessage());
             throw e;
         }
         return runId;
     }
 
+    private class PreviousState {
+        public String status;
+        public Datetime verifiedAt;
+        public Boolean noCommits;
+    }
+
+    // A stale Running story (its job never reported back) keeps the state from before that run, not "Running".
+    private static String previousStateOf(copado__User_Story__c story) {
+        if (story.Verification_Status__c == VerificationStatus.Running.name()) {
+            return story.Verification_Previous__c;
+        }
+        PreviousState previous = new PreviousState();
+        previous.status = story.Verification_Status__c;
+        previous.verifiedAt = story.Verification_Date__c;
+        previous.noCommits = story.Verification_No_Commits__c;
+        return JSON.serialize(previous);
+    }
+
+    private static PreviousState parsePreviousState(String raw) {
+        if (String.isBlank(raw)) {
+            return null;
+        }
+        try {
+            return (PreviousState) JSON.deserialize(raw, PreviousState.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     // Copado has no supported way to stop a job execution, so the job may still finish; clearing the run id makes
-    // applyOutcomes ignore its result. Returns false when the run already finished or was replaced.
+    // applyOutcomes ignore its result. The story gets back the status it had before the run (Details, Checks and the
+    // verified commit were never touched). Returns false when the run already finished or was replaced.
     public static Boolean cancelVerification(Id storyId, String runId) {
         if (storyId == null || String.isBlank(runId)) {
             return false;
         }
         List<copado__User_Story__c> stories = [
-            SELECT Id, Verification_Status__c, Verification_Run_Id__c
+            SELECT Id, Verification_Status__c, Verification_Run_Id__c, Verification_Previous__c
             FROM copado__User_Story__c
             WHERE Id = :storyId
             LIMIT 1
@@ -253,14 +281,28 @@ public with sharing class StoryVerificationService {
         ) {
             return false;
         }
+        PreviousState previous = parsePreviousState(stories[0].Verification_Previous__c);
+        if (previous == null) {
+            // Nothing saved to go back to, so the story is left unverified.
+            update new copado__User_Story__c(
+                Id = storyId,
+                Verification_Status__c = VerificationStatus.Failed.name(),
+                Verification_Details__c = truncate(
+                    'Verification cancelled by ' + UserInfo.getName() + ' at ' + System.now().format() + '. Run Verify again before promoting.'
+                ),
+                Verification_Run_Id__c = null,
+                Verification_Checks__c = null,
+                Verified_Head_SHA__c = null
+            );
+            return true;
+        }
         update new copado__User_Story__c(
             Id = storyId,
-            Verification_Status__c = VerificationStatus.Failed.name(),
-            Verification_Details__c = truncate(
-                'Verification cancelled by ' + UserInfo.getName() + ' at ' + System.now().format() + '. Run Verify again before promoting.'
-            ),
+            Verification_Status__c = previous.status,
+            Verification_Date__c = previous.verifiedAt,
+            Verification_No_Commits__c = previous.noCommits == true,
             Verification_Run_Id__c = null,
-            Verification_Checks__c = null
+            Verification_Previous__c = null
         );
         return true;
     }
@@ -923,6 +965,7 @@ public with sharing class StoryVerificationService {
             }
             copado__User_Story__c storyUpdate = buildUpdate(story, runId, outcome);
             if (storyUpdate != null) {
+                endRun(storyUpdate);
                 updates.put(story.Id, storyUpdate);
             }
         }
@@ -950,6 +993,7 @@ public with sharing class StoryVerificationService {
         boolean validStatus =
             resultStatus == VerificationStatus.Clean.name() ||
             resultStatus == VerificationStatus.Issues.name() ||
+            resultStatus == VerificationStatus.Blocked.name() ||
             resultStatus == VerificationStatus.Failed.name();
         if (!validStatus || resultRunId != runId) {
             return fallbackFromFindings(storyId, outcome);
@@ -1038,12 +1082,23 @@ public with sharing class StoryVerificationService {
     }
 
     private static copado__User_Story__c failed(Id storyId, String details) {
-        return new copado__User_Story__c(
-            Id = storyId,
-            Verification_Status__c = VerificationStatus.Failed.name(),
-            Verification_Details__c = truncate(details),
-            Verification_Checks__c = null
+        return endRun(
+            new copado__User_Story__c(
+                Id = storyId,
+                Verification_Status__c = VerificationStatus.Failed.name(),
+                Verification_Details__c = truncate(details),
+                Verification_Checks__c = null
+            )
         );
+    }
+
+    // A result replaces the state from before the run, including the commit that run verified when this one reports none.
+    private static copado__User_Story__c endRun(copado__User_Story__c storyUpdate) {
+        storyUpdate.Verification_Previous__c = null;
+        if (!storyUpdate.isSet('Verified_Head_SHA__c')) {
+            storyUpdate.Verified_Head_SHA__c = null;
+        }
+        return storyUpdate;
     }
 
     // Must not throw: this runs inside a record-triggered flow on the Job Execution, and an exception

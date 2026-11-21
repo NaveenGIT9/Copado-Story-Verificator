@@ -751,6 +751,31 @@ describe('c-story-verification-popup', () => {
             expect(getProgress).not.toHaveBeenCalled();
         });
 
+        it('names the previous result the story went back to', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+            cancelRun.mockResolvedValue(snapshot({ status: 'Issues', runId: null, isCurrentRun: false, isFinished: true, cancelled: true }));
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+
+            expect(byId(element, 'state').textContent).toContain('Verification cancelled. The story is back to its previous result: Issues.');
+            expect(byId(element, 'retry')).not.toBeNull();
+        });
+
+        it('names a Blocked result the story went back to', async () => {
+            start.mockResolvedValue(snapshot());
+            getProgress.mockResolvedValue(snapshot({ jobStatus: 'In Progress' }));
+            cancelRun.mockResolvedValue(snapshot({ status: 'Blocked', runId: null, isCurrentRun: false, isFinished: true, cancelled: true }));
+
+            const element = await mountAndVerify();
+            byId(element, 'cancel').click();
+            await flush();
+
+            expect(byId(element, 'state').textContent).toContain('back to its previous result: Blocked.');
+        });
+
         it('disables the button while the cancel call is running', async () => {
             start.mockResolvedValue(snapshot());
             getProgress.mockResolvedValue(snapshot());

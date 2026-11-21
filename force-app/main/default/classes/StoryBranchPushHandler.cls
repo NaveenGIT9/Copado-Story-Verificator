@@ -2,6 +2,7 @@
 // out of order, so a push older than the one already stored (or than the last verification start) is ignored.
 // A push of a commit other than the verified one also unchecks Ready to Promote and Promote and Deploy, unless the gate is switched off
 // (Story_Verification_Control__c); the head is still stored so the gate is up to date when it is switched back on.
+// Such a push always clears Bypass Verification: a bypass accepts the reviewed commit, never code pushed after it.
 public without sharing class StoryBranchPushHandler {
     public static void apply(List<Story_Branch_Push__e> events) {
         Map<String, Story_Branch_Push__e> latestByStory = new Map<String, Story_Branch_Push__e>();
@@ -25,6 +26,7 @@ public without sharing class StoryBranchPushHandler {
                 Branch_Head_SHA__c,
                 Branch_Head_Pushed_At__c,
                 Verified_Head_SHA__c,
+                Bypass_Verification__c,
                 copado__Promote_Change__c,
                 copado__Promote_and_Deploy__c
             FROM copado__User_Story__c
@@ -43,15 +45,10 @@ public without sharing class StoryBranchPushHandler {
             }
             copado__User_Story__c failed = updates[i];
             logError(failed.Id, results[i]);
-            // Another rule or trigger may refuse the uncheck; the branch head must still be stored so the gate blocks a re-check.
+            // Another rule or trigger may refuse the uncheck; the branch head must still be stored (and the bypass cleared) so the
+            // gate blocks a re-check.
             if (failed.isSet('copado__Promote_Change__c')) {
-                retries.add(
-                    new copado__User_Story__c(
-                        Id = failed.Id,
-                        Branch_Head_SHA__c = failed.Branch_Head_SHA__c,
-                        Branch_Head_Pushed_At__c = failed.Branch_Head_Pushed_At__c
-                    )
-                );
+                retries.add(retryOf(failed));
             }
         }
         List<Database.SaveResult> retried = Database.update(retries, false);
@@ -74,11 +71,27 @@ public without sharing class StoryBranchPushHandler {
             Branch_Head_Pushed_At__c = push.Pushed_At__c
         );
         Boolean unverified = push.Head_SHA__c != story.Verified_Head_SHA__c;
-        if (unverified && !StoryVerificationSwitch.isDisabled() && (story.copado__Promote_Change__c == true || story.copado__Promote_and_Deploy__c == true)) {
+        if (unverified && story.Bypass_Verification__c == true) {
+            upd.Bypass_Verification__c = false;
+        }
+        if (unverified &&!StoryVerificationSwitch.isDisabled() && (story.copado__Promote_Change__c == true || story.copado__Promote_and_Deploy__c == true)) {
             upd.copado__Promote_Change__c = false;
             upd.copado__Promote_and_Deploy__c = false;
         }
         return upd;
+    }
+
+    @TestVisible
+    private static copado__User_Story__c retryOf(copado__User_Story__c failed) {
+        copado__User_Story__c retry = new copado__User_Story__c(
+            Id = failed.Id,
+            Branch_Head_SHA__c = failed.Branch_Head_SHA__c,
+            Branch_Head_Pushed_At__c = failed.Branch_Head_Pushed_At__c
+        );
+        if (failed.isSet('Bypass_Verification__c')) {
+            retry.Bypass_Verification__c = false;
+        }
+        return retry;
     }
 
     private static void logError(Id storyId, Database.SaveResult result) {

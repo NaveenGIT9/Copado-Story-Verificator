@@ -260,4 +260,50 @@ private class StoryVerificationPushWebhookTest {
             );
         }
     }
+
+    @IsTest
+    static void aNewCommitClearsTheBypassButTheVerifiedCommitKeepsIt() {
+        System.runAs(newAdmin()) {
+            copado__User_Story__c bypassed = promoted(false, false);
+            bypassed.Bypass_Verification__c = true;
+            copado__User_Story__c newCommit = StoryBranchPushHandler.headUpdate(
+                bypassed,
+                new Story_Branch_Push__e(Head_SHA__c = SHA_B, Pushed_At__c = System.now())
+            );
+            System.assertEquals(false, newCommit.Bypass_Verification__c, 'A bypass never covers code pushed after it');
+
+            copado__User_Story__c verifiedHead = promoted(false, false);
+            verifiedHead.Branch_Head_SHA__c = SHA_B;
+            verifiedHead.Bypass_Verification__c = true;
+            copado__User_Story__c lateDelivery = StoryBranchPushHandler.headUpdate(
+                verifiedHead,
+                new Story_Branch_Push__e(Head_SHA__c = SHA_A, Pushed_At__c = System.now())
+            );
+            System.assertEquals(false, lateDelivery.isSet('Bypass_Verification__c'), 'The verified commit keeps the bypass');
+        }
+    }
+
+    @IsTest
+    static void aRefusedUncheckIsRetriedWithTheHeadAndTheBypassCleared() {
+        System.runAs(newAdmin()) {
+            copado__User_Story__c bypassed = promoted(true, true);
+            bypassed.Bypass_Verification__c = true;
+            copado__User_Story__c failed = StoryBranchPushHandler.headUpdate(
+                bypassed,
+                new Story_Branch_Push__e(Head_SHA__c = SHA_B, Pushed_At__c = System.now())
+            );
+
+            copado__User_Story__c retry = StoryBranchPushHandler.retryOf(failed);
+            System.assertEquals(SHA_B, retry.Branch_Head_SHA__c);
+            System.assertEquals(failed.Branch_Head_Pushed_At__c, retry.Branch_Head_Pushed_At__c);
+            System.assertEquals(false, retry.Bypass_Verification__c);
+            System.assertEquals(false, retry.isSet('copado__Promote_Change__c'), 'The retry leaves the promote boxes alone');
+
+            copado__User_Story__c notBypassed = StoryBranchPushHandler.headUpdate(
+                promoted(true, true),
+                new Story_Branch_Push__e(Head_SHA__c = SHA_B, Pushed_At__c = System.now())
+            );
+            System.assertEquals(false, StoryBranchPushHandler.retryOf(notBypassed).isSet('Bypass_Verification__c'));
+        }
+    }
 }

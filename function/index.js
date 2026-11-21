@@ -651,9 +651,12 @@ function noBranchChecks(cfg) {
     return ORDER.map((id) => mk(id, "pass", "No feature branch", []));
 }
 
+// A failing branch-merge check makes the story Blocked: another branch's commits are on it, and no bypass can accept that.
 function verdictOf(cfg, checks, problems) {
+    if (problems.length > 0) return "Failed";
+    if (checks.some((c) => c.id === "org-branch-merge" && c.status === "fail")) return "Blocked";
     const hasIssue = checks.some((c) => c.status === "fail") || cfg.findings.some((f) => f.severity === "issue");
-    return problems.length > 0 ? "Failed" : hasIssue ? "Issues" : "Clean";
+    return hasIssue ? "Issues" : "Clean";
 }
 
 // Where the feature branch's fetched history starts (minus a day). The base and environment branches are fetched back to that
@@ -691,6 +694,7 @@ function fetchBranches(list, depth, sinceIso) {
 function fetchBranchesForChecks(cfg) {
     const listing = remoteListing || listRemoteBranches();
     if (!listing.names) return { error: "Could not list the repository branches: " + listing.error };
+    remoteListing = listing;
     const remote = listing.names;
     const candidates = uniq([cfg.base, "main", "master"].filter(Boolean));
     const base = candidates.find((c) => remote.has(c)) || null;
@@ -761,6 +765,21 @@ function mergedBranchName(subject) {
     return null;
 }
 
+// A merge message written by hand ("Merge feature/US-1 on to feature/US-2"): the first word that is a branch other than the feature
+// branch itself, i.e. a branch on the remote, the base or an environment branch, or a feature/ or promotion/ name (a deleted branch).
+function branchNamedInSubject(subject, ctx) {
+    const remote = new Set(Array.from((remoteListing && remoteListing.names) || []).map((n) => n.toLowerCase()));
+    const own = ctx.cfg.feature.toLowerCase();
+    const words = subject.split(/[\s'"`,;()[\]]+/).map((w) => w.replace(/^origin\//i, "").replace(/[.:!?]+$/, ""));
+    return (
+        words.find((w) => {
+            const lower = w.toLowerCase();
+            if (!w || lower === own) return false;
+            return remote.has(lower) || lower === ctx.base.toLowerCase() || ctx.cfg.envBranches.has(lower) || /^(feature|promotion)\/\S+$/i.test(w);
+        }) || null
+    );
+}
+
 const MERGE_KINDS = {
     env: "environment branch",
     promotion: "promotion branch",
@@ -783,8 +802,9 @@ function classifyMerge(name, ctx) {
 
 // Every branch merged into the feature branch since it left the base branch is reported, except the feature branch itself (a story
 // branch merged into its own copy is normal). An environment, promotion or other feature branch merged in is a failure: its commits
-// are not this story's. Merging the base branch is only a warning (a catch-up). The branch is read from the merge message; when the
-// message does not name it, an environment branch holding the merged commits is still recognised, otherwise it is "not named".
+// are not this story's. Merging the base branch is only a warning (a catch-up). The branch is read from the merge message (the standard
+// Git and GitHub wording, or any branch name written in it); when the message names none, an environment branch holding the merged
+// commits is still recognised, otherwise it is "not named".
 function checkOrgMerge(ctx) {
     const id = "org-branch-merge";
     const cfg = ctx.cfg;
@@ -801,7 +821,7 @@ function checkOrgMerge(ctx) {
     const found = [];
     rows.forEach((r) => {
         if (r.parents.length < 2) return;
-        let name = mergedBranchName(r.subject);
+        let name = mergedBranchName(r.subject) || branchNamedInSubject(r.subject, ctx);
         if (name === null && isOwnStorySync(r, ctx)) return;
         if (name === null) {
             const entries = Array.from(ctx.envOk.entries());
@@ -832,7 +852,7 @@ function checkOrgMerge(ctx) {
             full: f.full,
             author: f.author || "unknown",
             subject: f.subject,
-            note: found.length === 1 ? "" : named(f) + " (" + MERGE_KINDS[f.kind] + ")"
+            note: found.length === 1 ? "" : named(f) + ", " + MERGE_KINDS[f.kind]
         }));
         return mk(id, blocking ? "fail" : "warn", summary, lines, commitRows);
     }

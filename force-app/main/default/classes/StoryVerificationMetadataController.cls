@@ -42,7 +42,7 @@ public with sharing class StoryVerificationMetadataController {
         'escalationrule',
         'escalationrules'
     };
-    private static final Set<String> VERIFIED_STATUSES = new Set<String>{ 'Clean', 'Issues' };
+    private static final Set<String> VERIFIED_STATUSES = new Set<String>{ 'Clean', 'Issues', 'Blocked' };
 
     // The folder a component lives in (as the Function reports it) -> the metadata type Copado records for it. A kind that is not
     // listed here is not offered: guessing a type would write a wrong record.

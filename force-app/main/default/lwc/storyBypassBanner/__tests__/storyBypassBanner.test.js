@@ -55,6 +55,15 @@ describe('c-story-bypass-banner', () => {
         expect(element.shadowRoot.querySelector('[data-id="story-banner"]')).not.toBeNull();
         expect(element.shadowRoot.querySelector('[data-id="story-banner-who"]').textContent).toContain('Rel Engineer');
         expect(element.shadowRoot.querySelector('[data-id="story-banner-reason"]').textContent).toContain('Hotfix for outage');
+        expect(element.shadowRoot.querySelector('[data-id="story-banner-scope"]').textContent).toContain('pending tests and pull request approval');
+    });
+
+    it('shows nothing when the story is Blocked', async () => {
+        const element = mount('copado__User_Story__c', STORY_ID);
+        getRecord.emit(storyRecord({ status: 'Blocked' }));
+        await flush();
+
+        expect(element.shadowRoot.querySelector('[data-id="story-banner"]')).toBeNull();
     });
 
     it('shows nothing when the story has issues but no bypass', async () => {

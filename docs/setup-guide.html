@@ -527,7 +527,7 @@
     <div class="pipeline">
       <div class="pl"><b>Commit</b><span>Through Copado or straight to Git</span></div>
       <div class="pl"><b>Verify</b><span>Six checks run live in a popup</span></div>
-      <div class="pl"><b>Result</b><span>Clean, or Issues to fix</span></div>
+      <div class="pl"><b>Result</b><span>Clean, Issues to fix, or Blocked</span></div>
       <div class="pl"><b>Ready to Promote</b><span>Allowed by the gate rules</span></div>
       <div class="pl"><b>Promotion</b><span>Checked again on add</span></div>
     </div>
@@ -538,9 +538,9 @@
     <div class="grid">
       <div class="tile"><div class="ic">V</div><h4>Verify popup</h4><p>A <span class="ui">Verify</span> action on the User Story runs six checks, shows each result with its reason, and saves the verdict on the story.</p></div>
       <div class="tile"><div class="ic">7</div><h4>Gate rules</h4><p>Seven validation rules stop both promote boxes being checked until the story is verified, Clean, current, approved and has no pending tests.</p></div>
-      <div class="tile"><div class="ic">G</div><h4>Promotion guard</h4><p>A story with Issues can't be added to a promotion from any screen or the API.</p></div>
+      <div class="tile"><div class="ic">G</div><h4>Promotion guard</h4><p>A story with Issues or Blocked can't be added to a promotion from any screen or the API.</p></div>
       <div class="tile"><div class="ic">W</div><h4>Push webhook</h4><p>GitHub reports every push to a <code>feature/US-…</code> branch. A new commit after verification unchecks the promote boxes.</p></div>
-      <div class="tile"><div class="ic">B</div><h4>Release-engineer bypass</h4><p>A release engineer can let one story with Issues through, with a recorded reason. Orange banners mark the story and its promotion.</p></div>
+      <div class="tile"><div class="ic">B</div><h4>Release-engineer bypass</h4><p>A release engineer can let one story with Issues through, past pending tests and PR approval too, with a recorded reason. Never a Blocked story. Orange banners mark the story and its promotion.</p></div>
       <div class="tile"><div class="ic">+</div><h4>Create Selected Metadata</h4><p>Components changed in Git but missing from the story can be registered from the popup in one click.</p></div>
       <div class="tile"><div class="ic">⏻</div><h4>Org-wide switch</h4><p>One custom setting turns the gate off for everyone without a deploy. Verify keeps working for information.</p></div>
     </div>
@@ -551,10 +551,11 @@
     <p class="intro">Every verification ends in one of these. The promote rules run only when a box is being <em>checked</em>; saving other fields is never blocked.</p>
     <div class="verdicts">
       <div class="verdict v-ok"><div class="vn">Clean</div><p>No check failed. Warnings are allowed.</p><div class="gate">Can promote*</div></div>
-      <div class="verdict v-bad"><div class="vn">Issues</div><p>At least one check failed.</p><div class="gate">Blocked · a release engineer can bypass</div></div>
-      <div class="verdict v-warn"><div class="vn">Failed</div><p>The run broke (for example Git couldn't be cloned) or was cancelled.</p><div class="gate">Blocked · verify again</div></div>
-      <div class="verdict v-run"><div class="vn">Running</div><p>A verification is in progress.</p><div class="gate">Blocked · wait</div></div>
-      <div class="verdict v-grey"><div class="vn">Not verified</div><p>The status is blank.</p><div class="gate">Blocked · click Verify</div></div>
+      <div class="verdict v-bad"><div class="vn">Issues</div><p>At least one check failed.</p><div class="gate">Refused · a release engineer can bypass</div></div>
+      <div class="verdict v-bad"><div class="vn">Blocked</div><p>Another branch is merged into the feature branch.</p><div class="gate">Refused · no one can bypass · remove the merge</div></div>
+      <div class="verdict v-warn"><div class="vn">Failed</div><p>The run broke (for example Git couldn't be cloned) or was cancelled.</p><div class="gate">Refused · verify again</div></div>
+      <div class="verdict v-run"><div class="vn">Running</div><p>A verification is in progress.</p><div class="gate">Refused · wait</div></div>
+      <div class="verdict v-grey"><div class="vn">Not verified</div><p>The status is blank.</p><div class="gate">Refused · click Verify</div></div>
     </div>
     <p class="muted" style="font-size:.88rem">* While no newer commit has arrived, the pull request is approved (or the story has no commits) and Pending Tests is 0.</p>
   </div>
@@ -614,11 +615,11 @@
     <div class="grid wide">
       <div class="ps" style="--c: var(--ok)">
         <div class="ps-top"><div class="ps-who">Developer</div><h4>Builds the change and promotes it</h4></div>
-        <dl><dt>Can</dt><dd>Verify, fix, check Ready to Promote once Clean, add Clean stories to promotions.</dd><dt>Can't</dt><dd>Bypass, or promote a story that has Issues.</dd></dl>
+        <dl><dt>Can</dt><dd>Verify, fix, check Ready to Promote once Clean, add Clean stories to promotions.</dd><dt>Can't</dt><dd>Bypass, or promote a story that has Issues or is Blocked.</dd></dl>
       </div>
       <div class="ps" style="--c: var(--orange)">
         <div class="ps-top"><div class="ps-who">Release engineer</div><h4>Owns the release and its exceptions</h4></div>
-        <dl><dt>Can</dt><dd>Everything a developer can, plus bypass one story with Issues and take it through a promotion.</dd><dt>Can't</dt><dd>Use Promote and Deploy on a bypassed story, or skip any other rule.</dd></dl>
+        <dl><dt>Can</dt><dd>Everything a developer can, plus bypass one story with Issues (which also skips pending tests and PR approval) and take it through a promotion.</dd><dt>Can't</dt><dd>Bypass a Blocked story, use Promote and Deploy on a bypassed story, or skip any other rule.</dd></dl>
       </div>
       <div class="ps" style="--c: var(--accent)">
         <div class="ps-top"><div class="ps-who">Admin</div><h4>Installs and runs the gate</h4></div>
@@ -652,10 +653,10 @@
           <tr><td><code>StoryVerificationSetup</code></td><td>Creates the Copado Function, Job Template and Job Step; carries the Function code.</td></tr>
           <tr><td><code>StoryVerificationMetadataController</code></td><td>Create Selected Metadata: preview and insert.</td></tr>
           <tr><td><code>StoryVerificationPushWebhook</code></td><td>REST endpoint GitHub calls; checks the signature and publishes the push event.</td></tr>
-          <tr><td><code>StoryBranchPushHandler</code></td><td>Records the branch head and unchecks the promote boxes after a new push.</td></tr>
+          <tr><td><code>StoryBranchPushHandler</code></td><td>Records the branch head; after a new push unchecks the promote boxes and ends any bypass.</td></tr>
           <tr><td><code>StoryVerificationSwitch</code></td><td>Reads the org-wide switch.</td></tr>
-          <tr><td><code>StoryPromotionGuard</code></td><td>Refuses to add a story with Issues to a promotion.</td></tr>
-          <tr><td><code>StoryBypass</code></td><td>Stamps and ends a bypass; unchecks the promote boxes when a verification finds Issues.</td></tr>
+          <tr><td><code>StoryPromotionGuard</code></td><td>Refuses to add a story with Issues (unless bypassed, for a release engineer) or Blocked (always) to a promotion.</td></tr>
+          <tr><td><code>StoryBypass</code></td><td>Stamps and ends a bypass; unchecks the promote boxes when a verification finds Issues or Blocked.</td></tr>
           <tr><td><code>StoryBypassController</code></td><td>Lists a promotion's bypassed stories for the banner.</td></tr>
           <tr><td>9 test classes</td><td><code>StoryVerificationServiceTest</code>, <code>StoryVerificationCompleteTest</code>, <code>StoryVerificationControllerTest</code>, <code>StoryVerificationSetupTest</code>, <code>StoryVerificationMetadataControllerTest</code>, <code>StoryVerificationPushWebhookTest</code>, <code>StoryVerificationSwitchTest</code>, <code>StoryPromotionGuardTest</code>, <code>StoryBypassTest</code></td></tr>
           <tr class="group"><td colspan="2">Triggers</td></tr>
@@ -670,7 +671,7 @@
           <tr><td><code>Story_Verification_Setting__mdt</code></td><td>Custom metadata type with <code>GitHub_Webhook_Secret__c</code>.</td></tr>
           <tr><td><code>Story_Verification_Control__c</code></td><td>Custom setting with <code>Disable_Story_Verification__c</code>: the org-wide switch.</td></tr>
           <tr class="group"><td colspan="2">User Story fields</td></tr>
-          <tr><td><code>Verification_Status__c</code></td><td>Clean, Issues, Failed, Running or blank.</td></tr>
+          <tr><td><code>Verification_Status__c</code></td><td>Clean, Issues, Blocked, Failed, Running or blank.</td></tr>
           <tr><td><code>Verification_Date__c</code></td><td>When the last verification finished.</td></tr>
           <tr><td><code>Verification_Details__c</code></td><td>Readable summary.</td></tr>
           <tr><td><code>Verification_Checks__c</code></td><td>Full result as JSON for the popup.</td></tr>
@@ -679,8 +680,8 @@
           <tr><td><code>Verified_Head_SHA__c</code></td><td>The commit the last verification checked.</td></tr>
           <tr><td><code>Branch_Head_SHA__c</code>, <code>Branch_Head_Pushed_At__c</code></td><td>Latest commit on the branch, from the webhook.</td></tr>
           <tr><td><code>Bypass_Verification__c</code></td><td>Checked by a release engineer to let a story with Issues through.</td></tr>
-          <tr><td><code>Bypass_Reason__c</code></td><td>Why. Required; kept after the bypass ends.</td></tr>
-          <tr><td><code>Bypassed_By__c</code>, <code>Bypassed_At__c</code></td><td>Who and when. Filled automatically.</td></tr>
+          <tr><td><code>Bypass_Reason__c</code></td><td>Why. Required; cleared when the bypass ends, so each bypass needs a fresh reason.</td></tr>
+          <tr><td><code>Bypassed_By__c</code>, <code>Bypassed_At__c</code></td><td>Who and when. Filled automatically; cleared when the bypass ends.</td></tr>
           <tr class="group"><td colspan="2">Validation rules on User Story</td></tr>
           <tr><td>7 gate rules</td><td><code>Story_Not_Verified</code>, <code>Story_Verification_Running</code>, <code>Story_Verification_Issues</code>, <code>New_Commits_After_Verification</code>, <code>Branch_Changed_After_Verification</code>, <code>PR_Not_Approved</code>, <code>Tests_Pending</code></td></tr>
           <tr><td>5 bypass rules</td><td><code>Bypass_Release_Engineer_Only</code>, <code>Bypass_Only_When_Issues</code>, <code>Bypass_Reason_Required</code>, <code>Bypassed_Promote_Release_Engineer_Only</code>, <code>Bypassed_No_Promote_And_Deploy</code></td></tr>
@@ -976,7 +977,7 @@
         <div class="hl">
           <div class="eyebrow">Read this first</div>
           <h3>The gate applies to everyone. No permission set switches it off.</h3>
-          <p><strong>User</strong> lets someone run Verify and so clear the block themselves. Give it to everyone who promotes. <strong>Release Engineer</strong> skips no rule; it lets the holder bypass one story with Issues and take it to a promotion.</p>
+          <p><strong>User</strong> lets someone run Verify and so clear the block themselves. Give it to everyone who promotes. <strong>Release Engineer</strong> lets the holder bypass one story with Issues, which skips the issues, pending tests and PR approval for that story, and take it to a promotion. It never skips Blocked, Running, Failed, new commits or Promote and Deploy.</p>
         </div>
         <div class="grid wide">
           <div class="ps" style="--c: var(--ok)">
@@ -1038,7 +1039,7 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
             <li><span class="sn">11</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check Promote and Deploy.</p></div><div class="col exp"><span class="lbl">Expect</span><p><span class="msg">"…Promote and Deploy is not allowed…"</span></p></div></li>
             <li><span class="sn">12</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check Ready to Promote, click Cancel in the prompt.</p></div><div class="col exp"><span class="lbl">Expect</span><p>"Promote a bypassed story?" appears; Cancel unchecks it.</p></div></li>
             <li><span class="sn">13</span><div class="col"><span class="lbl">Do</span><p><span class="who re">RE</span>Check it again, OK, then add the story to the promotion.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Both succeed; the Promotion page shows the orange banner.</p></div></li>
-            <li><span class="sn">14</span><div class="col"><span class="lbl">Do</span><p><span class="who any">Any</span>Fix the issue and Verify until Clean.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Bypass unchecks itself; banner gone; reason kept.</p></div></li>
+            <li><span class="sn">14</span><div class="col"><span class="lbl">Do</span><p><span class="who any">Any</span>Fix the issue and Verify until Clean.</p></div><div class="col exp"><span class="lbl">Expect</span><p>Bypass unchecks itself; banner gone; reason, who and when cleared.</p></div></li>
           </ol>
           <div class="note n-ok"><div class="ni">✓</div><div class="nb"><div class="nt">All 14 match?</div><p>The gate is live. Remove the test story from the promotion. If anything differs, see <a href="#troubleshooting">Troubleshooting</a>.</p></div></div>
           <div class="done-row"><span class="hint">All matched?</span><label class="done-toggle"><input type="checkbox" class="done" data-step="9"> Mark done</label></div>
@@ -1083,12 +1084,19 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
           <dt>Fix</dt><dd><ul>
             <li><strong>Unregistered commits</strong>: register the changed components (D4) or commit them through Copado.</li>
             <li><strong>Metadata coverage</strong>: register each component under Not registered (D4), or remove the change.</li>
-            <li><strong>External branch merge</strong>: recreate the branch from its base without that merge.</li>
             <li><strong>Pull request approval</strong>: get the PR approved.</li>
             <li><strong>Pending tests</strong>: run the tests until they pass.</li>
             <li><strong>Parent story dependencies</strong>: promote the named parent first.</li>
           </ul></dd>
-          <dt>Then</dt><dd>Click <span class="ui">Verify again</span>. Only Clean unblocks the story.</dd>
+          <dt>Then</dt><dd>Click <span class="ui">Verify again</span>. Only Clean unblocks the story, unless a release engineer bypasses it (D9).</dd>
+        </dl></div>
+      </details>
+
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D3b</span><span class="stitle">The result is Blocked</span><span class="sres"><span class="pill p-no">No bypass</span><span class="chev">▾</span></span></summary>
+        <div class="scn-body"><dl>
+          <dt>Means</dt><dd>External branch merge failed: another branch's commits are on your feature branch. Promoting would carry that other work along.</dd>
+          <dt>See</dt><dd>Both promote boxes are blocked, the story can't join a promotion, and not even a release engineer can bypass it.</dd>
+          <dt>Fix</dt><dd>Recreate the branch from its base without that merge, or revert the merge, then <span class="ui">Verify again</span>.</dd>
         </dl></div>
       </details>
 
@@ -1117,16 +1125,18 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
         </dl></div>
       </details>
 
-      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D7</span><span class="stitle">You re-verify and get Issues, or the run Fails</span><span class="sres"><span class="pill p-no">Issues unchecks</span><span class="chev">▾</span></span></summary>
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D7</span><span class="stitle">You re-verify and get Issues, Blocked, or the run Fails</span><span class="sres"><span class="pill p-no">Issues unchecks</span><span class="chev">▾</span></span></summary>
         <div class="scn-body"><dl>
           <dt>Issues</dt><dd>Ready to Promote and Promote and Deploy are unchecked automatically.</dd>
+          <dt>Blocked</dt><dd>Both boxes are unchecked, and any bypass ends.</dd>
           <dt>Failed</dt><dd>Checked boxes stay as they were: a broken run, like a Copado or Git problem, says nothing about the code. While the status is Failed nobody can check a box. Verify again.</dd>
         </dl></div>
       </details>
 
-      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D8</span><span class="stitle">Adding a story with Issues to a promotion</span><span class="sres"><span class="pill p-no">Refused</span><span class="chev">▾</span></span></summary>
+      <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D8</span><span class="stitle">Adding a story with Issues or Blocked to a promotion</span><span class="sres"><span class="pill p-no">Refused</span><span class="chev">▾</span></span></summary>
         <div class="scn-body"><dl>
-          <dt>See</dt><dd><div class="quote q-bad">US-0001234 cannot be added to this promotion because its last verification found issues. Open the User Story, click Verify, fix the issues it lists, and add the story again once the verification is Clean.</div></dd>
+          <dt>Issues</dt><dd><div class="quote q-bad">US-0001234 cannot be added to this promotion because its last verification found issues. Open the User Story, click Verify, fix the issues it lists, and add the story again once the verification is Clean.</div></dd>
+          <dt>Blocked</dt><dd><div class="quote q-bad">US-0001234 cannot be added to this promotion because another branch is merged into its feature branch (verification Blocked). A Blocked story cannot be bypassed. Remove the merge from the feature branch, click Verify, and add the story again once the verification is Clean.</div></dd>
           <dt>Know</dt><dd>Applies from every screen and the API. Other stories added at the same time still go in.</dd>
         </dl></div>
       </details>
@@ -1140,8 +1150,8 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
 
       <details class="scn" style="--c: var(--ok)"><summary><span class="sid">D10</span><span class="stitle">Your story was bypassed</span><span class="sres"><span class="pill p-re">Orange banner</span><span class="chev">▾</span></span></summary>
         <div class="scn-body"><dl>
-          <dt>See</dt><dd><div class="banner-demo"><div class="bi">!</div><div><b>Verification bypassed. This story still has issues.</b><p>Bypassed by Alex Morgan on 20/11/2026, 14:05.</p><p><strong>Reason:</strong> Hotfix for production outage</p><p>Only a release engineer can check Ready to Promote or add it to a promotion. Promote and Deploy is not allowed.</p></div></div></dd>
-          <dt>Can</dt><dd>Keep working and fix the issues. A Clean verification ends the bypass and the story behaves normally.</dd>
+          <dt>See</dt><dd><div class="banner-demo"><div class="bi">!</div><div><b>Verification bypassed. This story still has issues.</b><p>Bypassed by Alex Morgan on 20/11/2026, 14:05.</p><p><strong>Reason:</strong> Hotfix for production outage</p><p>Only a release engineer can check Ready to Promote or add it to a promotion. Promote and Deploy is not allowed.</p><p>The bypass also skips pending tests and pull request approval. A new push to the feature branch clears it.</p></div></div></dd>
+          <dt>Can</dt><dd>Keep working and fix the issues. A Clean verification ends the bypass and the story behaves normally. Pushing new commits also ends it, so the release engineer must review again.</dd>
           <dt>Can't</dt><dd>Check Ready to Promote or add it to a promotion yourself.</dd>
         </dl></div>
       </details>
@@ -1169,13 +1179,32 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
   <div class="view-head">
     <div class="eyebrow">04 · Release engineer guide</div>
     <h2>Bypass, carefully</h2>
-    <p>You need <strong>User</strong> and <strong>Release Engineer</strong>. On normal stories the gate treats you like a developer. Your extra tool is Bypass Verification, for a story with Issues you accept for this release.</p>
+    <p>You need <strong>User</strong> and <strong>Release Engineer</strong>. On normal stories the gate treats you like a developer. Your extra tool is Bypass Verification, for a story with Issues you accept for this release, typically when tests can't run or the reviewer is away.</p>
   </div>
 
   <div class="hl">
     <div class="eyebrow">The bypass in one line</div>
-    <h3>Issues only · Ready to Promote and promotions only · until the next Clean.</h3>
-    <p>It needs a reason and records who and when. It lets <em>you</em>, not developers, check Ready to Promote and add the story to a promotion. Promote and Deploy stays refused. It ends by itself when a verification is Clean.</p>
+    <h3>Issues only · skips the issues, pending tests and PR approval · until Clean, Blocked or a new push.</h3>
+    <p>It needs a reason and records who and when. It lets <em>you</em>, not developers, check Ready to Promote and add the story to a promotion. Promote and Deploy stays refused. A Blocked story (another branch merged in) can never be bypassed.</p>
+  </div>
+
+  <div class="block">
+    <h3>What a bypass covers and what it does not</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Rule</th><th>On a bypassed story with Issues</th></tr></thead>
+      <tbody>
+        <tr><td>The verification found Issues</td><td>Skipped</td></tr>
+        <tr><td>Pending Tests above 0</td><td>Skipped</td></tr>
+        <tr><td>Pull request not approved</td><td>Skipped</td></tr>
+        <tr><td>Promotion guard (adding to a promotion)</td><td>Skipped for a release engineer only</td></tr>
+        <tr><td>Blocked (another branch merged in)</td><td>Never skipped; a Blocked story can't be bypassed</td></tr>
+        <tr><td>Running, Failed or not verified</td><td>Never skipped; wait or verify again</td></tr>
+        <tr><td>New commits since the last verification</td><td>Never skipped; the push also ends the bypass</td></tr>
+        <tr><td>Promote and Deploy</td><td>Always refused</td></tr>
+        <tr><td>A developer checking Ready to Promote</td><td>Always refused; release engineers only</td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted" style="font-size:.88rem">Unregistered metadata is also an issue, but register it on the story instead of bypassing it.</p>
   </div>
 
   <div class="block">
@@ -1185,7 +1214,7 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
       <div class="pl"><b>Bypass</b><span>RE checks it with a reason</span></div>
       <div class="pl"><b>Ready to Promote</b><span>RE only, after Yes/No</span></div>
       <div class="pl"><b>Promotion</b><span>RE adds it; banner shows</span></div>
-      <div class="pl"><b>Clean</b><span>Bypass ends by itself</span></div>
+      <div class="pl"><b>Clean, Blocked or push</b><span>Bypass ends by itself</span></div>
     </div>
   </div>
 
@@ -1198,7 +1227,7 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
           <dt>See</dt><dd>Bypassed By and Bypassed At are filled; the orange banner appears.</dd>
           <dt>Refused</dt><dd><ul>
             <li>No reason: <span class="msg">"Enter a Bypass Reason to bypass verification for this story."</span></li>
-            <li>Status isn't Issues: <span class="msg">"Bypass Verification is only needed when the last verification found issues."</span></li>
+            <li>Status isn't Issues (including Blocked): <span class="msg">"Bypass Verification can only be checked when the last verification is Issues. A Blocked story cannot be bypassed: remove the branch merge and run Verify again."</span></li>
           </ul></dd>
         </dl></div>
       </details>
@@ -1207,7 +1236,7 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
         <div class="scn-body"><dl>
           <dt>Do</dt><dd>Check Ready to Promote and save.</dd>
           <dt>See</dt><dd><div class="quote">Promote a bypassed story? You are going to promote US-…. Its verification was bypassed and it still has issues. Do you want to proceed?</div>OK keeps it; Cancel unchecks it.</dd>
-          <dt>Still</dt><dd>The PR must be approved and no tests pending. The bypass covers only the Issues verdict.</dd>
+          <dt>Also</dt><dd>Pending tests and an unapproved PR don't stop you; the bypass covers them. The story must still have no commits newer than the last verification.</dd>
         </dl></div>
       </details>
 
@@ -1226,26 +1255,27 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
         </dl></div>
       </details>
 
-      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R5</span><span class="stitle">How long a bypass lasts</span><span class="sres"><span class="pill p-run">Until Clean</span><span class="chev">▾</span></span></summary>
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R5</span><span class="stitle">How long a bypass lasts</span><span class="sres"><span class="pill p-run">Until Clean, Blocked or a push</span><span class="chev">▾</span></span></summary>
         <div class="scn-body"><dl>
-          <dt>Stays</dt><dd>Through promotions, environments, Running and Failed results.</dd>
-          <dt>Ends</dt><dd>On a Clean verification: Bypass Verification unchecks itself, the banner disappears, the reason is kept.</dd>
-          <dt>Withdraw</dt><dd>Uncheck Bypass Verification yourself.</dd>
+          <dt>Stays</dt><dd>Through promotions, environments, Running, Failed and further Issues results.</dd>
+          <dt>Ends</dt><dd>On a Clean or Blocked verification, or when new commits are pushed: Bypass Verification unchecks itself, the banner disappears, and the reason, who and when are cleared.</dd>
+          <dt>Withdraw</dt><dd>Uncheck Bypass Verification yourself; the reason, who and when are cleared the same way.</dd>
         </dl></div>
       </details>
 
       <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R6</span><span class="stitle">A bypassed story is verified again</span><span class="sres"><span class="pill p-run">Depends</span><span class="chev">▾</span></span></summary>
         <div class="scn-body"><dl>
           <dt>Issues</dt><dd>Bypass stays. Ready to Promote stays checked; Promote and Deploy is unchecked.</dd>
+          <dt>Blocked</dt><dd>The bypass ends and both boxes are unchecked. It can't be bypassed again until the merge is removed and the story is Issues or Clean.</dd>
           <dt>Failed</dt><dd>Nothing changes, but no box can be checked while Failed; a bypass doesn't cover a broken run. Verify again.</dd>
           <dt>Clean</dt><dd>The bypass ends.</dd>
         </dl></div>
       </details>
 
-      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R7</span><span class="stitle">New commits on a bypassed story</span><span class="sres"><span class="pill p-no">Boxes unchecked</span><span class="chev">▾</span></span></summary>
+      <details class="scn" style="--c: var(--orange)"><summary><span class="sid">R7</span><span class="stitle">New commits on a bypassed story</span><span class="sres"><span class="pill p-no">Bypass ends</span><span class="chev">▾</span></span></summary>
         <div class="scn-body"><dl>
-          <dt>See</dt><dd>Promote boxes are unchecked, as for any story.</dd>
-          <dt>Do</dt><dd>Verify before re-checking Ready to Promote. Your bypass was for the code you saw; new commits deserve a fresh look.</dd>
+          <dt>See</dt><dd>Promote boxes are unchecked, as for any story, and Bypass Verification unchecks itself. The commit you reviewed keeps no bypass for the new code.</dd>
+          <dt>Do</dt><dd>Verify again. If it's still Issues and you accept it, bypass again with a fresh reason.</dd>
         </dl></div>
       </details>
 
@@ -1290,7 +1320,7 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
           <tr><td>Add to a promotion</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-yes">Yes</span></td></tr>
           <tr class="group"><td colspan="3">Clean, newer commits since</td></tr>
           <tr><td>Ready to Promote / Promote and Deploy</td><td><span class="pill p-no">Verify again</span></td><td><span class="pill p-no">Verify again</span></td></tr>
-          <tr class="group"><td colspan="3">Not verified · Running · Failed</td></tr>
+          <tr class="group"><td colspan="3">Not verified · Running · Failed · Blocked</td></tr>
           <tr><td>Ready to Promote / Promote and Deploy</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
           <tr><td>Bypass Verification</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">Issues only</span></td></tr>
           <tr class="group"><td colspan="3">Issues · not bypassed</td></tr>
@@ -1298,14 +1328,14 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
           <tr><td>Add to a promotion</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
           <tr><td>Check Bypass Verification</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes, with reason</span></td></tr>
           <tr class="group"><td colspan="3">Issues · bypassed</td></tr>
-          <tr><td>Ready to Promote</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes*, after Yes/No</span></td></tr>
+          <tr><td>Ready to Promote</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes, after Yes/No†</span></td></tr>
           <tr><td>Promote and Deploy</td><td><span class="pill p-no">No</span></td><td><span class="pill p-no">No</span></td></tr>
           <tr><td>Add to a promotion</td><td><span class="pill p-no">No</span></td><td><span class="pill p-re">Yes</span></td></tr>
           <tr><td>Uncheck Bypass Verification</td><td><span class="pill p-no">Read-only</span></td><td><span class="pill p-yes">Yes</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted" style="font-size:.88rem">* Only when the PR is approved (or the story has no commits) and Pending Tests is 0.</p>
+    <p class="muted" style="font-size:.88rem">* Only when the PR is approved (or the story has no commits) and Pending Tests is 0.<br>† Pending tests and PR approval are skipped by the bypass; no newer commits are allowed.</p>
   </div>
 
   <div class="block" id="automatic">
@@ -1314,12 +1344,13 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
       <table>
         <thead><tr><th>When</th><th>What happens</th><th>Gate switched off</th></tr></thead>
         <tbody>
-          <tr><td>A push reaches <code>feature/US-…</code></td><td>Branch head recorded. If it isn't the verified commit, the promote boxes are unchecked.</td><td>Head recorded; boxes left alone</td></tr>
+          <tr><td>A push reaches <code>feature/US-…</code></td><td>Branch head recorded. If it isn't the verified commit, the promote boxes are unchecked and any bypass ends.</td><td>Head recorded; bypass ends; boxes left alone</td></tr>
           <tr><td>Verification ends <span class="pill p-no">Issues</span></td><td>Not bypassed: both boxes unchecked. Bypassed: Promote and Deploy unchecked, Ready to Promote kept.</td><td>Boxes left alone</td></tr>
+          <tr><td>Verification ends <span class="pill p-no">Blocked</span></td><td>Both boxes unchecked. Any bypass ends.</td><td>Bypass ends; boxes left alone</td></tr>
           <tr><td>Verification ends <span class="pill p-yes">Clean</span></td><td>Any bypass ends. Pushes recorded before the run count as checked.</td><td>Same</td></tr>
           <tr><td>Verification <span class="pill p-mid">Failed</span> or <span class="pill p-run">Running</span></td><td>Nothing changes.</td><td>Same</td></tr>
           <tr><td>Bypass Verification checked</td><td>Bypassed By and Bypassed At filled.</td><td>Same</td></tr>
-          <tr><td>Story added to a promotion</td><td>Refused if Issues, unless bypassed and added by a release engineer.</td><td>Allowed</td></tr>
+          <tr><td>Story added to a promotion</td><td>Refused if Blocked. Refused if Issues, unless bypassed and added by a release engineer.</td><td>Allowed</td></tr>
         </tbody>
       </table>
     </div>
@@ -1334,19 +1365,20 @@ sf org assign permset --name Copado_Story_Verification_Bypass --target-org <span
           <tr class="group"><td colspan="3">Checking Ready to Promote or Promote and Deploy</td></tr>
           <tr><td class="msg">This User Story has not been verified. Run Verify before Promote.</td><td><code>Story_Not_Verified</code></td><td>Verify.</td></tr>
           <tr><td class="msg">Verification is in progress. Promote is available once verification completes with a Clean result.</td><td><code>Story_Verification_Running</code></td><td>Wait.</td></tr>
-          <tr><td class="msg">Verification did not pass. Resolve the issues listed in Verification Details and run Verify again before Promote.</td><td><code>Story_Verification_Issues</code></td><td>Issues (not bypassed) or Failed. Fix, verify again.</td></tr>
+          <tr><td class="msg">Verification did not pass. Resolve the issues listed in Verification Details and run Verify again before Promote.</td><td><code>Story_Verification_Issues</code></td><td>Issues (not bypassed), Blocked or Failed. Fix, verify again.</td></tr>
           <tr><td class="msg">New commits were added after the last verification. Run Verify again before Promote.</td><td><code>New_Commits_After_Verification</code></td><td>Verify again.</td></tr>
           <tr><td class="msg">The feature branch has changed since the last verification. Run Verify again before Promote.</td><td><code>Branch_Changed_After_Verification</code></td><td>Verify again.</td></tr>
-          <tr><td class="msg">Pull request approval is required before Promote.</td><td><code>PR_Not_Approved</code></td><td>Get the PR approved.</td></tr>
-          <tr><td class="msg">All tests on this User Story must pass before Promote.</td><td><code>Tests_Pending</code></td><td>Run the tests.</td></tr>
+          <tr><td class="msg">Pull request approval is required before Promote.</td><td><code>PR_Not_Approved</code></td><td>Get the PR approved, or a release engineer bypasses an Issues story.</td></tr>
+          <tr><td class="msg">All tests on this User Story must pass before Promote.</td><td><code>Tests_Pending</code></td><td>Run the tests, or a release engineer bypasses an Issues story.</td></tr>
           <tr><td class="msg">Verification for this story was bypassed, but it still has issues. Only a release engineer can check Ready to Promote.</td><td><code>Bypassed_Promote_Release_Engineer_Only</code></td><td>Ask a release engineer.</td></tr>
           <tr><td class="msg">Verification for this story was bypassed, but it still has issues. Promote and Deploy is not allowed. Check Ready to Promote instead and deploy from the promotion.</td><td><code>Bypassed_No_Promote_And_Deploy</code></td><td>Use a promotion.</td></tr>
           <tr class="group"><td colspan="3">Checking Bypass Verification</td></tr>
           <tr><td class="msg">Only a release engineer can check Bypass Verification.</td><td><code>Bypass_Release_Engineer_Only</code></td><td>Ask a release engineer.</td></tr>
-          <tr><td class="msg">Bypass Verification is only needed when the last verification found issues.</td><td><code>Bypass_Only_When_Issues</code></td><td>Status isn't Issues.</td></tr>
+          <tr><td class="msg">Bypass Verification can only be checked when the last verification is Issues. A Blocked story cannot be bypassed: remove the branch merge and run Verify again.</td><td><code>Bypass_Only_When_Issues</code></td><td>Status isn't Issues. If Blocked, remove the merge.</td></tr>
           <tr><td class="msg">Enter a Bypass Reason to bypass verification for this story.</td><td><code>Bypass_Reason_Required</code></td><td>Add a reason.</td></tr>
           <tr class="group"><td colspan="3">Adding to a promotion</td></tr>
           <tr><td class="msg">US-… cannot be added to this promotion because its last verification found issues. Open the User Story, click Verify, fix the issues it lists, and add the story again once the verification is Clean.</td><td><code>StoryPromotionGuard</code></td><td>Fix and verify, or ask for a bypass.</td></tr>
+          <tr><td class="msg">US-… cannot be added to this promotion because another branch is merged into its feature branch (verification Blocked). A Blocked story cannot be bypassed. Remove the merge from the feature branch, click Verify, and add the story again once the verification is Clean.</td><td><code>StoryPromotionGuard</code></td><td>Remove the merge, verify again.</td></tr>
           <tr><td class="msg">Verification for US-… was bypassed, but it still has issues. Only a release engineer can add it to a promotion.</td><td><code>StoryPromotionGuard</code></td><td>Ask a release engineer.</td></tr>
           <tr class="group"><td colspan="3">Banners, prompts and popup</td></tr>
           <tr><td class="msg">Promote a bypassed story? …Do you want to proceed?</td><td><code>storyBypassBanner</code></td><td>OK keeps the box; Cancel unchecks it.</td></tr>
@@ -1386,10 +1418,10 @@ upsert c;</pre><button class="copy" type="button">Copy</button></div></div></li>
         <thead><tr><th>Part</th><th>Gate on</th><th>Gate off</th></tr></thead>
         <tbody>
           <tr><td>7 gate rules</td><td><span class="pill p-yes">Block</span></td><td><span class="pill p-grey">Never block</span></td></tr>
-          <tr><td>Promotion guard</td><td><span class="pill p-yes">Refuses Issues</span></td><td><span class="pill p-grey">Allows all</span></td></tr>
+          <tr><td>Promotion guard</td><td><span class="pill p-yes">Refuses Issues and Blocked</span></td><td><span class="pill p-grey">Allows all</span></td></tr>
           <tr><td>Bypassed-story rules (promote boxes)</td><td><span class="pill p-yes">Apply</span></td><td><span class="pill p-grey">Don't block</span></td></tr>
           <tr><td>Bypass field rules (RE only, Issues only, reason)</td><td><span class="pill p-yes">Apply</span></td><td><span class="pill p-yes">Still apply</span></td></tr>
-          <tr><td>Uncheck on push / on Issues</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-grey">No</span></td></tr>
+          <tr><td>Uncheck on push / on Issues or Blocked</td><td><span class="pill p-yes">Yes</span></td><td><span class="pill p-grey">No</span></td></tr>
           <tr><td>Verify</td><td><span class="pill p-yes">Gates promotion</span></td><td><span class="pill p-grey">Info only, grey banner</span></td></tr>
         </tbody>
       </table></div>
@@ -1560,7 +1592,8 @@ node scripts/build-create-records.js --check</pre><button class="copy" type="but
         <dt>Registered</dt><dd>Known to Copado: a commit with a User Story Commit record, or a component with a User Story Metadata record.</dd>
         <dt>Current</dt><dd>No commit has reached the branch since the commit the last verification checked.</dd>
         <dt>Gate rules</dt><dd>The 7 validation rules guarding Ready to Promote and Promote and Deploy.</dd>
-        <dt>Bypassed</dt><dd>A story with Issues on which a release engineer checked Bypass Verification with a reason.</dd>
+        <dt>Bypassed</dt><dd>A story with Issues on which a release engineer checked Bypass Verification with a reason. It also skips pending tests and PR approval, until Clean, Blocked or a new push.</dd>
+        <dt>Blocked</dt><dd>The verdict when another branch is merged into the feature branch. Nobody can bypass it.</dd>
         <dt>Release engineer</dt><dd>A holder of the Release Engineer permission set (custom permission <code>Bypass_Verification_Gate</code>).</dd>
         <dt>Promotion guard</dt><dd>The trigger that checks each story as it's added to a promotion.</dd>
       </dl>

@@ -39,6 +39,7 @@ const TIMEOUT_TEXT = 'Still running. You can close this window; open the story l
 const SUPERSEDED_TEXT =
     'A newer verification run has replaced this one. Close this window and open the story to see the latest result.';
 const CANCELLED_TEXT = 'Verification cancelled. The story stays blocked until it is verified again.';
+const CANCELLED_RESTORED_TEXT = 'Verification cancelled. The story is back to its previous result: ';
 
 // The three git checks run by the Copado Function (ids match function/index.js).
 // The sentence of one parent story finding as coloured parts: the parent is a link to the story, the environments are names (shown in
@@ -156,6 +157,8 @@ export default class StoryVerificationPopup extends LightningElement {
     timedOut = false;
     superseded = false;
     cancelled = false;
+    // The status the story went back to on Cancel (blank when it had never been verified).
+    restoredStatus;
     cancelling = false;
     runningElsewhere = false;
     // check id -> true/false once the user has toggled that row; untouched rows use the default (open for fail/warn).
@@ -321,7 +324,7 @@ export default class StoryVerificationPopup extends LightningElement {
         this.begin();
     }
 
-    // Stops polling first so no progress response lands after the cancel; the story is then marked Failed (not verified).
+    // Stops polling first so no progress response lands after the cancel; the story then goes back to its result from before the run.
     async handleCancel() {
         if (!this.canCancel && !this.runningElsewhere) {
             return;
@@ -341,6 +344,7 @@ export default class StoryVerificationPopup extends LightningElement {
             // Keep the last progress snapshot: the returned one has no run id, so it would read as a replaced run.
             if (result.cancelled) {
                 this.cancelled = true;
+                this.restoredStatus = result.status;
                 return;
             }
             // Finished or replaced just before the click: show that result as a normal poll would.
@@ -689,7 +693,9 @@ export default class StoryVerificationPopup extends LightningElement {
             return 'Verification could not be completed.';
         }
         if (this.cancelled) {
-            return CANCELLED_TEXT;
+            return ['Clean', 'Issues', 'Blocked'].includes(this.restoredStatus)
+                ? CANCELLED_RESTORED_TEXT + this.restoredStatus + '.'
+                : CANCELLED_TEXT;
         }
         if (this.timedOut) {
             return TIMEOUT_TEXT;
@@ -1148,7 +1154,7 @@ export default class StoryVerificationPopup extends LightningElement {
     }
 
     // A finished run reads "VERIFICATION FINISHED: <verdict>": the key is dark and the verdict is coloured (green for Clean,
-    // red for Issues and Failed). Every other state is one plain piece of text.
+    // red for Issues, Blocked and Failed). Every other state is one plain piece of text.
     get showsVerdict() {
         return !this.errorText && !this.timedOut && !this.superseded && this.isFinished;
     }

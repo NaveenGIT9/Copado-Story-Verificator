@@ -2,7 +2,7 @@
 <ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Story_Verification_Issues</fullName>
     <active>true</active>
-    <description>Story Verification Gate: blocks Ready to Promote and Promote and Deploy when the latest verification failed, or found issues and was not bypassed. Bypassed stories are handled by the Bypassed_* rules.</description>
+    <description>Story Verification Gate: blocks Ready to Promote and Promote and Deploy when the latest verification is Failed, Blocked (never bypassable), or Issues without a bypass. Bypassed stories are handled by the Bypassed_* rules.</description>
     <errorConditionFormula>AND(
   NOT($Setup.Story_Verification_Control__c.Disable_Story_Verification__c),
   OR(
@@ -11,6 +11,7 @@
   ),
   OR(
     ISPICKVAL(Verification_Status__c, "Failed"),
+    ISPICKVAL(Verification_Status__c, "Blocked"),
     AND(ISPICKVAL(Verification_Status__c, "Issues"), NOT(Bypass_Verification__c))
   )
 )</errorConditionFormula>

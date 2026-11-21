@@ -447,16 +447,41 @@ private class StoryVerificationControllerTest {
     }
 
     @IsTest
-    static void startSnapshotHasNoChecksBecauseTheyAreClearedAtStart() {
+    static void startSnapshotHidesTheChecksOfThePreviousRun() {
         User user = newUser('System Administrator', true);
         System.runAs(user) {
             Id storyId = story().Id;
             update new copado__User_Story__c(Id = storyId, Verification_Checks__c = '{"checks":[{"id":"a","status":"pass"}]}');
             StoryVerificationService.starter = new CapturingStarter();
 
+            update new copado__User_Story__c(Id = storyId, Verification_Details__c = 'INFO: old');
+
             StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.start(storyId);
 
             System.assertEquals(0, snapshot.checks.size());
+            System.assertEquals(0, snapshot.details.size());
+        }
+    }
+
+    @IsTest
+    static void cancelGivesBackTheResultFromBeforeTheRun() {
+        User user = newUser('System Administrator', true);
+        System.runAs(user) {
+            Id storyId = story().Id;
+            setState(storyId, 'Clean', null, 'INFO: all good');
+            update new copado__User_Story__c(Id = storyId, Verification_Checks__c = '{"checks":[{"id":"a","status":"pass"}]}');
+            StoryVerificationService.starter = new CapturingStarter();
+            String runId = StoryVerificationController.start(storyId).runId;
+
+            Test.startTest();
+            StoryVerificationController.ProgressSnapshot snapshot = StoryVerificationController.cancel(storyId, runId);
+            Test.stopTest();
+
+            System.assertEquals(true, snapshot.cancelled);
+            System.assertEquals('Clean', snapshot.status);
+            System.assertEquals(new List<String>{ 'INFO: all good' }, snapshot.details);
+            System.assertEquals(1, snapshot.checks.size());
+            System.assertEquals('Clean', story().Verification_Status__c);
         }
     }
 
@@ -495,7 +520,7 @@ private class StoryVerificationControllerTest {
                 FROM copado__User_Story__c
                 WHERE Id = :storyId
             ];
-            System.assertEquals('Failed', after.Verification_Status__c, 'A cancelled story must stay blocked');
+            System.assertEquals('Failed', after.Verification_Status__c, 'Without a saved previous result a cancelled story stays blocked');
             System.assertEquals(null, after.Verification_Run_Id__c);
             System.assertEquals(null, after.Verification_Checks__c);
             System.assert(after.Verification_Details__c.startsWith('Verification cancelled by '), after.Verification_Details__c);

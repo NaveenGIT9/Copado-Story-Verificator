@@ -149,6 +149,20 @@ private class StoryPromotionGuardTest {
     }
 
     @IsTest
+    static void aBlockedStoryIsRefusedForAReleaseEngineer() {
+        System.runAs(newUser(true)) {
+            Fixture f = build();
+            update new copado__User_Story__c(Id = f.issues.Id, Verification_Status__c = 'Blocked');
+
+            Database.SaveResult result = Database.insert(link(f, f.issues.Id), false);
+
+            System.assertEquals(false, result.isSuccess(), 'Blocked is refused for everyone');
+            System.assert(errorsOf(result).contains(f.issues.Name), errorsOf(result));
+            System.assert(errorsOf(result).contains('cannot be bypassed'), errorsOf(result));
+        }
+    }
+
+    @IsTest
     static void theOrgWideSwitchLetsTheStoryThrough() {
         System.runAs(newUser(true)) {
             insert new Story_Verification_Control__c(SetupOwnerId = UserInfo.getOrganizationId(), Disable_Story_Verification__c = true);
